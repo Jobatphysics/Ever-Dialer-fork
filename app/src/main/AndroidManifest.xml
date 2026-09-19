@@ -91,11 +91,12 @@
         android:enableOnBackInvokedCallback="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/ic_launcher_radium_green_phone"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:roundIcon="@mipmap/ic_launcher_radium_green_phone_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.RivoPhone">
+        android:theme="@style/Theme.RivoPhone"
+        tools:replace="android:icon,android:roundIcon">
 
         <activity
             android:name=".MainActivity"
@@ -284,7 +285,7 @@
             android:label="@string/app_name"
             android:icon="@mipmap/ic_launcher"
             android:roundIcon="@mipmap/ic_launcher_round"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -326,7 +327,7 @@
             android:label="@string/app_name"
             android:icon="@mipmap/ic_launcher_radium_green_phone"
             android:roundIcon="@mipmap/ic_launcher_radium_green_phone_round"
-            android:enabled="false"
+            android:enabled="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -975,7 +976,7 @@
             android:label="Recent Calls">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.coolappstore.everdialer.widget.ACTION_DIAL" />
+                <action android:name="com.android.libredialer.widget.ACTION_DIAL" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
@@ -1097,7 +1098,7 @@
             android:name=".controller.FakeCallReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.coolappstore.everdialer.by.svhp.FAKE_CALL_TRIGGER" />
+                <action android:name="com.android.libredialer.FAKE_CALL_TRIGGER" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>

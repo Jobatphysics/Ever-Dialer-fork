@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = 'com.coolappstore.everdialer.by.svhp'
+    namespace = 'com.android.libredialer'
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.coolappstore.everdialer.by.svhp"
+        applicationId = "com.android.libredialer"
         minSdk = 26
         targetSdk = 35
         versionCode = 14
