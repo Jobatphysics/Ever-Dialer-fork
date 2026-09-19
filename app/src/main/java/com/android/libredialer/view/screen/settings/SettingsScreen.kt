@@ -104,7 +104,6 @@ private val ColorIndigo  = Color(0xFF3F51B5)
 private val ColorBluGrey = Color(0xFF607D8B)
 private val ColorAmber   = Color(0xFFFFC107)
 private val ColorBrown   = Color(0xFF795548)
-private val ColorCyan    = Color(0xFF00BCD4)
 
 /**
  * The main settings list is built from a fixed sequence of `item { }` blocks (one per section
@@ -114,7 +113,7 @@ private val ColorCyan    = Color(0xFF00BCD4)
  * LazyColumn item index needs to be scrolled to before that row can be brought into view.
  */
 private val settingsSectionKeyGroups: List<List<String>> = listOf(
-    listOf("check_for_updates", "call_recording", "rate_and_review", "check_ratings", "more_apps", "donate"),
+    listOf("check_for_updates", "call_recording"),
     listOf("interface"),
     listOf("tap_haptics", "scroll_haptics"),
     listOf("authentication"),
@@ -138,10 +137,6 @@ fun SettingsScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
     // Set from the bundled Ever Call Recorder module's own Settings screen (writes straight into
     // this same "rivo_prefs" file), so just read it fresh each time this screen composes.
     val showRecordingMenuBelowUpdates = remember { prefs.getBoolean(PreferenceManager.KEY_SHOW_RECORDING_MENU_BELOW_UPDATES, false) }
-    val hideRateAndReview = remember(rateReviewSettingsVersion) {
-        prefs.getBoolean(PreferenceManager.KEY_HIDE_RATE_AND_REVIEW, false) ||
-            prefs.getBoolean(PreferenceManager.KEY_RATE_REVIEW_HIDDEN_SECRET, false)
-    }
     var notesEnabled by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_NOTES_ENABLED, true)) }
     var proximityBg by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_PROXIMITY_BG, true)) }
     var tapHapticsEnabled by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_APP_HAPTICS, true)) }
@@ -184,7 +179,6 @@ fun SettingsScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
     var showRestoreDialog by remember { mutableStateOf(false) }
     var pendingRestoreFile by remember { mutableStateOf<File?>(null) }
     var pendingRestoreContents by remember { mutableStateOf<BackupManager.BackupContents?>(null) }
-    var showDonateDialog by remember { mutableStateOf(false) }
 
     // Save backup file picker
     val saveBackupLauncher = rememberLauncherForActivityResult(
@@ -261,23 +255,6 @@ fun SettingsScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
         }
         lifecycleOwner?.lifecycle?.addObserver(observer)
         onDispose { lifecycleOwner?.lifecycle?.removeObserver(observer) }
-    }
-
-    if (showDonateDialog) {
-        com.android.libredialer.view.components.DonateOptionDialog(
-            onDismiss = { showDonateDialog = false },
-            onOpenBrowser = {
-                showDonateDialog = false
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://hariprabhu.com/Ever-Dialer/#donate")).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(intent)
-            },
-            onOpenInApp = {
-                showDonateDialog = false
-                navigator.navigate(com.ramcosta.composedestinations.generated.destinations.DonateWebViewScreenDestination)
-            }
-        )
     }
 
     // ── Haptics Dialog ────────────────────────────────────────────────────────
@@ -1774,60 +1751,6 @@ fun SettingsScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
                     }
                 }
             }
-
-            // ── Rate And Review ───────────────────────────────────────────────
-            if (!hideRateAndReview) item {
-                RivoAnimatedSection(delayMs = 30L) {
-                    Column {
-                        SectionLabel("Rate And Review")
-                        RivoExpressiveCard {
-                            RivoListItem(
-                                headline = "Rate and Review",
-                                supporting = "Share your feedback about Ever Dialer",
-                                leadingIcon = Icons.Default.Star,
-                                iconContainerColor = ColorCyan,
-                                trailingIcon = Icons.Default.ChevronRight,
-                                modifier = Modifier.settingsSearchHighlight("rate_and_review", highlightedSettingKey) { highlightedSettingKey = null },
-                                onClick = {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://docs.google.com/forms/d/e/1FAIpQLSdY2WYWDFfvLScsBBxfCWzozyA_4sHUCzfR1JycfzJKASvbfQ/viewform?usp=header"))
-                                    context.startActivity(intent)
-                                }
-                            )
-                            CardDivider()
-                            RivoListItem(
-                                headline = "Check Ratings and Reviews",
-                                supporting = "See what others are saying about Ever Dialer",
-                                leadingIcon = Icons.Default.Reviews,
-                                iconContainerColor = ColorGreen,
-                                trailingIcon = Icons.Default.ChevronRight,
-                                modifier = Modifier.settingsSearchHighlight("check_ratings", highlightedSettingKey) { highlightedSettingKey = null },
-                                onClick = { navigator.navigate(RatingsWebViewScreenDestination) }
-                            )
-                            CardDivider()
-                            RivoListItem(
-                                headline = "More Apps",
-                                supporting = "Check out other apps from the developer",
-                                leadingIcon = Icons.Default.Apps,
-                                iconContainerColor = ColorIndigo,
-                                trailingIcon = Icons.Default.ChevronRight,
-                                modifier = Modifier.settingsSearchHighlight("more_apps", highlightedSettingKey) { highlightedSettingKey = null },
-                                onClick = { navigator.navigate(com.ramcosta.composedestinations.generated.destinations.MoreAppsWebViewScreenDestination) }
-                            )
-                            CardDivider()
-                            RivoListItem(
-                                headline = "Donate",
-                                supporting = "Support this open source project",
-                                leadingIcon = Icons.Default.Favorite,
-                                iconContainerColor = ColorRed,
-                                trailingIcon = Icons.Default.OpenInNew,
-                                modifier = Modifier.settingsSearchHighlight("donate", highlightedSettingKey) { highlightedSettingKey = null },
-                                onClick = { showDonateDialog = true }
-                            )
-                        }
-                    }
-                }
-            }
-
 
             // ── Appearance ───────────────────────────────────────────────────
             item {

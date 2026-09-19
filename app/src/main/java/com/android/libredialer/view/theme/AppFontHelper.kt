@@ -13,6 +13,7 @@ object AppFontConstants {
     const val FONT_ID_COMFORTAA = "comfortaa"
     const val FONT_ID_PATRICK_HAND = "patrick_hand"
     const val FONT_ID_GOCHI_HAND = "gochi_hand"
+    const val FONT_ID_MY_FONT = "my_font"
 
     val OFL_1_1_LICENSE_TEXT = """
 SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
@@ -78,6 +79,13 @@ val PatrickHandFontFamily = FontFamily(
 
 val GochiHandFontFamily = FontFamily(
     Font(R.font.gochi_hand_regular, FontWeight.Normal)
+)
+
+val MyFontFamily = FontFamily(
+    Font(R.font.my_font, FontWeight.Normal),
+    Font(R.font.my_font, FontWeight.Medium),
+    Font(R.font.my_font, FontWeight.SemiBold),
+    Font(R.font.my_font, FontWeight.Bold)
 )
 
 data class AppFontItem(
@@ -174,15 +182,28 @@ Designed by Juan Pablo del Peral for HT Fonts. To contribute, see github.com/hue
         licenseName = "SIL Open Font License, Version 1.1",
         licenseText = AppFontConstants.OFL_1_1_LICENSE_TEXT,
         fontFamily = GochiHandFontFamily
+    ),
+    AppFontItem(
+        id = AppFontConstants.FONT_ID_MY_FONT,
+        name = "My Font",
+        styleTag = "Clean Geometric Sans",
+        designer = "Google",
+        about = "A clean, modern geometric sans-serif typeface optimized for legibility across digital interfaces.",
+        upstreamUrl = "https://fonts.google.com",
+        copyrightNotice = "Copyright Google LLC.",
+        licenseName = "Proprietary / Integrated",
+        licenseText = "This font is integrated as the default typeface for LibreDialer.",
+        fontFamily = MyFontFamily
     )
 )
 
 object AppFontHelper {
     fun resolveFontFamily(fontKeyOrPath: String?): FontFamily {
         if (fontKeyOrPath.isNullOrEmpty() || fontKeyOrPath == AppFontConstants.FONT_ID_SYSTEM) {
-            return FontFamily.Default
+            return MyFontFamily
         }
         return when (fontKeyOrPath) {
+            AppFontConstants.FONT_ID_MY_FONT -> MyFontFamily
             AppFontConstants.FONT_ID_PLAYWRITE -> PlaywriteUsModernFontFamily
             AppFontConstants.FONT_ID_COMFORTAA -> ComfortaaFontFamily
             AppFontConstants.FONT_ID_PATRICK_HAND -> PatrickHandFontFamily
@@ -207,6 +228,7 @@ object AppFontHelper {
             return "System (Default)"
         }
         return when (fontKeyOrPath) {
+            AppFontConstants.FONT_ID_MY_FONT -> "My Font"
             AppFontConstants.FONT_ID_PLAYWRITE -> "Playwrite USA Modern"
             AppFontConstants.FONT_ID_COMFORTAA -> "Comfortaa"
             AppFontConstants.FONT_ID_PATRICK_HAND -> "Patrick Hand"

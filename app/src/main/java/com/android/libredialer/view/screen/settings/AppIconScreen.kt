@@ -65,7 +65,6 @@ internal fun buildAppNamePresets(context: android.content.Context) = listOf(
     AppIconEntry("name_dialer",      "Dialer",                 null, context.resources.getIdentifier("ic_launcher", "mipmap", context.packageName)),
     AppIconEntry("name_call",        "Call",                  null, context.resources.getIdentifier("ic_launcher", "mipmap", context.packageName)),
     AppIconEntry("name_dial",        "Dial",                  null, context.resources.getIdentifier("ic_launcher", "mipmap", context.packageName)),
-    AppIconEntry("name_truephone",   "True Phone",             null, context.resources.getIdentifier("ic_launcher", "mipmap", context.packageName)),
     AppIconEntry("name_phonedialer", "Phone Dialer",           null, context.resources.getIdentifier("ic_launcher", "mipmap", context.packageName))
 )
 
@@ -94,7 +93,6 @@ private fun plainIconAliasName(iconKey: String): String = when (iconKey) {
 private fun nameSuffix(nameKey: String): String? = when (nameKey) {
     "name_call"        -> "Call"
     "name_dial"        -> "Dial"
-    "name_truephone"   -> "TruePhone"
     "name_phonedialer" -> "PhoneDialer"
     "name_phone"       -> "Phone"
     "name_dialer"      -> "Dialer"
@@ -108,7 +106,7 @@ internal fun aliasNameFor(iconKey: String, nameKey: String): String {
 }
 
 private val ALL_ICON_KEYS = listOf("default", "phone", "custom_phone", "radium_green_phone", "google", "nothing", "lineageos")
-private val ALL_NAME_KEYS = listOf("default", "name_phone", "name_dialer", "name_call", "name_dial", "name_truephone", "name_phonedialer")
+private val ALL_NAME_KEYS = listOf("default", "name_phone", "name_dialer", "name_call", "name_dial", "name_phonedialer")
 
 private fun allLauncherAliasNames(): List<String> =
     ALL_ICON_KEYS.flatMap { icon -> ALL_NAME_KEYS.map { name -> aliasNameFor(icon, name) } }.distinct()

@@ -65,7 +65,6 @@ import com.android.libredialer.controller.util.installApkAndScheduleDelete
 import com.android.libredialer.controller.util.isNewerVersion
 import com.android.libredialer.view.screen.CallActivity
 import com.android.libredialer.view.components.Android14WelcomeDialog
-import com.android.libredialer.view.components.TelegramJoinDialog
 import com.android.libredialer.view.components.FullScreenIntentDialog
 import com.android.libredialer.view.components.BottomBar
 import com.android.libredialer.view.components.enterNotesTab
@@ -261,16 +260,11 @@ class MainActivity : FragmentActivity() {
 
                 // ── First Launch / Android 14 Welcome Dialog ─────────────────
                 var showWelcomeDialog by remember { mutableStateOf(false) }
-                var showTelegramDialog by remember { mutableStateOf(false) }
                 var showFullScreenIntentDialog by remember { mutableStateOf(false) }
                 LaunchedEffect(Unit) {
                     if (needsWelcomeDialog) {
                         kotlinx.coroutines.delay(400)
                         showWelcomeDialog = true
-                    } else if (!prefs.getBoolean(PreferenceManager.KEY_TELEGRAM_SHOWN, false)) {
-                        // Welcome already done but Telegram dialog not yet shown — show it
-                        kotlinx.coroutines.delay(800)
-                        showTelegramDialog = true
                     } else if (needsFullScreenIntentPermission()) {
                         kotlinx.coroutines.delay(800)
                         showFullScreenIntentDialog = true
@@ -289,9 +283,7 @@ class MainActivity : FragmentActivity() {
                             prefs.setBoolean(PreferenceManager.KEY_FIRST_LAUNCH_DONE, true)
                             showWelcomeDialog = false
                             requestDefaultDialer()
-                            if (!prefs.getBoolean(PreferenceManager.KEY_TELEGRAM_SHOWN, false)) {
-                                showTelegramDialog = true
-                            } else if (needsFullScreenIntentPermission()) {
+                            if (needsFullScreenIntentPermission()) {
                                 showFullScreenIntentDialog = true
                             }
                         }
@@ -299,28 +291,6 @@ class MainActivity : FragmentActivity() {
                 }
 
                 // On subsequent launches, requestDefaultDialer is called in onCreate
-
-                // ── Telegram Support Dialog ─────────────────────────────────
-                if (showTelegramDialog) {
-                    TelegramJoinDialog(
-                        onJoin = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/EverlastingAndroidTweak"))
-                            startActivity(intent)
-                            prefs.setBoolean(PreferenceManager.KEY_TELEGRAM_SHOWN, true)
-                            showTelegramDialog = false
-                            if (needsFullScreenIntentPermission()) {
-                                showFullScreenIntentDialog = true
-                            }
-                        },
-                        onSkip = {
-                            prefs.setBoolean(PreferenceManager.KEY_TELEGRAM_SHOWN, true)
-                            showTelegramDialog = false
-                            if (needsFullScreenIntentPermission()) {
-                                showFullScreenIntentDialog = true
-                            }
-                        }
-                    )
-                }
 
                 // ── Full-Screen Intent Permission Dialog ─────────────────────
                 if (showFullScreenIntentDialog) {
@@ -419,32 +389,6 @@ class MainActivity : FragmentActivity() {
                     )
                 }
 
-                // ── Donate popup state ──────────────────────────────────────
-                var showDonateDialog by remember { mutableStateOf(false) }
-
-                LaunchedEffect(Unit) {
-                    val lastVersion = prefs.getString(PreferenceManager.KEY_LAST_APP_VERSION, null)
-                    val openCount = prefs.getInt(PreferenceManager.KEY_APP_OPEN_COUNT, 0) + 1
-                    prefs.setInt(PreferenceManager.KEY_APP_OPEN_COUNT, openCount)
-
-                    if (lastVersion == null) {
-                        // Fresh install
-                        prefs.setString(PreferenceManager.KEY_LAST_APP_VERSION, APP_VERSION)
-                        if (openCount == 4 && !prefs.getBoolean(PreferenceManager.KEY_DONATE_POPUP_SHOWN_INSTALL, false)) {
-                            showDonateDialog = true
-                        }
-                    } else if (lastVersion != APP_VERSION) {
-                        // App update!
-                        prefs.setString(PreferenceManager.KEY_LAST_APP_VERSION, APP_VERSION)
-                        showDonateDialog = true
-                    } else {
-                        // Same version
-                        if (openCount == 4 && !prefs.getBoolean(PreferenceManager.KEY_DONATE_POPUP_SHOWN_INSTALL, false)) {
-                            showDonateDialog = true
-                        }
-                    }
-                }
-
                 // ── Biometric blur + lock ─────────────────────────────────
                 val blurRadius by animateDpAsState(
                     targetValue = if (!isAppUnlocked || callAuthRequired) 22.dp else 0.dp,
@@ -458,24 +402,6 @@ class MainActivity : FragmentActivity() {
                     callSession?.state != android.telecom.Call.STATE_SELECT_PHONE_ACCOUNT &&
                     callSession?.state != android.telecom.Call.STATE_DISCONNECTED
                 val hasOngoingCall = isCallActive && callSession?.state != android.telecom.Call.STATE_RINGING
-
-                // ── Donate Popup Dialog (shows on update or 4th launch; if in call, waits until call ends) ──
-                if (showDonateDialog && !isCallActive && !showWelcomeDialog && !showTelegramDialog && !showFullScreenIntentDialog) {
-                    com.android.libredialer.view.components.DonateDialog(
-                        onDonate = {
-                            prefs.setBoolean(PreferenceManager.KEY_DONATE_POPUP_SHOWN_INSTALL, true)
-                            showDonateDialog = false
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://hariprabhu.com/Ever-Dialer/#donate")).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            startActivity(intent)
-                        },
-                        onLater = {
-                            prefs.setBoolean(PreferenceManager.KEY_DONATE_POPUP_SHOWN_INSTALL, true)
-                            showDonateDialog = false
-                        }
-                    )
-                }
 
                 Box(modifier = Modifier.fillMaxSize()) {
 

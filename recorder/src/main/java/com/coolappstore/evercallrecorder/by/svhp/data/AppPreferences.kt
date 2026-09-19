@@ -11,7 +11,10 @@ package com.coolappstore.evercallrecorder.by.svhp.data
 import android.content.Context
 import android.graphics.Typeface
 import android.net.Uri
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import com.coolappstore.evercallrecorder.by.svhp.R
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.coolappstore.evercallrecorder.by.svhp.integrations.scrcpy.ScrcpyAudioCodec
@@ -477,13 +480,33 @@ class AppPreferences(private val context: Context) {
      */
     fun getCustomFontFamily(): FontFamily {
         val path = context.getSharedPreferences(RIVO_PREFS_NAME, Context.MODE_PRIVATE)
-            .getString(KEY_CUSTOM_FONT_PATH, null) ?: return FontFamily.Default
+            .getString(KEY_CUSTOM_FONT_PATH, null)
+        
+        if (path.isNullOrEmpty() || path == "system" || path == "my_font") {
+            return FontFamily(
+                Font(R.font.my_font, FontWeight.Normal),
+                Font(R.font.my_font, FontWeight.Medium),
+                Font(R.font.my_font, FontWeight.SemiBold),
+                Font(R.font.my_font, FontWeight.Bold)
+            )
+        }
+
         val file = File(path)
-        if (!file.exists()) return FontFamily.Default
+        if (!file.exists()) return FontFamily(
+            Font(R.font.my_font, FontWeight.Normal),
+            Font(R.font.my_font, FontWeight.Medium),
+            Font(R.font.my_font, FontWeight.SemiBold),
+            Font(R.font.my_font, FontWeight.Bold)
+        )
         return try {
             FontFamily(Typeface.createFromFile(file))
         } catch (_: Exception) {
-            FontFamily.Default
+            FontFamily(
+                Font(R.font.my_font, FontWeight.Normal),
+                Font(R.font.my_font, FontWeight.Medium),
+                Font(R.font.my_font, FontWeight.SemiBold),
+                Font(R.font.my_font, FontWeight.Bold)
+            )
         }
     }
 }

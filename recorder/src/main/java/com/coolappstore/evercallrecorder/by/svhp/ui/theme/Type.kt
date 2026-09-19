@@ -10,12 +10,14 @@ package com.coolappstore.evercallrecorder.by.svhp.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.coolappstore.evercallrecorder.by.svhp.R
 
 // Set of Material typography styles to start with
-val Typography = buildTypography(FontFamily.Default)
+val Typography = buildTypography(FontFamily(Font(R.font.my_font)))
 
 /**
  * Builds a full [Typography] using [fontFamily] for every text style, so that a user-selected

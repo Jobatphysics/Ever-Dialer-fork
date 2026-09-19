@@ -111,16 +111,6 @@ fun Context.openGithubReportIssue() {
     launchSmartIntent(Intent(Intent.ACTION_VIEW).apply { data = AppUrls.GITHUB_NEW_ISSUE.toUri() })
 }
 
-/** Opens the Telegram support group. */
-fun Context.openTelegramSupportGroup() {
-    launchSmartIntent(Intent(Intent.ACTION_VIEW).apply { data = AppUrls.TELEGRAM_SUPPORT_GROUP.toUri() })
-}
-
-/** Opens the Telegram app channel. */
-fun Context.openTelegramChannel() {
-    launchSmartIntent(Intent(Intent.ACTION_VIEW).apply { data = AppUrls.TELEGRAM_CHANNEL.toUri() })
-}
-
 /** Opens any URL in the system browser. */
 fun Context.openUrlInBrowser(url: String) {
     launchSmartIntent(Intent(Intent.ACTION_VIEW).apply { data = url.toUri() })

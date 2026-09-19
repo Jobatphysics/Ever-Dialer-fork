@@ -62,8 +62,6 @@ import com.coolappstore.evercallrecorder.by.svhp.system.PersistentFolderPickerCo
 import com.coolappstore.evercallrecorder.by.svhp.system.copyToClipboard
 import com.coolappstore.evercallrecorder.by.svhp.system.openGithub
 import com.coolappstore.evercallrecorder.by.svhp.system.openGithubReportIssue
-import com.coolappstore.evercallrecorder.by.svhp.system.openTelegramSupportGroup
-import com.coolappstore.evercallrecorder.by.svhp.system.openTelegramChannel
 import com.coolappstore.evercallrecorder.by.svhp.system.openUrlInBrowser
 import com.coolappstore.evercallrecorder.by.svhp.system.storage.SafHelper
 import com.coolappstore.evercallrecorder.by.svhp.system.takePersistableFolderPermission
@@ -341,18 +339,6 @@ private fun AboutSection(versionString: String, onShowLicenses: () -> Unit) {
             headline = stringResource(R.string.settings_open_github),
             supporting = stringResource(R.string.settings_open_github_description),
             onClick = { context.openGithub() }
-        )
-        SectionListItem(
-            icon = Icons.Outlined.Forum,
-            headline = stringResource(R.string.settings_telegram_support),
-            supporting = stringResource(R.string.settings_telegram_support_description),
-            onClick = { context.openTelegramSupportGroup() }
-        )
-        SectionListItem(
-            icon = Icons.Outlined.Campaign,
-            headline = stringResource(R.string.settings_telegram_channel),
-            supporting = stringResource(R.string.settings_telegram_channel_description),
-            onClick = { context.openTelegramChannel() }
         )
         Spacer(Modifier.height(4.dp))
     }

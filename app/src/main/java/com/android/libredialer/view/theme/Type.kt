@@ -7,7 +7,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextGeometricTransform
 import androidx.compose.ui.unit.sp
 
-val Typography = buildTypography(FontFamily.Default, 1.0f)
+val Typography = buildTypography(MyFontFamily, 1.0f)
 
 fun buildTypography(
     fontFamily: FontFamily,
