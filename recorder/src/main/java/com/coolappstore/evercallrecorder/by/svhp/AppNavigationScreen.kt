@@ -322,8 +322,6 @@ fun AppNavigationScreen(openSettingsDirectly: Boolean = false) {
     }
     val resolvedAccentArgb: Int? = if (!isDynamicColor) accentArgb else null
     val resolvedDynamicColor = isDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-    val fontFamily = remember(settingsUpdateTrigger, rivoPrefsTrigger) { preferences.getCustomFontFamily() }
-
     key(rivoPrefsTrigger) {
         ShizucallrecorderTheme(
             darkTheme    = darkTheme,
@@ -331,7 +329,6 @@ fun AppNavigationScreen(openSettingsDirectly: Boolean = false) {
             accentArgb   = resolvedAccentArgb,
             isPureWhite  = isPureWhite,
             isPureBlack  = isPureBlack,
-            fontFamily   = fontFamily
         ) {
         // ── Fix status bar icon colours to match in-app theme ─────────────
         val view = LocalView.current

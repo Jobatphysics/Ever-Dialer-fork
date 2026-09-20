@@ -26,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.view.components.*
 import com.android.libredialer.view.theme.SettingsTransitionStyle
-import com.android.libredialer.view.theme.settingsMotionBlur
 import com.android.libredialer.controller.ContactsViewModel
 import com.android.libredialer.modal.data.ContactAccount
 import com.android.libredialer.modal.data.ContactGroup
@@ -177,7 +176,6 @@ fun SimAndCallPlacementScreen(
     }
 
     Scaffold(
-        modifier = Modifier.settingsMotionBlur(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             SettingsPillTopAppBar(

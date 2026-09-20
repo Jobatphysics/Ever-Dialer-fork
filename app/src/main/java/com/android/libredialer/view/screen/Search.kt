@@ -134,7 +134,7 @@ fun ContactSearchContent(
         PermissionDeniedView(
             icon = Icons.Default.Person,
             title = "Contacts Permission Required",
-            description = "To search your contacts and identify incoming calls, Ever Dialer needs access to your contacts.",
+            description = "To search your contacts and identify incoming calls, Phone needs access to your contacts.",
             onGrantClick = onRequestPermission
         )
         return

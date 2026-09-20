@@ -102,7 +102,8 @@ fun NewUiHost(
         NewUiDestination.Favorites -> NewFavoritesScreen(onContactClick = onContactClick)
         NewUiDestination.Settings -> NewSettingsScreen(
             selectedDestination = navigator.settingsDestination,
-            onNavigate = navigator::navigateSettings
+            onNavigate = navigator::navigateSettings,
+            onBack = navigator::back
         )
     }
 }

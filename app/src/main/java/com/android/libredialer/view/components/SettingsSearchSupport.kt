@@ -106,7 +106,6 @@ import com.ramcosta.composedestinations.generated.destinations.AnswerStyleScreen
 import com.ramcosta.composedestinations.generated.destinations.AppSettingsScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.BiometricScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.CallerUIScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.CustomFontScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.DefaultMessageAppScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.IncomingCallUIScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.InterfaceScreenDestination
@@ -216,10 +215,6 @@ val globalSettingsSearchEntries: List<GlobalSettingsSearchEntry> by lazy {
     listOf(
         // ── Rows that live directly on the main Settings screen ─────────────────
         GlobalSettingsSearchEntry("Check For Updates", "Current version: v$APP_VERSION", "check_for_updates", Icons.Default.SystemUpdate, GsColorAmber),
-        GlobalSettingsSearchEntry("Rate and Review", "Share your feedback about Ever Dialer", "rate_and_review", Icons.Default.Star, GsColorCyan),
-        GlobalSettingsSearchEntry("Check Ratings and Reviews", "See what others are saying about Ever Dialer", "check_ratings", Icons.Default.Reviews, GsColorGreen),
-        GlobalSettingsSearchEntry("More Apps", "Check out other apps from the developer", "more_apps", Icons.Default.Apps, GsColorIndigo),
-        GlobalSettingsSearchEntry("Donate", "Support this open source project", "donate", Icons.Default.Favorite, GsColorRed),
         GlobalSettingsSearchEntry("Interface", "Themes, colors, and layout", "interface", Icons.Outlined.Palette, GsColorPurple),
         GlobalSettingsSearchEntry("Tap Haptics", "Vibration on taps across the app", "tap_haptics", Icons.Outlined.Vibration, GsColorPurple),
         GlobalSettingsSearchEntry("Scroll Haptics", "Vibrate on scroll gestures across the app", "scroll_haptics", Icons.Outlined.SwipeVertical, GsColorIndigo),
@@ -227,13 +222,13 @@ val globalSettingsSearchEntries: List<GlobalSettingsSearchEntry> by lazy {
         GlobalSettingsSearchEntry("Interesting Settings !", "Call settings, network switcher, and notes", "app_settings", Icons.Outlined.Tune, GsColorTeal),
         GlobalSettingsSearchEntry("Contacts Hider", "Hide contacts behind a secret code", "contacts_hider", Icons.Outlined.Lock, Color(0xFF5E35B1)),
         GlobalSettingsSearchEntry("Fake Call", "Schedule fake incoming calls without calling the real person", "fake_call", Icons.Outlined.PhoneCallback, GsColorRed),
-        GlobalSettingsSearchEntry("Call Recording", "Open Ever Call Recorder", "call_recording", Icons.Default.FiberManualRecord, Color(0xFFE53935)),
+        GlobalSettingsSearchEntry("Call Recording", "Open Call Recorder", "call_recording", Icons.Default.FiberManualRecord, Color(0xFFE53935)),
         GlobalSettingsSearchEntry("Silence Unknown Callers", "Automatically decline calls from unknown numbers", "silence_unknown", Icons.Outlined.PhoneDisabled, GsColorRed),
         GlobalSettingsSearchEntry("Blocked Numbers", "Numbers you've blocked from calling you", "blocked_numbers", Icons.Outlined.PersonOff, GsColorBluGrey),
         GlobalSettingsSearchEntry("Auto Check For Updates", "Automatically check for updates when the app opens", "auto_check_updates", Icons.Default.Autorenew, GsColorAmber) { it.navigate(UpdatesScreenDestination) },
         GlobalSettingsSearchEntry("Create Backup", "Save app configuration, settings and calling cards", "create_backup", Icons.Default.Backup, GsColorGreen),
         GlobalSettingsSearchEntry("Restore Backup", "Restore app configuration, settings and calling cards", "restore_backup", Icons.Default.Restore, GsColorBrown),
-        GlobalSettingsSearchEntry("About Ever Dialer", "Version $APP_VERSION · Developer info", "about_app", Icons.Outlined.Info, GsColorBluGrey),
+        GlobalSettingsSearchEntry("About Phone", "Version $APP_VERSION · Developer info", "about_app", Icons.Outlined.Info, GsColorBluGrey),
 
         // ── App Settings screen ──────────────────────────────────────────────────
         GlobalSettingsSearchEntry("Interesting Settings !", "Call features, Volume DND, network switcher, notes", "app_settings", Icons.Outlined.Tune, GsColorTeal) { it.navigate(AppSettingsScreenDestination()) },
@@ -250,7 +245,7 @@ val globalSettingsSearchEntries: List<GlobalSettingsSearchEntry> by lazy {
         GlobalSettingsSearchEntry("Use SIM based on call logs history on any call", "Automatically select the same SIM from call log history", "use_sim_from_call_log", Icons.Outlined.History, Color(0xFF3F51B5)) { it.navigate(SimAndCallPlacementScreenDestination(highlightKey = "use_sim_from_call_log")) },
         GlobalSettingsSearchEntry("Customize SIM Colors", "Choose custom colors for SIM 1 and SIM 2", "customize_sim_colors", Icons.Outlined.Palette, GsColorAmber) { it.navigate(SimAndCallPlacementScreenDestination(highlightKey = "customize_sim_colors")) },
         GlobalSettingsSearchEntry("Contacts to display", "Choose which accounts' contacts are shown", "contacts_to_display", Icons.Outlined.Contacts, GsColorBlue) { it.navigate(SimAndCallPlacementScreenDestination(highlightKey = "contacts_to_display")) },
-        GlobalSettingsSearchEntry("Missed Call Notification", "Show missed call notifications through Ever Dialer", "missed_call_notification", Icons.AutoMirrored.Filled.CallMissed, GsColorRed) { it.navigate(SimAndCallPlacementScreenDestination(highlightKey = "missed_call_notification")) },
+        GlobalSettingsSearchEntry("Missed Call Notification", "Show missed call notifications through Phone", "missed_call_notification", Icons.AutoMirrored.Filled.CallMissed, GsColorRed) { it.navigate(SimAndCallPlacementScreenDestination(highlightKey = "missed_call_notification")) },
 
         // ── Call Features & Behavior ─────────────────────────────────────────────
         GlobalSettingsSearchEntry("Device Orientation with Proximity Sensor", "Combine orientation and proximity to prevent false screen-offs during a call", "proximity_orientation_bg", Icons.Outlined.ScreenLockPortrait, GsColorPink) { it.navigate(AppSettingsScreenDestination(highlightKey = "proximity_orientation_bg")) },
@@ -314,8 +309,6 @@ val globalSettingsSearchEntries: List<GlobalSettingsSearchEntry> by lazy {
         // ── Interface screen ──────────────────────────────────────────────────────
         GlobalSettingsSearchEntry("Dynamic Colors", "Match app colors to your wallpaper (Material You)", "dynamic_colors", Icons.Outlined.Palette, GsColorPurple) { it.navigate(InterfaceScreenDestination(highlightKey = "dynamic_colors")) },
         GlobalSettingsSearchEntry("Saturated Colors", "Apply rich saturated colors behind containers", "saturated_colors", Icons.Outlined.Palette, GsColorAmber) { it.navigate(InterfaceScreenDestination(highlightKey = "saturated_colors")) },
-        GlobalSettingsSearchEntry("Material Blur Effects", "Blur effects across the interface", "blur_effects_toggle", Icons.Outlined.Palette, GsColorIndigo) { it.navigate(InterfaceScreenDestination(highlightKey = "blur_effects_toggle")) },
-        GlobalSettingsSearchEntry("Elements to have blur effect", "Choose where blur effects apply", "blur_effects_elements_link", Icons.Outlined.Palette, GsColorIndigo) { it.navigate(InterfaceScreenDestination(highlightKey = "blur_effects_elements_link")) },
         GlobalSettingsSearchEntry("Hangup Animation", "Animate the screen when a call ends", "hangup_animation", Icons.Outlined.Palette, GsColorRed) { it.navigate(InterfaceScreenDestination(highlightKey = "hangup_animation")) },
         GlobalSettingsSearchEntry("Incoming Call UI", "Customize the incoming call screen", "incoming_call_ui_link", Icons.Outlined.Palette, GsColorGreen) { it.navigate(InterfaceScreenDestination(highlightKey = "incoming_call_ui_link")) },
         GlobalSettingsSearchEntry("Ongoing Call UI", "Customize the in-call screen layout", "caller_ui_link", Icons.Outlined.Palette, GsColorGreen) { it.navigate(InterfaceScreenDestination(highlightKey = "caller_ui_link")) },
@@ -324,8 +317,6 @@ val globalSettingsSearchEntries: List<GlobalSettingsSearchEntry> by lazy {
         GlobalSettingsSearchEntry("Tab Sections", "Choose which bottom tabs are visible", "tab_sections", Icons.Outlined.Palette, GsColorAmber) { it.navigate(InterfaceScreenDestination(highlightKey = "tab_sections")) },
         GlobalSettingsSearchEntry("Contact Info Elements", "Choose which elements appear in contact details", "contact_info_elements", Icons.Outlined.Palette, GsColorAmber) { it.navigate(InterfaceScreenDestination(highlightKey = "contact_info_elements")) },
         GlobalSettingsSearchEntry("Default Tab Section", "Which tab opens when you launch the app", "default_tab_section", Icons.Outlined.Palette, GsColorAmber) { it.navigate(InterfaceScreenDestination(highlightKey = "default_tab_section")) },
-        GlobalSettingsSearchEntry("Animation Style", "Zoom (in/out) or Windows Phone transition", "animation_style", Icons.Outlined.Animation, GsColorTeal) { it.navigate(InterfaceScreenDestination(highlightKey = "animation_style")) },
-        GlobalSettingsSearchEntry("Motion Blur in Animation", "Apply dynamic motion blur during page transitions", "motion_blur_animation", Icons.Outlined.BlurOn, GsColorPurple) { it.navigate(InterfaceScreenDestination(highlightKey = "motion_blur_animation")) },
         GlobalSettingsSearchEntry("Scroll Animation", "Animate list scrolling", "scroll_animation", Icons.Outlined.Palette, GsColorBlue) { it.navigate(InterfaceScreenDestination(highlightKey = "scroll_animation")) },
         GlobalSettingsSearchEntry("Pill Style Navigation", "Pill-shaped bottom navigation bar", "pill_style_nav", Icons.Outlined.Palette, GsColorPurple) { it.navigate(InterfaceScreenDestination(highlightKey = "pill_style_nav")) },
         GlobalSettingsSearchEntry("Group numbers in call logs based on latest calls", "Group call logs by number and sort by latest calls", "group_calls_by_latest", Icons.Outlined.Palette, GsColorBlue) { it.navigate(InterfaceScreenDestination(highlightKey = "group_calls_by_latest")) },
@@ -341,16 +332,12 @@ val globalSettingsSearchEntries: List<GlobalSettingsSearchEntry> by lazy {
         GlobalSettingsSearchEntry("Icon-Only Bottom Bar", "Hide labels on the bottom navigation bar", "icon_only_bottom_bar", Icons.Outlined.Palette, GsColorIndigo) { it.navigate(InterfaceScreenDestination(highlightKey = "icon_only_bottom_bar")) },
         GlobalSettingsSearchEntry("Open Dialpad by Default", "Launch straight into the dialpad", "open_dialpad_default", Icons.Outlined.Palette, GsColorBlue) { it.navigate(InterfaceScreenDestination(highlightKey = "open_dialpad_default")) },
         GlobalSettingsSearchEntry("Show favourites in list", "Display favourites in a vertical list instead of grid", "favorites_in_list", Icons.Outlined.Palette, GsColorPink) { it.navigate(InterfaceScreenDestination(highlightKey = "favorites_in_list")) },
-        GlobalSettingsSearchEntry("Hide Rate and Review", "Hide Rate and Review tile in settings", "hide_rate_and_review", Icons.Outlined.Palette, GsColorTeal) { it.navigate(InterfaceScreenDestination(highlightKey = "hide_rate_and_review")) },
         GlobalSettingsSearchEntry("Show First Letter in Avatar", "Fallback avatar shows a contact's initial", "avatar_first_letter", Icons.Outlined.Palette, GsColorAmber) { it.navigate(InterfaceScreenDestination(highlightKey = "avatar_first_letter")) },
         GlobalSettingsSearchEntry("Solid Icons", "Use solid background behind icons without colors", "solid_icons", Icons.Outlined.Palette, GsColorBluGrey) { it.navigate(InterfaceScreenDestination(highlightKey = "solid_icons")) },
         GlobalSettingsSearchEntry("Circle Icons", "Use circle shapes for icons across the app", "circle_icons", Icons.Outlined.Palette, GsColorCyan) { it.navigate(InterfaceScreenDestination(highlightKey = "circle_icons")) },
         GlobalSettingsSearchEntry("Use Colorful Avatars", "Give fallback avatars varied colors", "colorful_avatars", Icons.Outlined.Palette, GsColorPurple) { it.navigate(InterfaceScreenDestination(highlightKey = "colorful_avatars")) },
         GlobalSettingsSearchEntry("Show Picture in Avatar", "Show a contact's photo in their avatar", "avatar_picture", Icons.Outlined.Palette, GsColorGreen) { it.navigate(InterfaceScreenDestination(highlightKey = "avatar_picture")) },
-        GlobalSettingsSearchEntry("App Icon (Change)", "Choose a custom launcher icon", "app_icon_link", Icons.Outlined.Palette, GsColorRed) { it.navigate(InterfaceScreenDestination(highlightKey = "app_icon_link")) },
-        GlobalSettingsSearchEntry("App Name (Change)", "Change the name shown for the app", "app_name_link", Icons.Outlined.Badge, GsColorTeal) { it.navigate(InterfaceScreenDestination(highlightKey = "app_name_link")) },
         GlobalSettingsSearchEntry("Show call logs in the dialpad search list", "Show recent call logs in the search list when nothing is typed or searched", "show_call_logs_in_dialpad_search_list", Icons.Outlined.History, GsColorTeal) { it.navigate(InterfaceScreenDestination(highlightKey = "show_call_logs_in_dialpad_search_list")) },
-        GlobalSettingsSearchEntry("Fonts", "Typography styles, Playwrite USA Modern, Comfortaa, Patrick Hand, Gochi Hand, and font scaling", "fonts", Icons.Outlined.TextFormat, GsColorPurple) { it.navigate(CustomFontScreenDestination()) },
 
         // ── Incoming Call UI screen ──────────────────────────────────────────────
         GlobalSettingsSearchEntry("Show Full screen call UI on any apps", "Open full screen incoming call UI over any app", "show_fullscreen_call_ui_on_any_apps", Icons.Outlined.Call, GsColorGreen) { it.navigate(IncomingCallUIScreenDestination(highlightKey = "show_fullscreen_call_ui_on_any_apps")) },
@@ -372,11 +359,6 @@ val globalSettingsSearchEntries: List<GlobalSettingsSearchEntry> by lazy {
         GlobalSettingsSearchEntry("Show Phone Number in Ongoing Call", "Display phone number on ongoing call screen", "ongoing_show_phone_number", Icons.Outlined.Call, GsColorGreen) { it.navigate(CallerUIScreenDestination(highlightKey = "ongoing_show_phone_number")) },
 
         // ── About screen ──────────────────────────────────────────────────────────
-        GlobalSettingsSearchEntry("Made By Hari", "Developer info", "made_by_hari", Icons.Outlined.Info, GsColorBluGrey) { it.navigate(AboutAppScreenDestination(highlightKey = "made_by_hari")) },
-        GlobalSettingsSearchEntry("Source Code", "View Ever Dialer's source on GitHub", "source_code", Icons.Outlined.Info, GsColorBluGrey) { it.navigate(AboutAppScreenDestination(highlightKey = "source_code")) },
-        GlobalSettingsSearchEntry("Telegram App Support Group", "Get help and discuss the app", "telegram_support", Icons.Outlined.Info, GsColorBlue) { it.navigate(AboutAppScreenDestination(highlightKey = "telegram_support")) },
-        GlobalSettingsSearchEntry("App Recommending Channel in Telegram", "Follow for app announcements", "telegram_channel", Icons.Outlined.Info, GsColorBlue) { it.navigate(AboutAppScreenDestination(highlightKey = "telegram_channel")) },
-        GlobalSettingsSearchEntry("My Other App (Everlasting Android Tweak)", "Check out the developer's other app", "other_app_link", Icons.Outlined.Info, GsColorIndigo) { it.navigate(AboutAppScreenDestination(highlightKey = "other_app_link")) }
     )
 }
 

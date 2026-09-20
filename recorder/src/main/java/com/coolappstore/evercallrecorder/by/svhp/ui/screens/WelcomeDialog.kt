@@ -1,7 +1,5 @@
 package com.coolappstore.evercallrecorder.by.svhp.ui.screens
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -10,8 +8,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Celebration
-import androidx.compose.material.icons.outlined.Groups
-import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,9 +16,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -30,8 +24,6 @@ import androidx.compose.ui.window.DialogProperties
 
 @Composable
 fun WelcomeDialog(onDismiss: () -> Unit) {
-    val context = LocalContext.current
-
     var visible by remember { mutableStateOf(false) }
     val alpha by animateFloatAsState(targetValue = if (visible) 1f else 0f, animationSpec = tween(380), label = "alpha")
     val scale by animateFloatAsState(targetValue = if (visible) 1f else 0.91f, animationSpec = tween(380), label = "scale")
@@ -149,49 +141,11 @@ fun WelcomeDialog(onDismiss: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Surface(shape = RoundedCornerShape(14.dp), color = primaryCont.copy(alpha = 0.40f), modifier = Modifier.fillMaxWidth()) {
-                        Row(modifier = Modifier.padding(10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top) {
-                            Icon(Icons.Outlined.Groups, null, tint = primary, modifier = Modifier.size(20.dp).padding(top = 1.dp))
-                            Text(
-                                text = "You can support me only by joining my Telegram Channel and the App Support Group by navigating to Settings > About",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = onSurface,
-                                lineHeight = 20.sp
-                            )
-                        }
-                    }
-
-                    Surface(shape = RoundedCornerShape(10.dp), color = secondaryCont.copy(alpha = 0.55f), modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            text = "Announcements · Updates · Feature Requests · Bug Fixes · Support",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = onSecondaryCont,
-                            textAlign = TextAlign.Center,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                            lineHeight = 17.sp
-                        )
-                    }
-
                     Spacer(Modifier.height(2.dp))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = onDismiss, modifier = Modifier.weight(1f), shape = CircleShape) {
                             Text("Continue", style = MaterialTheme.typography.labelLarge, color = onSurfaceVar)
-                        }
-                        Button(
-                            onClick = {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://t.me/EverlastingAndroidTweak")))
-                                onDismiss()
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(containerColor = primary, contentColor = MaterialTheme.colorScheme.onPrimary),
-                            contentPadding = PaddingValues(vertical = 10.dp, horizontal = 12.dp)
-                        ) {
-                            Icon(Icons.Outlined.Send, null, Modifier.size(16.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Join", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

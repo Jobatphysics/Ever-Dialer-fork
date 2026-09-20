@@ -33,7 +33,6 @@ import com.android.libredialer.controller.util.BackgroundMediaManager
 import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.view.components.*
 import com.android.libredialer.view.theme.SettingsTransitionStyle
-import com.android.libredialer.view.theme.settingsMotionBlur
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
@@ -119,7 +118,6 @@ fun AnswerStyleScreen(
     )
 
     Scaffold(
-        modifier = Modifier.settingsMotionBlur(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             SettingsPillTopAppBar(

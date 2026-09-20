@@ -9,33 +9,20 @@
 package com.coolappstore.evercallrecorder.by.svhp.data
 
 import android.content.Context
-import android.graphics.Typeface
 import android.net.Uri
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import com.coolappstore.evercallrecorder.by.svhp.R
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.coolappstore.evercallrecorder.by.svhp.integrations.scrcpy.ScrcpyAudioCodec
 import com.coolappstore.evercallrecorder.by.svhp.integrations.scrcpy.ScrcpyAudioSource
-import java.io.File
 
 class AppPreferences(private val context: Context) {
 
     companion object {
         private const val PREFS_NAME = "evercallrecorder_prefs"
+        private const val RIVO_PREFS_NAME = "rivo_prefs"
         // Default accent color: original green (ARGB packed as Int)
         // Equivalent to Color(0xFF386B20): alpha=255, R=56, G=107, B=32
         val DEFAULT_ACCENT_ARGB: Int = (255 shl 24) or (0x38 shl 16) or (0x6B shl 8) or 0x20
-
-        // The custom font chosen in Ever Dialer's own settings (Settings → Interface) is stored
-        // in that app's "rivo_prefs" SharedPreferences, under these keys. Both modules ship in the
-        // same app process, so the recorder module reads that same file/key here directly to stay
-        // in sync with whatever font the user picked, instead of ignoring it and always falling
-        // back to the system default font.
-        private const val RIVO_PREFS_NAME = "rivo_prefs"
-        private const val KEY_CUSTOM_FONT_PATH = "custom_font_path"
         // Theme mode & dynamic color used to be separate, duplicate settings here — now the
         // recorder module has no theme/appearance controls of its own and simply follows
         // whatever Ever Dialer's own Settings → Interface screen has set, read directly from
@@ -472,41 +459,5 @@ class AppPreferences(private val context: Context) {
     fun setPostRecordingFileActionsNotificationEnabled(enabled: Boolean) =
         setBoolean(Key.POST_RECORDING_FILE_ACTIONS_NOTIFICATION, enabled)
 
-    // ── Custom font (shared with Ever Dialer's Settings → Interface) ───────────
-    /**
-     * Returns the [FontFamily] for whatever custom font the user set in Ever Dialer's own
-     * Settings → Interface screen, or [FontFamily.Default] if none was set or the font file no
-     * longer exists.
-     */
-    fun getCustomFontFamily(): FontFamily {
-        val path = context.getSharedPreferences(RIVO_PREFS_NAME, Context.MODE_PRIVATE)
-            .getString(KEY_CUSTOM_FONT_PATH, null)
-        
-        if (path.isNullOrEmpty() || path == "system" || path == "my_font") {
-            return FontFamily(
-                Font(R.font.my_font, FontWeight.Normal),
-                Font(R.font.my_font, FontWeight.Medium),
-                Font(R.font.my_font, FontWeight.SemiBold),
-                Font(R.font.my_font, FontWeight.Bold)
-            )
-        }
 
-        val file = File(path)
-        if (!file.exists()) return FontFamily(
-            Font(R.font.my_font, FontWeight.Normal),
-            Font(R.font.my_font, FontWeight.Medium),
-            Font(R.font.my_font, FontWeight.SemiBold),
-            Font(R.font.my_font, FontWeight.Bold)
-        )
-        return try {
-            FontFamily(Typeface.createFromFile(file))
-        } catch (_: Exception) {
-            FontFamily(
-                Font(R.font.my_font, FontWeight.Normal),
-                Font(R.font.my_font, FontWeight.Medium),
-                Font(R.font.my_font, FontWeight.SemiBold),
-                Font(R.font.my_font, FontWeight.Bold)
-            )
-        }
-    }
 }

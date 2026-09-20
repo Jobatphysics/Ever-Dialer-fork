@@ -57,17 +57,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.libredialer.controller.util.PreferenceManager
-import com.android.libredialer.view.theme.isWindowsPhoneAnimation
-import com.android.libredialer.view.theme.wpTurnstileCard
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.graphicsLayer
-import com.android.libredialer.liquidglass.drawPlainBackdrop
-import com.android.libredialer.liquidglass.effects.blur
-import com.android.libredialer.liquidglass.LocalLiquidGlassBackdrop
 
 // ─── App Haptics Helper ────────────────────────────────────────────────────────
 
@@ -243,13 +238,6 @@ fun RivoAnimatedSection(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    if (isWindowsPhoneAnimation()) {
-        Box(modifier = modifier.wpTurnstileCard(delayMs = delayMs.toInt())) {
-            content()
-        }
-        return
-    }
-
     val anim = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
         if (delayMs > 0L) kotlinx.coroutines.delay(delayMs)
@@ -703,7 +691,6 @@ fun RivoListItem(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = {
-                        com.android.libredialer.view.theme.SettingsClickTracker.recordTap(0f, 0f, 0f, 0f)
                         if (prefs.getBoolean(PreferenceManager.KEY_APP_HAPTICS, true)) {
                             performAppHaptic(
                                 context,
@@ -1119,8 +1106,6 @@ fun RivoDropdownMenu(
 ) {
     val prefs = koinInject<PreferenceManager>()
     val settingsVer by prefs.settingsChanged.collectAsState()
-    val blurEffects = remember(settingsVer) { prefs.getBoolean(PreferenceManager.KEY_BLUR_EFFECTS, false) }
-    val blurDropdownMenu = remember(settingsVer) { prefs.getBoolean(PreferenceManager.KEY_BLUR_DROPDOWN_MENU, false) }
     var showContent by remember { mutableStateOf(false) }
 
     LaunchedEffect(expanded) {
@@ -1191,8 +1176,6 @@ fun RivoDropdownMenu(
                         ) + fadeOut(tween(200))
                     ) {
                         val menuShape = RoundedCornerShape(35.dp)
-                        val globalBackdrop = LocalLiquidGlassBackdrop.current
-                        val useBlurDropdown = blurEffects && blurDropdownMenu
 
                         Box(
                             modifier = Modifier
@@ -1215,28 +1198,13 @@ fun RivoDropdownMenu(
                                 )
                         ) {
                             val dropdownShape = RoundedCornerShape(24.dp)
-                            if (useBlurDropdown && globalBackdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth().drawPlainBackdrop(
-                                        backdrop = globalBackdrop,
-                                        shape    = { dropdownShape },
-                                        effects  = { blur(30f * density) }
-                                    ),
-                                    shape = dropdownShape,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f),
-                                    tonalElevation = 0.dp
-                                ) {
-                                    Column(modifier = Modifier.padding(vertical = 8.dp)) { content() }
-                                }
-                            } else {
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = dropdownShape,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    tonalElevation = 0.dp
-                                ) {
-                                    Column(modifier = Modifier.padding(vertical = 8.dp)) { content() }
-                                }
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = dropdownShape,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                tonalElevation = 0.dp
+                            ) {
+                                Column(modifier = Modifier.padding(vertical = 8.dp)) { content() }
                             }
                         }
                     }

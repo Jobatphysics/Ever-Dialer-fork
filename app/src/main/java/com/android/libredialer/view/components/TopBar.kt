@@ -35,9 +35,8 @@ import com.ramcosta.composedestinations.generated.destinations.SearchScreenDesti
 import com.ramcosta.composedestinations.generated.destinations.SettingsScreenDestination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import org.koin.compose.koinInject
-import com.android.libredialer.view.theme.wpTurnstileHeader
 
-/** The pill-shaped, non-editable "Search in Ever Dialer" bar — tapping it opens the single
+/** The pill-shaped, non-editable "Search in Phone" bar — tapping it opens the single
  *  unified [SearchScreenDestination] (contacts, non-contacts, contact notes, recording notes).
  *  Shown at the top of the main tabs (via [TopBar]) as well as Settings, Notes, and Recordings,
  *  so every entry point into search looks and behaves identically. */
@@ -82,7 +81,7 @@ fun SearchBarPill(navigator: DestinationsNavigator, modifier: Modifier = Modifie
                 tint = searchBarFg
             )
             Text(
-                text = "Search in Ever Dialer",
+                text = "Search in Phone",
                 style = MaterialTheme.typography.bodyLarge,
                 color = searchBarFg,
                 modifier = Modifier.weight(1f)
@@ -234,7 +233,7 @@ fun SettingsPillTopAppBar(
         contentAlignment = Alignment.CenterStart
     ) {
         Surface(
-            modifier = Modifier.wrapContentSize().wpTurnstileHeader(),
+            modifier = Modifier.wrapContentSize(),
             shape = RoundedCornerShape(36.dp),
             color = pillBackground,
             tonalElevation = 0.dp,
@@ -318,5 +317,3 @@ fun SettingsPillTopAppBar(
         actions = actions
     )
 }
-
-

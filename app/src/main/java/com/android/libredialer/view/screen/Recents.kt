@@ -366,24 +366,18 @@ fun RecentScreen(navController: NavController, navigator: DestinationsNavigator)
         topBar = { TopBar(navController, navigator) },
         floatingActionButton = {
             val settingsVer by prefs.settingsChanged.collectAsState()
-            val blurEffects = remember(settingsVer) { prefs.getBoolean(com.android.libredialer.controller.util.PreferenceManager.KEY_BLUR_EFFECTS, false) }
-            val blurRecentsFab = remember(settingsVer) { prefs.getBoolean(com.android.libredialer.controller.util.PreferenceManager.KEY_BLUR_RECENTS_FAB, false) }
             val isDark = androidx.core.graphics.ColorUtils.calculateLuminance(MaterialTheme.colorScheme.surface.toArgb()) < 0.5
             val isSaturatedActive = remember(settingsVer, isDark) { prefs.isSaturatedForTheme(isDark) }
             val fabBg = if (isSaturatedActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer
             val fabFg = if (isSaturatedActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
             val fabShape = RoundedCornerShape(17.dp)
-            val useBlur = blurEffects && blurRecentsFab
             val baseModifier = Modifier
                 .scale(fabScale)
                 .then(if (pillNav) Modifier.navigationBarsPadding().padding(bottom = 92.dp) else Modifier)
                 .then(if (isLandscape) Modifier.navigationBarsPadding().padding(bottom = 8.dp) else Modifier)
             FloatingActionButton(
                     onClick = { showDialpad = true },
-                    containerColor = if (useBlur)
-                        fabBg.copy(alpha = 0.75f)
-                    else
-                        fabBg,
+                    containerColor = fabBg,
                     contentColor = fabFg,
                     shape = fabShape,
                     elevation = FloatingActionButtonDefaults.elevation(
@@ -1236,7 +1230,7 @@ fun CallLogFullContent(
         PermissionDeniedView(
             icon = Icons.Default.Call,
             title = "Call History",
-            description = "Ever Dialer needs access to your call logs to show your recent activity and missed calls.",
+            description = "Phone needs access to your call logs to show your recent activity and missed calls.",
             onGrantClick = onRequestPermission
         )
     }

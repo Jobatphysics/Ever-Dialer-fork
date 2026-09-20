@@ -55,7 +55,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.window.DialogProperties
 import com.android.libredialer.view.theme.SettingsTransitionStyle
-import com.android.libredialer.view.theme.settingsMotionBlur
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
@@ -117,7 +116,6 @@ fun BiometricScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
     }
 
     Scaffold(
-        modifier = Modifier.settingsMotionBlur(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             com.android.libredialer.view.components.SettingsPillTopAppBar(
@@ -163,7 +161,7 @@ fun BiometricScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                     RivoExpressiveCard {
                         RivoSwitchListItem(
                             headline = "Lock App on Open",
-                            supporting = "Require authentication when opening Ever Dialer",
+                            supporting = "Require authentication when opening Phone",
                             leadingIcon = Icons.Default.LockOpen,
                             iconContainerColor = Color(0xFF2196F3),
                             checked = appLockEnabled,
@@ -1199,4 +1197,3 @@ fun PasswordSetupDialog(
         }
     }
 }
-

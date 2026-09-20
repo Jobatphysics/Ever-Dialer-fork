@@ -37,19 +37,15 @@ import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import org.koin.compose.koinInject
 
 import com.android.libredialer.view.theme.SettingsTransitionStyle
-import com.android.libredialer.view.theme.settingsMotionBlur
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Destination<RootGraph>(style = SettingsTransitionStyle::class)
 @Composable
-fun AboutAppScreen(navigator: DestinationsNavigator, highlightKey: String? = null) {
+fun AboutAppScreen(navigator: DestinationsNavigator) {
     val context = LocalContext.current
     val prefs = koinInject<PreferenceManager>()
 
-    val selectedAppNameKey = prefs.getString(PreferenceManager.KEY_APP_NAME_PRESET, "default") ?: "default"
-    val displayAppName = buildAppNamePresets(context).firstOrNull { it.key == selectedAppNameKey }?.label
-        ?.substringBefore(" (Default)")
-        ?: APP_NAME
+    val displayAppName = APP_NAME
 
     var visible by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
@@ -65,7 +61,6 @@ fun AboutAppScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
     LaunchedEffect(Unit) { visible = true }
 
     Scaffold(
-        modifier = Modifier.settingsMotionBlur(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             SettingsPillTopAppBar(

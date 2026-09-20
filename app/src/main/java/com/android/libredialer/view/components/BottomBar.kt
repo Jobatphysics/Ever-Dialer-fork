@@ -52,9 +52,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import com.android.libredialer.liquidglass.drawPlainBackdrop
-import com.android.libredialer.liquidglass.effects.blur
-import com.android.libredialer.liquidglass.LocalLiquidGlassBackdrop
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -112,8 +109,6 @@ fun BottomBar(navController: NavController) {
 
     val pillNav      = remember(settingsState) { prefs.getBoolean(PreferenceManager.KEY_PILL_NAV, true) }
     val iconOnly     = remember(settingsState) { prefs.getBoolean(PreferenceManager.KEY_ICON_ONLY_NAV, false) }
-    val blurEffects  = remember(settingsState) { prefs.getBoolean(PreferenceManager.KEY_BLUR_EFFECTS, false) }
-    val blurBottomNav = remember(settingsState) { prefs.getBoolean(PreferenceManager.KEY_BLUR_BOTTOM_NAV, false) }
     val showFavoritesTab  = remember(settingsState) { prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_FAVORITES,  true) }
     val showCallsTab      = remember(settingsState) { prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_CALLS,      true) }
     val showContactsTab   = remember(settingsState) { prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_CONTACTS,   true) }
@@ -284,10 +279,7 @@ fun BottomBar(navController: NavController) {
                     .padding(bottom = 28.dp),
                 contentAlignment = Alignment.Center
             ) {
-                val globalBackdrop = LocalLiquidGlassBackdrop.current
                 val pillShape = RoundedCornerShape(32.dp)
-
-                val useBlurBottomNav = blurEffects && blurBottomNav
 
                 val pillContent: @Composable () -> Unit = {
                     Row(
@@ -311,26 +303,12 @@ fun BottomBar(navController: NavController) {
                     }
                 }
 
-                if (useBlurBottomNav && globalBackdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    Surface(
-                        shape           = pillShape,
-                        color           = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f),
-                        shadowElevation = 0.dp,
-                        tonalElevation  = 0.dp,
-                        modifier        = Modifier.drawPlainBackdrop(
-                            backdrop = globalBackdrop,
-                            shape    = { pillShape },
-                            effects  = { blur(30f * density) }
-                        )
-                    ) { pillContent() }
-                } else {
-                    Surface(
-                        shape           = pillShape,
-                        color           = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        shadowElevation = 8.dp,
-                        tonalElevation  = 4.dp,
-                    ) { pillContent() }
-                }
+                Surface(
+                    shape           = pillShape,
+                    color           = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shadowElevation = 8.dp,
+                    tonalElevation  = 4.dp,
+                ) { pillContent() }
             }
         }
     } else {

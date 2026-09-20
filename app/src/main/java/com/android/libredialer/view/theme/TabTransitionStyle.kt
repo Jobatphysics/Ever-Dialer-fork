@@ -4,8 +4,6 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -75,28 +73,18 @@ object TabTransitionStyle : NavHostAnimatedDestinationStyle() {
 
         when {
             toSettings -> {
-                if (isWindowsPhoneAnimation()) {
-                    TurnstileNavigationTracker.recordEnter(isBack = false, targetState.destination.route)
-                    fadeIn(tween(SETTINGS_WP_ANIM_DURATION_ENTER, easing = LinearOutSlowInEasing))
-                } else {
-                    scaleIn(
-                        animationSpec = tween(SETTINGS_ANIM_DURATION_ENTER, easing = SettingsSmoothEase),
-                        initialScale = SETTINGS_SCALE_ENTER_FROM,
-                        transformOrigin = TransformOrigin.Center
-                    ) + fadeIn(tween(SETTINGS_ANIM_DURATION_ENTER, easing = SettingsSmoothEaseOut))
-                }
+                scaleIn(
+                    animationSpec = tween(SETTINGS_ANIM_DURATION_ENTER, easing = SettingsSmoothEase),
+                    initialScale = SETTINGS_SCALE_ENTER_FROM,
+                    transformOrigin = TransformOrigin.Center
+                ) + fadeIn(tween(SETTINGS_ANIM_DURATION_ENTER, easing = SettingsSmoothEaseOut))
             }
             fromSettings -> {
-                if (isWindowsPhoneAnimation()) {
-                    TurnstileNavigationTracker.recordEnter(isBack = true, targetState.destination.route)
-                    fadeIn(tween(SETTINGS_WP_ANIM_DURATION_ENTER, easing = LinearOutSlowInEasing))
-                } else {
-                    scaleIn(
-                        animationSpec = tween(SETTINGS_ANIM_DURATION_ENTER, easing = SettingsSmoothEase),
-                        initialScale = SETTINGS_SCALE_EXIT_TO,
-                        transformOrigin = TransformOrigin.Center
-                    ) + fadeIn(tween(SETTINGS_ANIM_DURATION_ENTER, easing = SettingsSmoothEaseOut))
-                }
+                scaleIn(
+                    animationSpec = tween(SETTINGS_ANIM_DURATION_ENTER, easing = SettingsSmoothEase),
+                    initialScale = SETTINGS_SCALE_EXIT_TO,
+                    transformOrigin = TransformOrigin.Center
+                ) + fadeIn(tween(SETTINGS_ANIM_DURATION_ENTER, easing = SettingsSmoothEaseOut))
             }
             fromTab && toTab && !isLandscapeMode -> {
                 val goRight = toIdx > fromIdx
@@ -125,15 +113,11 @@ object TabTransitionStyle : NavHostAnimatedDestinationStyle() {
 
         when {
             fromSettings || toSettings -> {
-                if (isWindowsPhoneAnimation()) {
-                    fadeOut(tween(SETTINGS_WP_ANIM_DURATION_EXIT, easing = FastOutLinearInEasing))
-                } else {
-                    scaleOut(
-                        animationSpec = tween(SETTINGS_ANIM_DURATION_EXIT, easing = SettingsSmoothEase),
-                        targetScale = SETTINGS_SCALE_EXIT_TO,
-                        transformOrigin = TransformOrigin.Center
-                    ) + fadeOut(tween(SETTINGS_ANIM_DURATION_EXIT, easing = SettingsSmoothEaseIn))
-                }
+                scaleOut(
+                    animationSpec = tween(SETTINGS_ANIM_DURATION_EXIT, easing = SettingsSmoothEase),
+                    targetScale = SETTINGS_SCALE_EXIT_TO,
+                    transformOrigin = TransformOrigin.Center
+                ) + fadeOut(tween(SETTINGS_ANIM_DURATION_EXIT, easing = SettingsSmoothEaseIn))
             }
             fromTab && toTab && !isLandscapeMode -> {
                 val goRight = toIdx > fromIdx
@@ -168,16 +152,11 @@ object TabTransitionStyle : NavHostAnimatedDestinationStyle() {
 
         when {
             fromSettings || toSettings -> {
-                if (isWindowsPhoneAnimation()) {
-                    TurnstileNavigationTracker.recordEnter(isBack = true, targetState.destination.route)
-                    fadeIn(tween(SETTINGS_WP_ANIM_DURATION_ENTER, easing = LinearOutSlowInEasing))
-                } else {
-                    scaleIn(
-                        animationSpec = tween(SETTINGS_ANIM_DURATION_ENTER, easing = SettingsSmoothEase),
-                        initialScale = SETTINGS_SCALE_EXIT_TO,
-                        transformOrigin = TransformOrigin.Center
-                    ) + fadeIn(tween(SETTINGS_ANIM_DURATION_ENTER, easing = SettingsSmoothEaseOut))
-                }
+                scaleIn(
+                    animationSpec = tween(SETTINGS_ANIM_DURATION_ENTER, easing = SettingsSmoothEase),
+                    initialScale = SETTINGS_SCALE_EXIT_TO,
+                    transformOrigin = TransformOrigin.Center
+                ) + fadeIn(tween(SETTINGS_ANIM_DURATION_ENTER, easing = SettingsSmoothEaseOut))
             }
             fromTab && toTab && !isLandscapeMode -> {
                 val goRight = toIdx > fromIdx
@@ -206,18 +185,11 @@ object TabTransitionStyle : NavHostAnimatedDestinationStyle() {
 
         when {
             fromSettings || toSettings -> {
-                if (isWindowsPhoneAnimation()) {
-                    slideOutHorizontally(
-                        animationSpec = tween(SETTINGS_WP_ANIM_DURATION_EXIT, easing = FastOutLinearInEasing),
-                        targetOffsetX = { full -> full / 6 }
-                    ) + fadeOut(tween(SETTINGS_WP_ANIM_DURATION_EXIT, easing = FastOutLinearInEasing))
-                } else {
-                    scaleOut(
-                        animationSpec = tween(SETTINGS_ANIM_DURATION_EXIT, easing = SettingsSmoothEase),
-                        targetScale = SETTINGS_SCALE_ENTER_FROM,
-                        transformOrigin = TransformOrigin.Center
-                    ) + fadeOut(tween(SETTINGS_ANIM_DURATION_EXIT, easing = SettingsSmoothEaseIn))
-                }
+                scaleOut(
+                    animationSpec = tween(SETTINGS_ANIM_DURATION_EXIT, easing = SettingsSmoothEase),
+                    targetScale = SETTINGS_SCALE_ENTER_FROM,
+                    transformOrigin = TransformOrigin.Center
+                ) + fadeOut(tween(SETTINGS_ANIM_DURATION_EXIT, easing = SettingsSmoothEaseIn))
             }
             fromTab && toTab && !isLandscapeMode -> {
                 val goRight = toIdx > fromIdx

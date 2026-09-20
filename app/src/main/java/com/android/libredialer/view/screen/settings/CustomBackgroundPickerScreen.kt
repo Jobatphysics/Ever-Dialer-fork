@@ -62,7 +62,6 @@ import kotlin.math.roundToInt
 import java.io.FileOutputStream
 
 import com.android.libredialer.view.theme.SettingsTransitionStyle
-import com.android.libredialer.view.theme.settingsMotionBlur
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Destination<RootGraph>(style = SettingsTransitionStyle::class)
@@ -551,7 +550,6 @@ fun CustomBackgroundPickerScreen(
     ) else null
 
     Scaffold(
-        modifier = Modifier.settingsMotionBlur(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             com.android.libredialer.view.components.SettingsPillTopAppBar(

@@ -155,15 +155,6 @@ object BackupManager {
                         }
                     } catch (_: Exception) {}
 
-                    // 3. Backup custom font if set
-                    try {
-                        val fontFile = File(context.filesDir, "custom_font.ttf")
-                        if (fontFile.exists() && fontFile.isFile && fontFile.length() > 0) {
-                            zip.putNextEntry(ZipEntry("custom_font.ttf"))
-                            FileInputStream(fontFile).use { it.copyTo(zip) }
-                            zip.closeEntry()
-                        }
-                    } catch (_: Exception) {}
                 } else if (backupCallingCards) {
                     // Backup calling cards contact preferences only if settings backup is not selected
                     val rivoPrefs = context.getSharedPreferences(PREFS_RIVO, Context.MODE_PRIVATE)
@@ -449,7 +440,7 @@ object BackupManager {
                             hasSettings = true
                             hasCallingCards = true
                         }
-                        name.startsWith("datastore/") || name == "custom_font.ttf" -> {
+                        name.startsWith("datastore/") -> {
                             hasSettings = true
                         }
                         name.startsWith("backgrounds/") -> {
@@ -548,15 +539,6 @@ object BackupManager {
                                     FileOutputStream(dsFile).use { zip.copyTo(it) }
                                     restoredAny = true
                                 }
-                            }
-                        }
-                        name == "custom_font.ttf" -> {
-                            if (restoreSettings) {
-                                val fontFile = File(context.filesDir, "custom_font.ttf")
-                                FileOutputStream(fontFile).use { zip.copyTo(it) }
-                                val rivoPrefs = context.getSharedPreferences(PREFS_RIVO, Context.MODE_PRIVATE)
-                                rivoPrefs.edit().putString(PreferenceManager.KEY_CUSTOM_FONT_PATH, fontFile.absolutePath).apply()
-                                restoredAny = true
                             }
                         }
                         name.startsWith("backgrounds/") -> {
@@ -1077,9 +1059,6 @@ object BackupManager {
                     val fileName = File(strValue).name
                     val localFile = File(bgDir, fileName)
                     if (localFile.exists()) localFile.absolutePath else strValue
-                } else if (key == PreferenceManager.KEY_CUSTOM_FONT_PATH && strValue.isNotBlank()) {
-                    val fontFile = File(context.filesDir, "custom_font.ttf")
-                    if (fontFile.exists()) fontFile.absolutePath else strValue
                 } else {
                     strValue
                 }

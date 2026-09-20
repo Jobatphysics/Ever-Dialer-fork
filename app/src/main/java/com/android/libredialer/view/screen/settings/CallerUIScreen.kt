@@ -42,7 +42,6 @@ import com.android.libredialer.view.components.RivoIconBox
 import com.android.libredialer.view.components.RivoSwitchListItem
 import com.android.libredialer.view.components.settingsSearchHighlight
 import com.android.libredialer.view.theme.SettingsTransitionStyle
-import com.android.libredialer.view.theme.settingsMotionBlur
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.generated.destinations.CustomBackgroundPickerScreenDestination
@@ -177,7 +176,6 @@ fun CallerUIScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
     }
 
     Scaffold(
-        modifier = Modifier.settingsMotionBlur(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             com.android.libredialer.view.components.SettingsPillTopAppBar(

@@ -1,7 +1,5 @@
 package com.android.libredialer.view.screen.settings
 
-import com.ramcosta.composedestinations.generated.destinations.CustomFontScreenDestination
-import com.android.libredialer.view.theme.AppFontHelper
 import android.app.Activity
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -65,7 +63,6 @@ import com.android.libredialer.view.components.RivoListItem
 import com.android.libredialer.view.components.RivoSwitchListItem
 import com.android.libredialer.view.components.settingsSearchHighlight
 import com.android.libredialer.view.theme.SettingsTransitionStyle
-import com.android.libredialer.view.theme.settingsMotionBlur
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
@@ -73,7 +70,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import java.io.File
-import kotlin.math.roundToInt
 
 private val ColorPurple = Color(0xFF9C27B0)
 private val ColorTeal   = Color(0xFF009688)
@@ -136,7 +132,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
     var saturatedModes      by remember { mutableStateOf(prefs.getSaturatedModesSet()) }
     var saturationLevelLight by remember { mutableFloatStateOf(prefs.getSaturationLevel(false)) }
     var saturationLevelDark  by remember { mutableFloatStateOf(prefs.getSaturationLevel(true)) }
-    var cornerRadius        by remember { mutableFloatStateOf(prefs.getFloat(PreferenceManager.KEY_CORNER_RADIUS, 28f)) }
+    var cornerRadius        by remember { mutableFloatStateOf(28f) }
     var isRoundnessExpanded by remember { mutableStateOf(false) }
     var solidIcons          by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_SOLID_ICONS, false)) }
     var solidIconsDynamic   by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_SOLID_ICONS_DYNAMIC, false)) }
@@ -168,23 +164,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
     var showCallerUI        by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_SHOW_CALLER_UI, true)) }
     var openDialpadDefault  by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_OPEN_DIALPAD_DEFAULT, false)) }
     var favoritesInList     by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_FAVORITES_IN_LIST, false)) }
-    val rateReviewToggleSettingsVersion by prefs.settingsChanged.collectAsState()
-    val rateReviewSecretActive = remember(rateReviewToggleSettingsVersion) {
-        prefs.getBoolean(PreferenceManager.KEY_RATE_REVIEW_HIDDEN_SECRET, false)
-    }
-    var scrollAnimation     by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_SCROLL_ANIMATION, true)) }
-    var animationStyle      by remember { mutableStateOf(prefs.getString(PreferenceManager.KEY_ANIMATION_STYLE, PreferenceManager.ANIMATION_STYLE_ZOOM) ?: PreferenceManager.ANIMATION_STYLE_ZOOM) }
-    var showAnimationStyleDialog by remember { mutableStateOf(false) }
-    var motionBlurAnimation by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_MOTION_BLUR_ANIMATION, false)) }
-    var blurEffects         by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_BLUR_EFFECTS, false)) }
     var hangupAnimation     by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_HANGUP_ANIMATION, true)) }
-
-    // App Name preset picker
-    var showAppNameDialog by remember { mutableStateOf(false) }
-    val appNamePresets = remember { buildAppNamePresets(context) }
-    var selectedAppNameKey by remember {
-        mutableStateOf(prefs.getString(PreferenceManager.KEY_APP_NAME_PRESET, "default") ?: "default")
-    }
 
 
     // Call UI section checkboxes dialog
@@ -456,7 +436,6 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
     var hexError by remember { mutableStateOf(false) }
 
     var displayScale  by remember { mutableFloatStateOf(prefs.getFloat(PreferenceManager.KEY_DISPLAY_SCALE, 1.0f)) }
-    var fontSizeScale by remember { mutableFloatStateOf(prefs.getFloat(PreferenceManager.KEY_CUSTOM_FONT_SIZE, 1.0f)) }
 
     val presetColors = listOf(
         Color(0xFF6750A4), Color(0xFF0061A4), Color(0xFF006A60), Color(0xFF436916),
@@ -622,70 +601,6 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
             },
             dismissButton = {
                 TextButton(onClick = { resetCallUIToDefault() }) { Text("Default") }
-            }
-        )
-    }
-
-    // ── Animation Style Dialog ───────────────────────────────────────────────
-    if (showAnimationStyleDialog) {
-        AlertDialog(
-            onDismissRequest = { showAnimationStyleDialog = false },
-            icon = { Icon(Icons.Outlined.Animation, null, tint = ColorTeal) },
-            title = { Text("Animation Style") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        "Choose the page transition animation style used when navigating between screens.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    listOf(
-                        PreferenceManager.ANIMATION_STYLE_ZOOM to "Zoom (in/out)",
-                        PreferenceManager.ANIMATION_STYLE_WINDOWS_PHONE to "Windows Phone"
-                    ).forEach { (key, label) ->
-                        val isSelected = animationStyle == key
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                                    else MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        animationStyle = key
-                                        prefs.setString(PreferenceManager.KEY_ANIMATION_STYLE, key)
-                                    }
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    label,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    modifier = Modifier.weight(1f),
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-                                            else MaterialTheme.colorScheme.onSurface
-                                )
-                                RadioButton(
-                                    selected = isSelected,
-                                    onClick = {
-                                        animationStyle = key
-                                        prefs.setString(PreferenceManager.KEY_ANIMATION_STYLE, key)
-                                    },
-                                    colors = RadioButtonDefaults.colors(
-                                        selectedColor = MaterialTheme.colorScheme.primary,
-                                        unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showAnimationStyleDialog = false }) { Text("Done") }
             }
         )
     }
@@ -1265,7 +1180,6 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
     }
 
     Scaffold(
-        modifier = Modifier.settingsMotionBlur(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             com.android.libredialer.view.components.SettingsPillTopAppBar(
@@ -1343,9 +1257,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                         FilledTonalIconButton(
                                             onClick = {
                                                 displayScale = 1.0f
-                                                fontSizeScale = 1.0f
                                                 prefs.setFloat(PreferenceManager.KEY_DISPLAY_SCALE, 1.0f)
-                                                prefs.setFloat(PreferenceManager.KEY_CUSTOM_FONT_SIZE, 1.0f)
                                             },
                                             modifier = Modifier.size(28.dp),
                                             shape = CircleShape,
@@ -1392,36 +1304,6 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                         modifier = Modifier.fillMaxWidth()
                                     )
 
-                                    Spacer(Modifier.height(8.dp))
-
-                                    // Font Size Slider
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Text(
-                                            "Font Size",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            "${(fontSizeScale * 100).roundToInt()}%",
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                    Slider(
-                                        value = fontSizeScale,
-                                        onValueChange = { fontSizeScale = it },
-                                        onValueChangeFinished = {
-                                            prefs.setFloat(PreferenceManager.KEY_CUSTOM_FONT_SIZE, fontSizeScale)
-                                        },
-                                        valueRange = 0.70f..1.40f,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
                                 }
                             }
                         }
@@ -1851,7 +1733,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                 modifier = Modifier.padding(start = 12.dp, bottom = 8.dp))
                             RivoExpressiveCard {
                                 Column(modifier = Modifier
-                                    .clickable { navigator.navigate(CustomFontScreenDestination()) }
+                                    .clickable { }
                                     .padding(horizontal = 16.dp, vertical = 14.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                                         com.android.libredialer.view.components.RivoIconBox(
@@ -1861,7 +1743,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                         Spacer(Modifier.width(16.dp))
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text("Fonts", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                                            val currentFontName = AppFontHelper.getFontDisplayName(prefs.getString(PreferenceManager.KEY_CUSTOM_FONT_PATH, null))
+                                            val currentFontName = "Phone"
                                             Text(
                                                 currentFontName,
                                                 style = MaterialTheme.typography.bodySmall,
@@ -2377,107 +2259,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                         }
                     }
 
-                /* ── Avatars ──────────────────────────────────────────
-                    RivoAnimatedSection(delayMs = 160L) {
-                        Column {
-                            Text("Avatars", style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(start = 12.dp, bottom = 8.dp))
-                            RivoExpressiveCard {
-                                RivoSwitchListItem(
-                                    headline = "Show First Letter in Avatar",
-                                    supporting = "Displays letter when picture is missing",
-                                    leadingIcon = Icons.Outlined.TextFields,
-                                    iconContainerColor = ColorAmber,
-                                    checked = showFirstLetter,
-                                    modifier = Modifier.settingsSearchHighlight("avatar_first_letter", highlightedKey) { highlightedKey = null },
-                                    onCheckedChange = { showFirstLetter = it; prefs.setBoolean(PreferenceManager.KEY_SHOW_FIRST_LETTER, it) }
-                                )
-                                HorizontalDivider(Modifier.padding(horizontal = 16.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                                RivoSwitchListItem(
-                                    headline = "Show Picture in Avatar",
-                                    supporting = "Shows the contact picture if available",
-                                    leadingIcon = Icons.Outlined.AccountCircle,
-                                    iconContainerColor = ColorGreen,
-                                    checked = showPicture,
-                                    modifier = Modifier.settingsSearchHighlight("avatar_picture", highlightedKey) { highlightedKey = null },
-                                    onCheckedChange = { showPicture = it; prefs.setBoolean(PreferenceManager.KEY_SHOW_PICTURE, it) }
-                                )
-                            }
-                        }
-                    }
-                */
-
-                /* ── App ─────────────────────────────────────────
-                    Column {
-                        Text(
-                            "App",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(start = 12.dp, bottom = 8.dp)
-                        )
-                        RivoExpressiveCard {
-                            RivoListItem(
-                                headline = "App Icon (Change)",
-                                supporting = "Choose the app icon displayed on your home screen",
-                                leadingIcon = Icons.Outlined.Apps,
-                                iconContainerColor = ColorIndigo,
-                                modifier = Modifier.settingsSearchHighlight("app_icon_link", highlightedKey) { highlightedKey = null },
-                                onClick = {
-                                    navigator.navigate(com.ramcosta.composedestinations.generated.destinations.AppIconScreenDestination)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        RivoExpressiveCard {
-                            RivoListItem(
-                                headline = "App Name (Change)",
-                                supporting = "Currently: " + (appNamePresets.firstOrNull { it.key == selectedAppNameKey }?.label ?: "Phone (Default)"),
-                                leadingIcon = Icons.Outlined.Badge,
-                                iconContainerColor = ColorTeal,
-                                modifier = Modifier.settingsSearchHighlight("app_name_link", highlightedKey) { highlightedKey = null },
-                                onClick = { showAppNameDialog = true }
-                            )
-                        }
-                    }
-                }
-                */
-
                 Spacer(modifier = Modifier.height(100.dp))
-            }
-
-            if (showAppNameDialog) {
-                AlertDialog(
-                    onDismissRequest = { showAppNameDialog = false },
-                    title = { Text("App Name") },
-                    text = {
-                        Column {
-                            appNamePresets.forEach { entry ->
-                                val isSelected = selectedAppNameKey == entry.key
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            selectedAppNameKey = entry.key
-                                            prefs.setString(PreferenceManager.KEY_APP_NAME_PRESET, entry.key)
-                                            applyAppNamePreset(context, prefs, entry)
-                                            showAppNameDialog = false
-                                        }
-                                ) {
-                                    RadioButton(selected = isSelected, onClick = null)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(entry.label, style = MaterialTheme.typography.bodyLarge)
-                                }
-                            }
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = { showAppNameDialog = false }) { Text("Done") }
-                    }
-                )
             }
 
             if (showSolidIconsLightDialog) {

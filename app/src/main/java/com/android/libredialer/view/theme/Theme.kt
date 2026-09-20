@@ -292,13 +292,6 @@ fun Rivo4Theme(
     val dynamicColor   = prefs.getBoolean(PreferenceManager.KEY_DYNAMIC_COLORS, true)
     val saturatedColors = prefs.getBoolean(PreferenceManager.KEY_SATURATED_COLORS, false)
     val customPrimaryInt = prefs.getInt("custom_primary_color", 0)
-    val customFontPath = prefs.getString(PreferenceManager.KEY_CUSTOM_FONT_PATH, null)
-    val fontSizeScale  = prefs.getFloat(PreferenceManager.KEY_CUSTOM_FONT_SIZE, 1.0f)
-    val fontHeightScale = prefs.getFloat(PreferenceManager.KEY_FONT_HEIGHT_SCALE, 1.0f)
-    val fontWidthScale  = prefs.getFloat(PreferenceManager.KEY_FONT_WIDTH_SCALE, 1.0f)
-    val fontWeightOverride = prefs.getFloat(PreferenceManager.KEY_FONT_WEIGHT_OVERRIDE, 400f)
-    val fontOrientation = prefs.getFloat(PreferenceManager.KEY_FONT_ORIENTATION, 0f)
-    val cornerRadius    = prefs.getFloat(PreferenceManager.KEY_CORNER_RADIUS, 28f)
 
     val darkTheme = when (themeMode) {
         "light", "white"  -> false
@@ -375,34 +368,14 @@ fun Rivo4Theme(
         }
     }
 
-    val customFontFamily: FontFamily = remember(customFontPath, settingsState) {
-        AppFontHelper.resolveFontFamily(customFontPath)
-    }
+    val typography = remember { Typography }
 
-    val weightOffset = remember(fontWeightOverride) { (fontWeightOverride - 400f).roundToInt() }
-    val skewX = remember(fontOrientation) { -fontOrientation / 60f }
-
-    val typography = remember(customFontFamily, fontSizeScale, fontHeightScale, fontWidthScale, weightOffset, skewX) {
-        buildTypography(
-            fontFamily = customFontFamily,
-            scale = fontSizeScale,
-            heightScale = fontHeightScale,
-            widthScale = fontWidthScale,
-            weightOffset = weightOffset,
-            skewX = skewX
-        )
-    }
-
-    CompositionLocalProvider(
-        LocalCardCornerRadius provides cornerRadius.dp
-    ) {
-        MaterialTheme(
+    MaterialTheme(
             colorScheme = colorScheme,
             typography  = typography
         ) {
             ProvideScaledDensity(prefs = prefs, content = content)
         }
-    }
 }
 
 @Composable
@@ -412,12 +385,11 @@ fun ProvideScaledDensity(
 ) {
     val settingsState by prefs.settingsChanged.collectAsState()
     val displayScale = prefs.getFloat(PreferenceManager.KEY_DISPLAY_SCALE, 1.0f)
-    val fontSizeScale = prefs.getFloat(PreferenceManager.KEY_CUSTOM_FONT_SIZE, 1.0f)
     val baseDensity = androidx.compose.ui.platform.LocalDensity.current
-    val scaledDensity = remember(baseDensity.density, baseDensity.fontScale, displayScale, fontSizeScale, settingsState) {
+    val scaledDensity = remember(baseDensity.density, baseDensity.fontScale, displayScale, settingsState) {
         androidx.compose.ui.unit.Density(
             density = baseDensity.density * displayScale,
-            fontScale = baseDensity.fontScale * fontSizeScale
+            fontScale = baseDensity.fontScale
         )
     }
     androidx.compose.runtime.CompositionLocalProvider(

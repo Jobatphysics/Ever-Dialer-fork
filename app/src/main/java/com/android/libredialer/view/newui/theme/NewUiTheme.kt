@@ -10,6 +10,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
@@ -72,7 +73,7 @@ object NewUiDimensions {
 fun NewUiTheme(content: @Composable () -> Unit) {
     val prefs: PreferenceManager = koinInject()
     val settingsVersion by prefs.settingsChanged.collectAsState()
-    val themeMode = prefs.getString(PreferenceManager.KEY_THEME_MODE, "auto") ?: "auto"
+    val themeMode = remember(settingsVersion) { prefs.getString(PreferenceManager.KEY_THEME_MODE, "auto") ?: "auto" }
     val systemDark = isSystemInDarkTheme()
     val isAmoled = themeMode == "black"
     val darkTheme = when (themeMode) {

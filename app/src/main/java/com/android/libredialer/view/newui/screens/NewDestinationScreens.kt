@@ -2,6 +2,21 @@ package com.android.libredialer.view.newui.screens
 
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.Immutable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.android.libredialer.controller.util.normalizeNumberDigits
+import com.android.libredialer.view.newui.components.rememberPhysicalListState
+import com.android.libredialer.view.newui.components.physicalListItem
+import com.android.libredialer.view.newui.components.physicalItemInput
+import com.android.libredialer.view.newui.components.PhysicalListState
+import com.android.libredialer.view.newui.components.lensSurface
+import com.android.libredialer.view.newui.motion.rememberLensInteractionSource
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.height
@@ -74,6 +89,27 @@ import com.android.libredialer.modal.data.CallLogEntry
 import com.android.libredialer.controller.CallLogViewModel
 import com.android.libredialer.controller.util.formatDate
 import com.android.libredialer.controller.util.numbersLikelyMatch
+import com.android.libredialer.view.screen.settings.AboutAppScreen
+import com.android.libredialer.view.screen.settings.AppSettingsScreen
+import com.android.libredialer.view.screen.settings.BiometricScreen
+import com.android.libredialer.view.screen.settings.CallAccountsScreen
+import com.android.libredialer.view.screen.settings.ContactsHiderScreen
+import com.android.libredialer.view.screen.settings.RainModeScreen
+import com.android.libredialer.view.screen.settings.RaiseToAnswerScreen
+import com.android.libredialer.view.screen.settings.SimAndCallPlacementScreen
+import com.android.libredialer.view.screen.settings.SoundVibrationScreen
+import com.android.libredialer.view.screen.settings.UpdatesScreen
+import com.android.libredialer.view.screen.settings.VolumeDndScreen
+import com.coolappstore.evercallrecorder.by.svhp.ui.screens.SettingsScreen as RecorderSettingsScreen
+import com.coolappstore.evercallrecorder.by.svhp.ui.viewmodels.SettingsViewModel
+import com.ramcosta.composedestinations.navigation.DestinationsNavOptionsBuilder
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import com.ramcosta.composedestinations.spec.Direction
+import com.ramcosta.composedestinations.spec.RouteOrDirection
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavOptions
+import androidx.navigation.Navigator
+import androidx.lifecycle.viewmodel.compose.viewModel
 import android.provider.CallLog
 
 @Composable
@@ -244,6 +280,21 @@ fun NewDialerScreen(
     }
 }
 
+@Immutable
+data class NewUiCallLogItem(
+    val key: String,
+    val log: CallLogEntry,
+    val contact: Contact?,
+    val displayName: String,
+    val subtitle: String?,
+    val photoUri: String?,
+    val initialLetter: String,
+    val typeLabel: String,
+    val formattedDate: String,
+    val isMissed: Boolean,
+    val typeIcon: ImageVector
+)
+
 @Composable
 fun NewRecentsScreen(onCallLogClick: (CallLogEntry) -> Unit) {
     val callLogViewModel: CallLogViewModel = koinActivityViewModel()
@@ -251,8 +302,89 @@ fun NewRecentsScreen(onCallLogClick: (CallLogEntry) -> Unit) {
     val logs by callLogViewModel.allCallLogs.collectAsState()
     val contacts by contactsViewModel.allContacts.collectAsState()
 
-    NewUiScreenShell(destination = NewUiDestination.Recents) {
+    val physicalListState = rememberPhysicalListState()
+
+    // High-performance asynchronous mapping:
+    // Builds O(1) indices and pre-formats all display text off the UI main thread
+    val uiLogs by produceState<List<NewUiCallLogItem>>(initialValue = emptyList(), logs, contacts) {
         if (logs.isEmpty()) {
+            value = emptyList()
+            return@produceState
+        }
+        withContext(Dispatchers.Default) {
+            val contactById = HashMap<String, Contact>(contacts.size)
+            val contactByNumber = HashMap<String, Contact>(contacts.size * 2)
+            for (c in contacts) {
+                contactById[c.id] = c
+                for (phone in c.phoneNumbers) {
+                    val digits = normalizeNumberDigits(phone).filter { it.isDigit() }
+                    if (digits.isNotEmpty()) {
+                        contactByNumber[digits] = c
+                        if (digits.length >= 7) {
+                            contactByNumber[digits.takeLast(7)] = c
+                        }
+                    }
+                }
+            }
+
+            val items = ArrayList<NewUiCallLogItem>(logs.size)
+            for (log in logs) {
+                val contact = if (!log.contactId.isNullOrBlank() && log.contactId != "null") {
+                    contactById[log.contactId]
+                } else {
+                    val digits = normalizeNumberDigits(log.number).filter { it.isDigit() }
+                    contactByNumber[digits] ?: if (digits.length >= 7) contactByNumber[digits.takeLast(7)] else null
+                }
+
+                val displayName = contact?.name?.takeIf { it.isNotBlank() }
+                    ?: log.name?.takeIf { it.isNotBlank() && it != log.number && !log.isCallerIdName }
+                    ?: log.number
+
+                val subtitle = if (contact != null || displayName == log.number) log.number else null
+                val photoUri = contact?.photoUri ?: log.photoUri
+                val initialLetter = displayName.trim().firstOrNull()?.uppercase() ?: "?"
+
+                val isMissed = log.type == CallLog.Calls.MISSED_TYPE
+                val typeLabel = when (log.type) {
+                    CallLog.Calls.INCOMING_TYPE -> "Incoming"
+                    CallLog.Calls.OUTGOING_TYPE -> "Outgoing"
+                    CallLog.Calls.MISSED_TYPE -> "Missed"
+                    CallLog.Calls.REJECTED_TYPE -> "Rejected"
+                    CallLog.Calls.BLOCKED_TYPE -> "Blocked"
+                    else -> "Call"
+                }
+                val typeIcon = when (log.type) {
+                    CallLog.Calls.INCOMING_TYPE -> Icons.AutoMirrored.Filled.CallReceived
+                    CallLog.Calls.OUTGOING_TYPE -> Icons.AutoMirrored.Filled.CallMade
+                    CallLog.Calls.MISSED_TYPE -> Icons.AutoMirrored.Filled.CallMissed
+                    else -> Icons.Filled.Call
+                }
+
+                val formattedDate = "$typeLabel · ${formatDate(log.date, false)}"
+                val key = "${log.callIds.firstOrNull() ?: log.date}_${log.number}"
+
+                items.add(
+                    NewUiCallLogItem(
+                        key = key,
+                        log = log,
+                        contact = contact,
+                        displayName = displayName,
+                        subtitle = subtitle,
+                        photoUri = photoUri,
+                        initialLetter = initialLetter,
+                        typeLabel = typeLabel,
+                        formattedDate = formattedDate,
+                        isMissed = isMissed,
+                        typeIcon = typeIcon
+                    )
+                )
+            }
+            value = items
+        }
+    }
+
+    NewUiScreenShell(destination = NewUiDestination.Recents) {
+        if (uiLogs.isEmpty()) {
             Text(
                 text = "No recent calls",
                 modifier = Modifier.fillMaxWidth(),
@@ -265,22 +397,15 @@ fun NewRecentsScreen(onCallLogClick: (CallLogEntry) -> Unit) {
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(
-                    items = logs,
-                    key = { "${it.number}|${it.date}" }
-                ) { log ->
-                    val contact = remember(log, contacts) {
-                        contacts.firstOrNull { candidate ->
-                            (!log.contactId.isNullOrBlank() && candidate.id == log.contactId) ||
-                                candidate.phoneNumbers.any { number ->
-                                    numbersLikelyMatch(number, log.number)
-                                }
-                        }
-                    }
+                itemsIndexed(
+                    items = uiLogs,
+                    key = { _, item -> item.key }
+                ) { index, item ->
                     NewCallLogRow(
-                        log = log,
-                        contact = contact,
-                        onClick = { onCallLogClick(log) }
+                        item = item,
+                        index = index,
+                        physicalListState = physicalListState,
+                        onClick = { onCallLogClick(item.log) }
                     )
                 }
             }
@@ -290,47 +415,51 @@ fun NewRecentsScreen(onCallLogClick: (CallLogEntry) -> Unit) {
 
 @Composable
 private fun NewCallLogRow(
-    log: CallLogEntry,
-    contact: Contact?,
+    item: NewUiCallLogItem,
+    index: Int,
+    physicalListState: PhysicalListState,
     onClick: () -> Unit
 ) {
-    val displayName = contact?.name?.takeIf { it.isNotBlank() }
-        ?: log.name?.takeIf { it.isNotBlank() && it != log.number && !log.isCallerIdName }
-        ?: log.number
-    val photoUri = contact?.photoUri ?: log.photoUri
-    val typeLabel = when (log.type) {
-        CallLog.Calls.INCOMING_TYPE -> "Incoming"
-        CallLog.Calls.OUTGOING_TYPE -> "Outgoing"
-        CallLog.Calls.MISSED_TYPE -> "Missed"
-        CallLog.Calls.REJECTED_TYPE -> "Rejected"
-        CallLog.Calls.BLOCKED_TYPE -> "Blocked"
-        else -> "Call"
-    }
-    val typeIcon = when (log.type) {
-        CallLog.Calls.INCOMING_TYPE -> Icons.AutoMirrored.Filled.CallReceived
-        CallLog.Calls.OUTGOING_TYPE -> Icons.AutoMirrored.Filled.CallMade
-        CallLog.Calls.MISSED_TYPE -> Icons.AutoMirrored.Filled.CallMissed
-        else -> Icons.Filled.Call
+    val interactionSource = rememberLensInteractionSource()
+
+    val surfaceColor = if (item.isMissed) {
+        MaterialTheme.colorScheme.errorContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerLow
     }
 
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = if (log.type == CallLog.Calls.MISSED_TYPE) {
-            MaterialTheme.colorScheme.errorContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
-        },
-        tonalElevation = 1.dp
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .physicalListItem(physicalListState, index)
+            .physicalItemInput(physicalListState, index, onClick)
+            .lensSurface(
+                shape = MaterialTheme.shapes.medium,
+                tonalColor = surfaceColor,
+                translucentAlpha = if (item.isMissed) 0.65f else 0.80f,
+                specularAlpha = 0.28f,
+                elevation = 1.dp,
+                interactionSource = interactionSource
+            )
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (!photoUri.isNullOrBlank()) {
+            if (!item.photoUri.isNullOrBlank()) {
+                val context = LocalContext.current
+                val density = LocalDensity.current
+                val avatarPx = remember(density) { with(density) { 52.dp.roundToPx() } }
+                val imageRequest = remember(item.photoUri, avatarPx) {
+                    coil.request.ImageRequest.Builder(context)
+                        .data(item.photoUri)
+                        .size(avatarPx)
+                        .crossfade(true)
+                        .memoryCacheKey(item.photoUri)
+                        .build()
+                }
                 AsyncImage(
-                    model = photoUri,
+                    model = imageRequest,
                     contentDescription = null,
                     modifier = Modifier
                         .size(52.dp)
@@ -345,7 +474,7 @@ private fun NewCallLogRow(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
-                            text = displayName.trim().firstOrNull()?.uppercase() ?: "?",
+                            text = item.initialLetter,
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
@@ -357,28 +486,37 @@ private fun NewCallLogRow(
                     .weight(1f)
                     .padding(start = 12.dp)
             ) {
-                Text(displayName, style = MaterialTheme.typography.titleMedium)
-                if (contact != null || displayName == log.number) {
+                Text(
+                    text = item.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+                if (item.subtitle != null) {
                     Text(
-                        text = log.number,
+                        text = item.subtitle,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
                 Text(
-                    text = "$typeLabel · ${formatDate(log.date, false)}",
+                    text = item.formattedDate,
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (log.type == CallLog.Calls.MISSED_TYPE) {
+                    color = if (item.isMissed) {
                         MaterialTheme.colorScheme.onErrorContainer
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
-                    }
+                    },
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
             Icon(
-                imageVector = typeIcon,
-                contentDescription = typeLabel,
-                tint = if (log.type == CallLog.Calls.MISSED_TYPE) {
+                imageVector = item.typeIcon,
+                contentDescription = item.typeLabel,
+                tint = if (item.isMissed) {
                     MaterialTheme.colorScheme.error
                 } else {
                     MaterialTheme.colorScheme.primary
@@ -629,10 +767,15 @@ private data class NewSettingsRow(
 @Composable
 fun NewSettingsScreen(
     selectedDestination: NewUiSettingsDestination?,
-    onNavigate: (NewUiSettingsDestination) -> Unit
+    onNavigate: (NewUiSettingsDestination) -> Unit,
+    onBack: () -> Boolean
 ) {
     if (selectedDestination != null) {
-        NewSettingsPlaceholderScreen(selectedDestination)
+        NewSettingsDestinationScreen(
+            destination = selectedDestination,
+            onNavigate = onNavigate,
+            onBack = { onBack() }
+        )
         return
     }
 
@@ -779,24 +922,108 @@ fun NewSettingsScreen(
 }
 
 @Composable
-private fun NewSettingsPlaceholderScreen(destination: NewUiSettingsDestination) {
+private fun NewSettingsDestinationScreen(
+    destination: NewUiSettingsDestination,
+    onNavigate: (NewUiSettingsDestination) -> Unit,
+    onBack: () -> Unit
+) {
     if (destination == NewUiSettingsDestination.ColorsAndTheme) {
         NewColorsAndThemeScreen()
         return
     }
-    NewUiScreenShell(destination = NewUiDestination.Settings) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surfaceContainerLow
-        ) {
-            Text(
-                text = "${destination.title} foundation",
-                modifier = Modifier.padding(20.dp),
-                style = MaterialTheme.typography.bodyLarge
+
+    val navigator = remember(onBack, onNavigate) {
+        NewSettingsDestinationsNavigator(onBack, onNavigate)
+    }
+    when (destination) {
+        NewUiSettingsDestination.AppAndCallBehavior ->
+            AppSettingsScreen(navigator = navigator)
+        NewUiSettingsDestination.SimAndCallPlacement ->
+            SimAndCallPlacementScreen(navigator = navigator)
+        NewUiSettingsDestination.CallAccounts ->
+            CallAccountsScreen(navigator = navigator)
+        NewUiSettingsDestination.SoundAndVibration ->
+            SoundVibrationScreen(navigator = navigator)
+        NewUiSettingsDestination.BiometricAndAppLock ->
+            BiometricScreen(navigator = navigator)
+        NewUiSettingsDestination.ContactsHider ->
+            ContactsHiderScreen(navigator = navigator)
+        NewUiSettingsDestination.CallRecording -> {
+            val recorderViewModel: SettingsViewModel = viewModel()
+            RecorderSettingsScreen(
+                viewModel = recorderViewModel,
+                onBack = onBack
             )
         }
+        NewUiSettingsDestination.RaiseToAnswer ->
+            RaiseToAnswerScreen(navigator = navigator)
+        NewUiSettingsDestination.RainMode ->
+            RainModeScreen(navigator = navigator)
+        NewUiSettingsDestination.VolumeDnd ->
+            VolumeDndScreen(navigator = navigator)
+        NewUiSettingsDestination.NetworkSwitcher ->
+            AppSettingsScreen(navigator = navigator, highlightKey = "network_switcher")
+        NewUiSettingsDestination.Updates ->
+            UpdatesScreen(navigator = navigator)
+        NewUiSettingsDestination.About ->
+            AboutAppScreen(navigator = navigator)
+        NewUiSettingsDestination.ColorsAndTheme -> Unit
     }
+}
+
+private class NewSettingsDestinationsNavigator(
+    private val onBack: () -> Unit,
+    private val onNavigate: (NewUiSettingsDestination) -> Unit
+) : DestinationsNavigator {
+    override fun navigate(
+        direction: Direction,
+        builder: DestinationsNavOptionsBuilder.() -> Unit
+    ) = navigate(direction, null, null)
+
+    override fun navigate(
+        direction: Direction,
+        navOptions: NavOptions?,
+        navigatorExtras: Navigator.Extras?
+    ) {
+        when {
+            direction.route.startsWith("sound_vibration_screen") ->
+                onNavigate(NewUiSettingsDestination.SoundAndVibration)
+            direction.route.startsWith("raise_to_answer_screen") ->
+                onNavigate(NewUiSettingsDestination.RaiseToAnswer)
+            direction.route.startsWith("rain_mode_screen") ->
+                onNavigate(NewUiSettingsDestination.RainMode)
+            direction.route.startsWith("volume_dnd_screen") ->
+                onNavigate(NewUiSettingsDestination.VolumeDnd)
+            direction.route.startsWith("recordings_screen") ->
+                onNavigate(NewUiSettingsDestination.CallRecording)
+            direction.route.startsWith("app_settings_screen") ->
+                onNavigate(NewUiSettingsDestination.AppAndCallBehavior)
+            direction.route.startsWith("settings_screen") ->
+                onNavigate(NewUiSettingsDestination.AppAndCallBehavior)
+            direction.route.startsWith("interface_screen") ->
+                onNavigate(NewUiSettingsDestination.ColorsAndTheme)
+        }
+    }
+
+    override fun navigateUp(): Boolean {
+        onBack()
+        return true
+    }
+
+    override fun popBackStack(): Boolean {
+        onBack()
+        return true
+    }
+
+    override fun popBackStack(
+        route: RouteOrDirection,
+        inclusive: Boolean,
+        saveState: Boolean
+    ): Boolean = popBackStack()
+
+    override fun clearBackStack(route: RouteOrDirection): Boolean = false
+
+    override fun getBackStackEntry(route: RouteOrDirection): NavBackStackEntry? = null
 }
 
 @Composable

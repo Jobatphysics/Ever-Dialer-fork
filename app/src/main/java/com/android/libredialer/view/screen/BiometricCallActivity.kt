@@ -115,7 +115,7 @@ private fun BiometricFloatingUi(
                     )
                     prompt.authenticate(
                         BiometricPrompt.PromptInfo.Builder()
-                            .setTitle("Ever Dialer")
+                            .setTitle("Phone")
                             .setSubtitle("Verify your identity to access this call")
                             .setNegativeButtonText("Cancel")
                             .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK)

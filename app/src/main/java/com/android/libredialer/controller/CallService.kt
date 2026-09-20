@@ -38,7 +38,6 @@ import com.android.libredialer.controller.UssdRepository
 import com.android.libredialer.modal.`interface`.IContactsRepository
 import com.android.libredialer.view.screen.BiometricCallActivity
 import com.android.libredialer.view.screen.CallActivity
-import com.android.libredialer.view.screen.settings.KEY_SELECTED_APP_ICON
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -248,20 +247,8 @@ class CallService : InCallService() {
         RainModeManager.stop(this)
     }
 
-    /**
-     * The ongoing/incoming-call notification's small icon should look like whichever app icon
-     * the user currently has selected (Settings > App Icon), instead of a generic stock phone
-     * glyph that doesn't match and can appear mirrored/"inverted" next to it. Each app icon
-     * variant already ships a monochrome adaptive-icon layer designed for exactly this purpose.
-     */
     private fun currentCallSmallIcon(): Int {
-        return when (prefs.getString(KEY_SELECTED_APP_ICON, "default")) {
-            "phone"        -> R.drawable.ic_notif_call_phone
-            "custom_phone" -> R.drawable.ic_notif_call_custom_phone
-            "google"       -> R.drawable.ic_notif_call_google
-            "nothing"      -> R.drawable.ic_notif_call_nothing
-            else           -> R.drawable.ic_notif_call_default
-        }
+        return R.drawable.ic_notif_call_default
     }
 
     /** Loads the contact's photo (if any) as a square bitmap suitable for a Person/large icon. */

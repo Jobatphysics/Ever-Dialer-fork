@@ -2271,7 +2271,7 @@ fun ExpressiveCallScreen(
                         )
                         prompt.authenticate(
                             androidx.biometric.BiometricPrompt.PromptInfo.Builder()
-                                .setTitle("Ever Dialer")
+                                .setTitle("Phone")
                                 .setSubtitle("Verify your identity to access this call")
                                 .setNegativeButtonText("Cancel")
                                 .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK)

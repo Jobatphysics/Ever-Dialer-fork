@@ -1,9 +1,6 @@
 package com.android.libredialer
 
 import com.coolappstore.evercallrecorder.by.svhp.ShizuApplication
-import com.android.libredialer.controller.util.PreferenceManager
-import com.android.libredialer.view.screen.settings.applyIcon
-import com.android.libredialer.view.screen.settings.buildIcons
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
 
@@ -16,7 +13,6 @@ class RivoApp : ShizuApplication() {
             androidContext(this@RivoApp)
             modules(appModule)
         }
-        restoreSavedAppIcon()
         com.android.libredialer.controller.FakeCallConnectionService.ensureRegistered(this)
         initMissedCallBadgeObserver()
     }
@@ -38,13 +34,4 @@ class RivoApp : ShizuApplication() {
         } catch (_: Throwable) {}
     }
 
-    private fun restoreSavedAppIcon() {
-        try {
-            val prefs = PreferenceManager(this)
-            val savedKey = prefs.getString(com.android.libredialer.view.screen.settings.KEY_SELECTED_APP_ICON, "radium_green_phone") ?: "radium_green_phone"
-            val icons = buildIcons(this)
-            val entry = icons.find { it.key == savedKey } ?: icons.first()
-            applyIcon(this, prefs, entry)
-        } catch (_: Exception) {}
-    }
 }

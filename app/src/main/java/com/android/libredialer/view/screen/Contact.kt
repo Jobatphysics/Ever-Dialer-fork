@@ -181,14 +181,11 @@ fun ContactScreen(navController: NavController, navigator: DestinationsNavigator
         topBar = { TopBar(navController, navigator) },
         floatingActionButton = {
             val settingsVer by prefs_ui.settingsChanged.collectAsState()
-            val blurEffects = remember(settingsVer) { prefs_ui.getBoolean(PreferenceManager.KEY_BLUR_EFFECTS, false) }
-            val blurContactsFab = remember(settingsVer) { prefs_ui.getBoolean(PreferenceManager.KEY_BLUR_CONTACTS_FAB, false) }
             val isDark = androidx.core.graphics.ColorUtils.calculateLuminance(MaterialTheme.colorScheme.surface.toArgb()) < 0.5
             val isSaturatedActive = remember(settingsVer, isDark) { prefs_ui.isSaturatedForTheme(isDark) }
             val fabBg = if (isSaturatedActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer
             val fabFg = if (isSaturatedActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
             val fabShape = RoundedCornerShape(17.dp)
-            val useBlur = blurEffects && blurContactsFab
             val baseModifier = Modifier
                 .scale(fabScale)
                 .then(if (pillNav) Modifier.navigationBarsPadding().padding(bottom = 92.dp) else Modifier)
@@ -199,10 +196,7 @@ fun ContactScreen(navController: NavController, navigator: DestinationsNavigator
             }
             FloatingActionButton(
                     onClick = fabOnClick,
-                    containerColor = if (useBlur)
-                        fabBg.copy(alpha = 0.75f)
-                    else
-                        fabBg,
+                    containerColor = fabBg,
                     contentColor = fabFg,
                     shape = fabShape,
                     elevation = FloatingActionButtonDefaults.elevation(
@@ -583,7 +577,7 @@ fun ContactContent(
             PermissionDeniedView(
                 icon = Icons.Default.Person,
                 title = "Contacts",
-                description = "Ever Dialer needs access to your contacts to show your contact list and identify incoming calls.",
+                description = "Phone needs access to your contacts to show your contact list and identify incoming calls.",
                 onGrantClick = onRequestPermission
             )
         }

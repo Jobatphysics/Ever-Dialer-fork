@@ -90,9 +90,6 @@ import java.io.File
 import kotlin.math.roundToInt
 
 import com.android.libredialer.view.theme.SettingsTransitionStyle
-import com.android.libredialer.view.theme.settingsMotionBlur
-import com.android.libredialer.view.theme.wpTurnstileControl
-import com.android.libredialer.view.theme.wpTurnstileItem
 
 private val ColorPurple  = Color(0xFF9C27B0)
 private val ColorOrange  = Color(0xFFFF9800)
@@ -1482,7 +1479,6 @@ fun SettingsScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
 
     // ── Screen ────────────────────────────────────────────────────────────────
     Scaffold(
-        modifier = Modifier.settingsMotionBlur(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             com.android.libredialer.view.components.SettingsPillTopAppBar(
@@ -1509,7 +1505,7 @@ fun SettingsScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
 
             item {
                 Column(
-                    modifier = Modifier.fillMaxWidth().wpTurnstileControl(delayMs = 30),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     // Feature count pill badge above search bar
@@ -1613,7 +1609,7 @@ fun SettingsScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
                         key = { _, entry -> "settings_search_${entry.key}" }
                     ) { index, entry ->
                         Surface(
-                            modifier = Modifier.fillMaxWidth().wpTurnstileItem(index),
+                            modifier = Modifier.fillMaxWidth(),
                             shape = groupedRowShape(index, filteredSettingsResults.size),
                             color = MaterialTheme.colorScheme.surfaceContainerLow
                         ) {
@@ -2054,7 +2050,7 @@ fun SettingsScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
                     Column {
                         SectionLabel("About")
                         RivoExpressiveCard {
-                            RivoListItem(headline = "About Ever Dialer", supporting = "Version $APP_VERSION · Developer info", leadingIcon = Icons.Outlined.Info, iconContainerColor = ColorBluGrey, trailingIcon = Icons.Default.ChevronRight, modifier = Modifier.settingsSearchHighlight("about_app", highlightedSettingKey) { highlightedSettingKey = null }, onClick = { navigator.navigate(AboutAppScreenDestination()) })
+                            RivoListItem(headline = "About Phone", supporting = "Version $APP_VERSION · License information", leadingIcon = Icons.Outlined.Info, iconContainerColor = ColorBluGrey, trailingIcon = Icons.Default.ChevronRight, modifier = Modifier.settingsSearchHighlight("about_app", highlightedSettingKey) { highlightedSettingKey = null }, onClick = { navigator.navigate(AboutAppScreenDestination()) })
                         }
                     }
                 }

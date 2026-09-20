@@ -10,20 +10,15 @@ package com.coolappstore.evercallrecorder.by.svhp.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.coolappstore.evercallrecorder.by.svhp.R
 
-// Set of Material typography styles to start with
-val Typography = buildTypography(FontFamily(Font(R.font.my_font)))
+// Fixed recorder typography; the removed app-level custom-font setting no longer affects this module.
+val Typography = buildTypography(FontFamily.Default)
 
 /**
- * Builds a full [Typography] using [fontFamily] for every text style, so that a user-selected
- * custom font (see [com.coolappstore.evercallrecorder.by.svhp.data.AppPreferences.getCustomFontFamily])
- * is actually applied across the entire recorder UI — every role, not just body text — instead of
- * silently falling back to [FontFamily.Default] for anything not explicitly overridden.
+ * Builds a full [Typography] using [fontFamily] for every text style.
  */
 fun buildTypography(fontFamily: FontFamily) = Typography(
     displayLarge   = TextStyle(fontFamily = fontFamily, fontWeight = FontWeight.Normal, fontSize = 57.sp, lineHeight = 64.sp, letterSpacing = (-0.25).sp),

@@ -137,12 +137,9 @@ import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinActivityViewModel
 import java.util.Locale
-import com.android.libredialer.liquidglass.drawPlainBackdrop
-import com.android.libredialer.liquidglass.effects.blur
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import kotlinx.coroutines.CancellationException
-import com.android.libredialer.liquidglass.LocalLiquidGlassBackdrop
 
 /**
  * Keeps the in-progress dialed digits alive across the dialpad bottom sheet being dismissed
@@ -2004,10 +2001,6 @@ fun DialPadContent(
                         isLarge = true
                     )
 
-                    val blurDialpadEnabled = remember(settingsState) {
-                        prefs.getBoolean(PreferenceManager.KEY_BLUR_EFFECTS, false) &&
-                        prefs.getBoolean(PreferenceManager.KEY_BLUR_DIALPAD_CALL_BUTTON, false)
-                    }
                     if (showSimButtons) {
                         val simBtnW = (70 * scaleFactor).dp
                         Row(
@@ -2034,7 +2027,6 @@ fun DialPadContent(
                                 contentColor = Color.White,
                                 modifier = Modifier.width(simBtnW).height(callH),
                                 isLarge = true,
-                                blurEnabled = blurDialpadEnabled,
                                 isCallButton = true
                             )
                             DialerActionExpressive(
@@ -2057,7 +2049,6 @@ fun DialPadContent(
                                 contentColor = Color.White,
                                 modifier = Modifier.width(simBtnW).height(callH),
                                 isLarge = true,
-                                blurEnabled = blurDialpadEnabled,
                                 isCallButton = true
                             )
                         }
@@ -2080,7 +2071,6 @@ fun DialPadContent(
                             contentColor = Color.White,
                             modifier = Modifier.width(callW).height(callH),
                             isLarge = true,
-                            blurEnabled = blurDialpadEnabled,
                             isCallButton = true
                         )
                     }
@@ -2180,7 +2170,6 @@ fun DialerActionExpressive(
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     isLarge: Boolean = false,
     onLongClick: (() -> Unit)? = null,
-    blurEnabled: Boolean = false,
     isCallButton: Boolean = false,
     customColor: Color? = null,
     simSlotNumber: String? = null
@@ -2252,7 +2241,6 @@ fun DialerActionExpressive(
     val animatedContentColor by animateColorAsState(targetContentColor, spring(stiffness = Spring.StiffnessMedium), "ActionBtnContentColor")
 
     val buttonShape = RoundedCornerShape(cornerRadius)
-    val useBackdropBlur = blurEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     val actionContent = @Composable {
         Box(contentAlignment = Alignment.Center) {
@@ -2268,43 +2256,7 @@ fun DialerActionExpressive(
         }
     }
 
-    if (useBackdropBlur) {
-        val backdrop = LocalLiquidGlassBackdrop.current
-        if (backdrop != null) {
-        Surface(
-            modifier = modifier
-                .scale(scale)
-                .drawPlainBackdrop(
-                    backdrop = backdrop,
-                    shape    = { buttonShape },
-                    effects  = { blur(30f * density) }
-                )
-                .combinedClickable(
-                    onClick = wrappedOnClick,
-                    onLongClick = wrappedOnLongClick,
-                    interactionSource = interactionSource,
-                    indication = null
-                ),
-            shape = buttonShape,
-            color = animatedBgColor.copy(alpha = 0.72f),
-            contentColor = animatedContentColor
-        ) {
-            actionContent()
-        }
-        } else {
-            Surface(
-                modifier = modifier
-                    .scale(scale)
-                    .combinedClickable(onClick = wrappedOnClick, onLongClick = wrappedOnLongClick, interactionSource = interactionSource, indication = null),
-                shape = buttonShape,
-                color = animatedBgColor,
-                contentColor = animatedContentColor
-            ) {
-                actionContent()
-            }
-        }
-    } else {
-        Surface(
+    Surface(
             modifier = modifier
                 .scale(scale)
                 .combinedClickable(onClick = wrappedOnClick, onLongClick = wrappedOnLongClick, interactionSource = interactionSource, indication = null),
@@ -2313,7 +2265,6 @@ fun DialerActionExpressive(
             contentColor = animatedContentColor
         ) {
             actionContent()
-        }
     }
 }
 
@@ -2385,7 +2336,7 @@ fun DialPadKey(
 
     val keyWidth = overrideWidth ?: if (compact) 82.dp else 100.dp
     val keyHeight = overrideHeight ?: if (compact) 52.dp else 68.dp
-    val fontScale = remember(settingsState) { prefs.getFloat(PreferenceManager.KEY_CUSTOM_FONT_SIZE, 1.0f) }
+    val fontScale = 1.0f
     val isStarKey = number == "*"
     val isPlusSubKey = letters.trim() == "+"
     val mainFontSize = (if (isStarKey) (if (compact) 26f else 32f) else (if (compact) 18f else 22f)) * scaleFactor.coerceIn(0.6f, 1.4f) * fontScale
@@ -2467,7 +2418,7 @@ private fun DialpadNumberDisplay(
 ) {
     val prefs = koinInject<PreferenceManager>()
     val settingsState by prefs.settingsChanged.collectAsState()
-    val fontScale = remember(settingsState) { prefs.getFloat(PreferenceManager.KEY_CUSTOM_FONT_SIZE, 1.0f) }
+    val fontScale = 1.0f
     val easeOutExpo = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
     val textColor   = MaterialTheme.colorScheme.onSurface
 

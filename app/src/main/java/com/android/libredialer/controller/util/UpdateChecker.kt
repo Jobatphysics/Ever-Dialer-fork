@@ -120,7 +120,7 @@ fun enqueueApkDownload(context: Context, apkUrl: String): Long? {
         if (file.exists()) file.delete()
 
         val request = DownloadManager.Request(Uri.parse(apkUrl)).apply {
-            setTitle("Ever Dialer Update")
+            setTitle("Phone Update")
             setDescription("Downloading latest version…")
             // Show during download only — no "completed" notification (we launch installer directly)
             setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)

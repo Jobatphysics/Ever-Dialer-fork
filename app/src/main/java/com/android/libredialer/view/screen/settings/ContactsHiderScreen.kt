@@ -30,7 +30,6 @@ import com.android.libredialer.modal.data.Contact
 import com.android.libredialer.view.components.RivoAvatar
 import com.android.libredialer.view.components.RivoExpressiveCard
 import com.android.libredialer.view.theme.SettingsTransitionStyle
-import com.android.libredialer.view.theme.settingsMotionBlur
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
@@ -76,7 +75,6 @@ fun ContactsHiderScreen(navigator: DestinationsNavigator) {
     }
 
     Scaffold(
-        modifier = Modifier.settingsMotionBlur(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             com.android.libredialer.view.components.SettingsPillTopAppBar(

@@ -19,7 +19,6 @@ import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.view.components.RivoAnimatedSection
 import com.android.libredialer.view.components.RivoExpressiveCard
 import com.android.libredialer.view.theme.SettingsTransitionStyle
-import com.android.libredialer.view.theme.settingsMotionBlur
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
@@ -42,7 +41,6 @@ fun DefaultMessageAppScreen(navigator: DestinationsNavigator) {
     var selected by remember { mutableStateOf(prefs.getString(PreferenceManager.KEY_DEFAULT_MESSAGE_APP, "sms") ?: "sms") }
 
     Scaffold(
-        modifier = Modifier.settingsMotionBlur(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             com.android.libredialer.view.components.SettingsPillTopAppBar(

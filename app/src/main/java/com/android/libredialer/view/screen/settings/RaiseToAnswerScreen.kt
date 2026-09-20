@@ -29,7 +29,6 @@ import com.android.libredialer.view.components.RivoExpressiveCard
 import com.android.libredialer.view.components.RivoSwitchListItem
 import com.android.libredialer.view.components.settingsSearchHighlight
 import com.android.libredialer.view.theme.SettingsTransitionStyle
-import com.android.libredialer.view.theme.settingsMotionBlur
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
@@ -65,7 +64,6 @@ fun RaiseToAnswerScreen(navigator: DestinationsNavigator, highlightKey: String? 
     var vibrateFeedback by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_RAISE_TO_ANSWER_VIBRATE, false)) }
 
     Scaffold(
-        modifier = Modifier.settingsMotionBlur(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             com.android.libredialer.view.components.SettingsPillTopAppBar(

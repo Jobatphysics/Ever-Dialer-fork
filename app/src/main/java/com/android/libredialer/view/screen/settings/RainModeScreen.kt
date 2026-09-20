@@ -34,7 +34,6 @@ import com.android.libredialer.controller.VolumeDndAccessibilityService
 import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.view.components.*
 import com.android.libredialer.view.theme.SettingsTransitionStyle
-import com.android.libredialer.view.theme.settingsMotionBlur
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
@@ -123,7 +122,6 @@ fun RainModeScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
     }
 
     Scaffold(
-        modifier = Modifier.settingsMotionBlur(),
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             com.android.libredialer.view.components.SettingsPillTopAppBar(
