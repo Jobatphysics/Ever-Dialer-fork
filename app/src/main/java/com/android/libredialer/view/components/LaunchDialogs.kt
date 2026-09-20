@@ -1,7 +1,6 @@
 package com.android.libredialer.view.components
 
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -21,10 +20,6 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.android.libredialer.view.theme.ProvideScaledDensity
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.graphics.createBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -32,25 +27,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-// painterResource() cannot load the launcher mipmap because on API 26+ it's an AdaptiveIconDrawable
-// (<adaptive-icon> XML), which is neither a VectorDrawable nor a rasterized PNG/WEBP — it throws
-// IllegalArgumentException and crashes. Rendering the resolved application icon Drawable onto a
-// Bitmap works for any icon type, adaptive or not.
-@Composable
-private fun rememberAppIconPainter(): BitmapPainter {
-    val context = LocalContext.current
-    return remember {
-        val drawable = context.packageManager.getApplicationIcon(context.packageName)
-        val width = drawable.intrinsicWidth.coerceAtLeast(1)
-        val height = drawable.intrinsicHeight.coerceAtLeast(1)
-        val bitmap = createBitmap(width, height)
-        val canvas = android.graphics.Canvas(bitmap)
-        drawable.setBounds(0, 0, canvas.width, canvas.height)
-        drawable.draw(canvas)
-        BitmapPainter(bitmap.asImageBitmap())
-    }
-}
-
 // ─── Shared pop-in wrapper ────────────────────────────────────────────────────
 
 @Composable
@@ -115,15 +91,6 @@ private fun DialogBanner(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // App icon
-            Image(
-                painter = rememberAppIconPainter(),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(RoundedCornerShape(18.dp))
-            )
-            Spacer(Modifier.height(10.dp))
             Text(
                 title,
                 style = MaterialTheme.typography.titleMedium,
@@ -303,5 +270,4 @@ private fun StepRow(number: String, icon: ImageVector, text: String) {
         )
     }
 }
-
 
