@@ -1,5 +1,6 @@
 package com.android.libredialer.view.screen
 
+import android.os.Build
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -7,7 +8,6 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.media.AudioAttributes
 import android.media.SoundPool
-import android.os.Build
 import android.provider.ContactsContract
 import android.telecom.TelecomManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -137,12 +137,8 @@ import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinActivityViewModel
 import java.util.Locale
-import com.android.libredialer.liquidglass.drawBackdrop
 import com.android.libredialer.liquidglass.drawPlainBackdrop
 import com.android.libredialer.liquidglass.effects.blur
-import com.android.libredialer.liquidglass.effects.lens
-import com.android.libredialer.liquidglass.effects.colorControls
-import com.android.libredialer.liquidglass.highlight.Highlight
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import kotlinx.coroutines.CancellationException
@@ -2008,15 +2004,9 @@ fun DialPadContent(
                         isLarge = true
                     )
 
-                    val lgBackdrop = LocalLiquidGlassBackdrop.current
-                    val lgDialpadEnabled = remember(settingsState) {
-                        prefs.getBoolean(PreferenceManager.KEY_LIQUID_GLASS, false) &&
-                        prefs.getBoolean(PreferenceManager.KEY_LG_DIALPAD_CALL_BUTTON, false)
-                    }
                     val blurDialpadEnabled = remember(settingsState) {
                         prefs.getBoolean(PreferenceManager.KEY_BLUR_EFFECTS, false) &&
-                        prefs.getBoolean(PreferenceManager.KEY_BLUR_DIALPAD_CALL_BUTTON, false) &&
-                        !lgDialpadEnabled
+                        prefs.getBoolean(PreferenceManager.KEY_BLUR_DIALPAD_CALL_BUTTON, false)
                     }
                     if (showSimButtons) {
                         val simBtnW = (70 * scaleFactor).dp
@@ -2044,8 +2034,6 @@ fun DialPadContent(
                                 contentColor = Color.White,
                                 modifier = Modifier.width(simBtnW).height(callH),
                                 isLarge = true,
-                                liquidGlassBackdrop = lgBackdrop,
-                                liquidGlassEnabled = lgDialpadEnabled,
                                 blurEnabled = blurDialpadEnabled,
                                 isCallButton = true
                             )
@@ -2069,8 +2057,6 @@ fun DialPadContent(
                                 contentColor = Color.White,
                                 modifier = Modifier.width(simBtnW).height(callH),
                                 isLarge = true,
-                                liquidGlassBackdrop = lgBackdrop,
-                                liquidGlassEnabled = lgDialpadEnabled,
                                 blurEnabled = blurDialpadEnabled,
                                 isCallButton = true
                             )
@@ -2094,8 +2080,6 @@ fun DialPadContent(
                             contentColor = Color.White,
                             modifier = Modifier.width(callW).height(callH),
                             isLarge = true,
-                            liquidGlassBackdrop = lgBackdrop,
-                            liquidGlassEnabled = lgDialpadEnabled,
                             blurEnabled = blurDialpadEnabled,
                             isCallButton = true
                         )
@@ -2196,8 +2180,6 @@ fun DialerActionExpressive(
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
     isLarge: Boolean = false,
     onLongClick: (() -> Unit)? = null,
-    liquidGlassBackdrop: com.android.libredialer.liquidglass.Backdrop? = null,
-    liquidGlassEnabled: Boolean = false,
     blurEnabled: Boolean = false,
     isCallButton: Boolean = false,
     customColor: Color? = null,
@@ -2269,9 +2251,8 @@ fun DialerActionExpressive(
     val targetContentColor = if (isVisuallyPressed) (if (customColor != null) Color.White else pressedContentColor) else restingContentColor
     val animatedContentColor by animateColorAsState(targetContentColor, spring(stiffness = Spring.StiffnessMedium), "ActionBtnContentColor")
 
-    val useLiquidGlass = liquidGlassEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && liquidGlassBackdrop != null
     val buttonShape = RoundedCornerShape(cornerRadius)
-    val useBackdropBlur = blurEnabled && !useLiquidGlass && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val useBackdropBlur = blurEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     val actionContent = @Composable {
         Box(contentAlignment = Alignment.Center) {
@@ -2287,43 +2268,14 @@ fun DialerActionExpressive(
         }
     }
 
-    if (useLiquidGlass && liquidGlassBackdrop != null) {
-        Box(
-            modifier = modifier
-                .scale(scale)
-                .drawBackdrop(
-                    backdrop = liquidGlassBackdrop,
-                    shape = { buttonShape },
-                    effects = {
-                        val d = density
-                        colorControls(saturation = 1.3f)
-                        blur(2f * d)
-                        lens(refractionHeight = 18f * d, refractionAmount = 52f * d)
-                    },
-                    highlight = { Highlight.Default }
-                )
-                .combinedClickable(
-                    onClick = wrappedOnClick,
-                    onLongClick = wrappedOnLongClick,
-                    interactionSource = interactionSource,
-                    indication = null
-                )
-        ) {
-            Surface(
-                shape = buttonShape,
-                color = animatedBgColor.copy(alpha = 0.5f),
-                contentColor = animatedContentColor,
-                modifier = Modifier.matchParentSize()
-            ) {
-                actionContent()
-            }
-        }
-    } else if (useBackdropBlur && liquidGlassBackdrop != null) {
+    if (useBackdropBlur) {
+        val backdrop = LocalLiquidGlassBackdrop.current
+        if (backdrop != null) {
         Surface(
             modifier = modifier
                 .scale(scale)
                 .drawPlainBackdrop(
-                    backdrop = liquidGlassBackdrop,
+                    backdrop = backdrop,
                     shape    = { buttonShape },
                     effects  = { blur(30f * density) }
                 )
@@ -2338,6 +2290,18 @@ fun DialerActionExpressive(
             contentColor = animatedContentColor
         ) {
             actionContent()
+        }
+        } else {
+            Surface(
+                modifier = modifier
+                    .scale(scale)
+                    .combinedClickable(onClick = wrappedOnClick, onLongClick = wrappedOnLongClick, interactionSource = interactionSource, indication = null),
+                shape = buttonShape,
+                color = animatedBgColor,
+                contentColor = animatedContentColor
+            ) {
+                actionContent()
+            }
         }
     } else {
         Surface(

@@ -106,7 +106,6 @@ val settingsRoutes = setOf(
     "contacts_hider_screen",
     "custom_background_picker_screen",
     "contact_pfp_customization_screen",
-    "liquid_glass_elements_screen",
     "blur_effects_elements_screen",
     "app_icon_screen",
     "call_accounts_screen",
@@ -216,4 +215,3 @@ fun Modifier.settingsMotionBlur(maxBlurDp: Float = 10f): Modifier {
         this
     }
 }
-

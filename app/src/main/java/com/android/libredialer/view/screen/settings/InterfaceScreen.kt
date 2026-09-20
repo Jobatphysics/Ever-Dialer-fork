@@ -176,7 +176,6 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
     var animationStyle      by remember { mutableStateOf(prefs.getString(PreferenceManager.KEY_ANIMATION_STYLE, PreferenceManager.ANIMATION_STYLE_ZOOM) ?: PreferenceManager.ANIMATION_STYLE_ZOOM) }
     var showAnimationStyleDialog by remember { mutableStateOf(false) }
     var motionBlurAnimation by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_MOTION_BLUR_ANIMATION, false)) }
-    var liquidGlass         by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_LIQUID_GLASS, false)) }
     var blurEffects         by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_BLUR_EFFECTS, false)) }
     var hangupAnimation     by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_HANGUP_ANIMATION, true)) }
 
@@ -1435,6 +1434,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(start = 12.dp, bottom = 8.dp))
                             RivoExpressiveCard {
+                                /*
                                 RivoSwitchListItem(
                                     headline = "Dynamic Colors",
                                     supporting = "Wallpaper based app color theming",
@@ -1546,10 +1546,12 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                         }
                                     }
                                 }
+                                */
                                 HorizontalDivider(
                                     modifier = Modifier.padding(horizontal = 16.dp),
                                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                                 )
+                                /*
                                 RivoSwitchListItem(
                                     headline = "Saturated Colors",
                                     supporting = "Apply rich saturated colors behind containers",
@@ -1806,7 +1808,6 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                                     shape = RoundedCornerShape(50.dp),
                                                     border = null
                                                 )
-                                            }
                                         }
                                     }
                                 }
@@ -1836,11 +1837,13 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                     modifier = Modifier.settingsSearchHighlight("colorful_avatars", highlightedKey) { highlightedKey = null },
                                     onCheckedChange = { colorfulAvatars = it; prefs.setBoolean(PreferenceManager.KEY_COLORFUL_AVATARS, it) }
                                 )
+                                */
+                                }
                             }
                         }
                     }
 
-                // ── Fonts ───────────────────────────────────────────────
+                /* ── Fonts ───────────────────────────────────────────────
                     RivoAnimatedSection(delayMs = 70L) {
                         Column {
                             Text("Fonts", style = MaterialTheme.typography.labelLarge,
@@ -1876,7 +1879,8 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                         }
                     }
 
-                // ── Roundness ───────────────────────────────────────────
+                */
+                /* ── Roundness ───────────────────────────────────────────
                     RivoAnimatedSection(delayMs = 75L) {
                         Column {
                             Text("Roundness", style = MaterialTheme.typography.labelLarge,
@@ -1992,157 +1996,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                         }
                     }
 
-                // ── Liquid Glass ─────────────────────────────────────
-                    RivoAnimatedSection(delayMs = 80L) {
-                        Column {
-                            Text("Visual Effects", style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(start = 12.dp, bottom = 8.dp))
-                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-                                RivoExpressiveCard {
-                                    Row(
-                                        modifier = Modifier.padding(16.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Outlined.Lens,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Column {
-                                            Text(
-                                                "Not supported on this device",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                "Blur and Liquid Glass require Android 12 or higher",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                            )
-                                        }
-                                    }
-                                }
-                            } else {
-                            RivoExpressiveCard {
-                                RivoSwitchListItem(
-                                    headline = "Material Liquid You Glass",
-                                    supporting = "Apply a liquid glass refraction effect to navigation and menus",
-                                    leadingIcon = Icons.Outlined.Lens,
-                                    iconContainerColor = Color(0xFF00BCD4),
-                                    checked = liquidGlass,
-                                    modifier = Modifier.settingsSearchHighlight("liquid_glass_toggle", highlightedKey) { highlightedKey = null },
-                                    onCheckedChange = {
-                                        liquidGlass = it
-                                        prefs.setBoolean(PreferenceManager.KEY_LIQUID_GLASS, it)
-                                    }
-                                )
-                                HorizontalDivider(Modifier.padding(horizontal = 16.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                                RivoListItem(
-                                    headline = "Elements to have liquid glass effect",
-                                    supporting = "Choose which UI elements use the liquid glass effect",
-                                    leadingIcon = Icons.Outlined.Layers,
-                                    iconContainerColor = Color(0xFF0097A7),
-                                    trailingIcon = Icons.Default.ChevronRight,
-                                    modifier = Modifier.settingsSearchHighlight("liquid_glass_elements_link", highlightedKey) { highlightedKey = null },
-                                    onClick = {
-                                        navigator.navigate(com.ramcosta.composedestinations.generated.destinations.LiquidGlassElementsScreenDestination)
-                                    }
-                                )
-                            }
-                            Spacer(Modifier.height(12.dp))
-                            RivoExpressiveCard {
-                                RivoSwitchListItem(
-                                    headline = "Material Blur Effects",
-                                    supporting = "Apply a background blur effect to navigation and menus",
-                                    leadingIcon = Icons.Outlined.BlurOn,
-                                    iconContainerColor = Color(0xFF5C6BC0),
-                                    checked = blurEffects,
-                                    modifier = Modifier.settingsSearchHighlight("blur_effects_toggle", highlightedKey) { highlightedKey = null },
-                                    onCheckedChange = {
-                                        blurEffects = it
-                                        prefs.setBoolean(PreferenceManager.KEY_BLUR_EFFECTS, it)
-                                    }
-                                )
-                                HorizontalDivider(Modifier.padding(horizontal = 16.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                                RivoListItem(
-                                    headline = "Elements to have blur effect",
-                                    supporting = "Choose which UI elements use the blur effect",
-                                    leadingIcon = Icons.Outlined.Layers,
-                                    iconContainerColor = Color(0xFF3949AB),
-                                    trailingIcon = Icons.Default.ChevronRight,
-                                    modifier = Modifier.settingsSearchHighlight("blur_effects_elements_link", highlightedKey) { highlightedKey = null },
-                                    onClick = {
-                                        navigator.navigate(com.ramcosta.composedestinations.generated.destinations.BlurEffectsElementsScreenDestination)
-                                    }
-                                )
-                            }
-                            Spacer(Modifier.height(12.dp))
-                            RivoExpressiveCard {
-                                RivoListItem(
-                                    headline = "Animation Style",
-                                    supporting = if (animationStyle == PreferenceManager.ANIMATION_STYLE_WINDOWS_PHONE) "Windows Phone" else "Zoom (in/out)",
-                                    leadingIcon = Icons.Outlined.Animation,
-                                    iconContainerColor = ColorTeal,
-                                    trailingIcon = Icons.Default.ChevronRight,
-                                    modifier = Modifier.settingsSearchHighlight("animation_style", highlightedKey) { highlightedKey = null },
-                                    onClick = { showAnimationStyleDialog = true }
-                                )
-                            }
-                            Spacer(Modifier.height(12.dp))
-                            RivoExpressiveCard {
-                                RivoSwitchListItem(
-                                    headline = "Motion Blur in Animation",
-                                    supporting = "Apply dynamic motion blur during zoom page transitions",
-                                    leadingIcon = Icons.Outlined.BlurOn,
-                                    iconContainerColor = ColorPurple,
-                                    checked = motionBlurAnimation,
-                                    modifier = Modifier.settingsSearchHighlight("motion_blur_animation", highlightedKey) { highlightedKey = null },
-                                    onCheckedChange = {
-                                        motionBlurAnimation = it
-                                        prefs.setBoolean(PreferenceManager.KEY_MOTION_BLUR_ANIMATION, it)
-                                    }
-                                )
-                                HorizontalDivider(Modifier.padding(horizontal = 16.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                                RivoSwitchListItem(
-                                    headline = "Scroll Animation",
-                                    supporting = "Fade-in animation for list items as you scroll",
-                                    leadingIcon = Icons.Outlined.Animation,
-                                    iconContainerColor = ColorBlue,
-                                    checked = scrollAnimation,
-                                    modifier = Modifier.settingsSearchHighlight("scroll_animation", highlightedKey) { highlightedKey = null },
-                                    onCheckedChange = {
-                                        scrollAnimation = it
-                                        prefs.setBoolean(PreferenceManager.KEY_SCROLL_ANIMATION, it)
-                                    }
-                                )
-                                HorizontalDivider(Modifier.padding(horizontal = 16.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                                RivoSwitchListItem(
-                                    headline = "Hangup Animation",
-                                    supporting = if (hangupAnimation)
-                                        "The call screen smoothly slides away when a call ends"
-                                    else
-                                        "The call screen closes immediately when a call ends, with no slide animation",
-                                    leadingIcon = Icons.Default.CallEnd,
-                                    iconContainerColor = Color(0xFFE53935),
-                                    checked = hangupAnimation,
-                                    modifier = Modifier.settingsSearchHighlight("hangup_animation", highlightedKey) { highlightedKey = null },
-                                    onCheckedChange = {
-                                        hangupAnimation = it
-                                        prefs.setBoolean(PreferenceManager.KEY_HANGUP_ANIMATION, it)
-                                    }
-                                )
-                            }
-                            }
-                        }
-                    }
-
+                */
                 // ── Call UI ───────────────────────────────────────────
                     RivoAnimatedSection(delayMs = 100L) {
                         Column {
@@ -2239,6 +2093,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(start = 12.dp, bottom = 8.dp))
                             RivoExpressiveCard {
+                                /*
                                 RivoSwitchListItem(
                                     headline = "Pill Style Navigation",
                                     supporting = "Show a floating pill-style nav bar instead of the standard bottom bar",
@@ -2249,8 +2104,8 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                     onCheckedChange = {
                                         pillNav = it
                                         prefs.setBoolean(PreferenceManager.KEY_PILL_NAV, it)
-                                    }
                                 )
+                                }
                                 HorizontalDivider(Modifier.padding(horizontal = 16.dp),
                                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                                 RivoSwitchListItem(
@@ -2311,6 +2166,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                         prefs.setBoolean(PreferenceManager.KEY_SHOW_SIMS_IN_CALL_LOGS, it)
                                     }
                                 )
+                                */
                                 HorizontalDivider(Modifier.padding(horizontal = 16.dp),
                                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                                 RivoSwitchListItem(
@@ -2327,6 +2183,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                 )
                                 HorizontalDivider(Modifier.padding(horizontal = 16.dp),
                                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                 /*
                                  RivoSwitchListItem(
                                      headline = "Hide Duplicate Numbers In A Contact",
                                      supporting = "Show only one of multiple identical or matching numbers saved under the same contact",
@@ -2487,6 +2344,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                     modifier = Modifier.settingsSearchHighlight("icon_only_bottom_bar", highlightedKey) { highlightedKey = null },
                                     onCheckedChange = { iconOnlyNav = it; prefs.setBoolean(PreferenceManager.KEY_ICON_ONLY_NAV, it) }
                                 )
+                                */
                                 HorizontalDivider(Modifier.padding(horizontal = 16.dp),
                                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                                 RivoSwitchListItem(
@@ -2519,7 +2377,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                         }
                     }
 
-                // ── Avatars ──────────────────────────────────────────
+                /* ── Avatars ──────────────────────────────────────────
                     RivoAnimatedSection(delayMs = 160L) {
                         Column {
                             Text("Avatars", style = MaterialTheme.typography.labelLarge,
@@ -2549,8 +2407,9 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                             }
                         }
                     }
+                */
 
-                // ── App ─────────────────────────────────────────
+                /* ── App ─────────────────────────────────────────
                     Column {
                         Text(
                             "App",
@@ -2567,7 +2426,6 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                 modifier = Modifier.settingsSearchHighlight("app_icon_link", highlightedKey) { highlightedKey = null },
                                 onClick = {
                                     navigator.navigate(com.ramcosta.composedestinations.generated.destinations.AppIconScreenDestination)
-                                }
                             )
                         }
 
@@ -2584,6 +2442,8 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                             )
                         }
                     }
+                }
+                */
 
                 Spacer(modifier = Modifier.height(100.dp))
             }
@@ -2717,7 +2577,6 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
 
         }
     }
-}
 
 @Composable
 private fun FloatingColorPickerDialog(

@@ -65,12 +65,8 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.graphicsLayer
-import com.android.libredialer.liquidglass.drawBackdrop
 import com.android.libredialer.liquidglass.drawPlainBackdrop
 import com.android.libredialer.liquidglass.effects.blur
-import com.android.libredialer.liquidglass.effects.lens
-import com.android.libredialer.liquidglass.effects.colorControls
-import com.android.libredialer.liquidglass.highlight.Highlight
 import com.android.libredialer.liquidglass.LocalLiquidGlassBackdrop
 
 // ─── App Haptics Helper ────────────────────────────────────────────────────────
@@ -1123,8 +1119,6 @@ fun RivoDropdownMenu(
 ) {
     val prefs = koinInject<PreferenceManager>()
     val settingsVer by prefs.settingsChanged.collectAsState()
-    val liquidGlass = remember(settingsVer) { prefs.getBoolean(PreferenceManager.KEY_LIQUID_GLASS, false) }
-    val lgDropdownMenu = remember(settingsVer) { prefs.getBoolean(PreferenceManager.KEY_LG_DROPDOWN_MENU, false) }
     val blurEffects = remember(settingsVer) { prefs.getBoolean(PreferenceManager.KEY_BLUR_EFFECTS, false) }
     val blurDropdownMenu = remember(settingsVer) { prefs.getBoolean(PreferenceManager.KEY_BLUR_DROPDOWN_MENU, false) }
     var showContent by remember { mutableStateOf(false) }
@@ -1198,8 +1192,7 @@ fun RivoDropdownMenu(
                     ) {
                         val menuShape = RoundedCornerShape(35.dp)
                         val globalBackdrop = LocalLiquidGlassBackdrop.current
-                        val useLgDropdown = liquidGlass && lgDropdownMenu && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && globalBackdrop != null
-                        val useBlurDropdown = blurEffects && blurDropdownMenu && !useLgDropdown
+                        val useBlurDropdown = blurEffects && blurDropdownMenu
 
                         Box(
                             modifier = Modifier
@@ -1208,8 +1201,7 @@ fun RivoDropdownMenu(
                                 .scale(backScale.value)
                                 .alpha(backAlpha.value)
                                 .then(
-                                    if (useLgDropdown) Modifier
-                                    else Modifier.shadow(
+                                    Modifier.shadow(
                                         elevation = 16.dp,
                                         shape = RoundedCornerShape(24.dp),
                                         spotColor = Color.Black.copy(alpha = 0.28f),
@@ -1222,32 +1214,8 @@ fun RivoDropdownMenu(
                                     onClick = {}
                                 )
                         ) {
-                            val dropdownShape = if (useLgDropdown) menuShape else RoundedCornerShape(24.dp)
-                            if (useLgDropdown) {
-                                Surface(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .drawBackdrop(
-                                            backdrop = globalBackdrop!!,
-                                            shape = { menuShape },
-                                            effects = {
-                                                val d = density
-                                                colorControls(brightness = -0.13f, saturation = 1.4f)
-                                                blur(6f * d)
-                                                lens(
-                                                    refractionHeight = 40f * d,
-                                                    refractionAmount = 248f * d
-                                                )
-                                            },
-                                            highlight = { Highlight.Plain }
-                                        ),
-                                    shape = menuShape,
-                                    color = Color.Black.copy(alpha = 0.25f),
-                                    tonalElevation = 0.dp
-                                ) {
-                                    Column(modifier = Modifier.padding(vertical = 8.dp)) { content() }
-                                }
-                            } else if (useBlurDropdown && globalBackdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            val dropdownShape = RoundedCornerShape(24.dp)
+                            if (useBlurDropdown && globalBackdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                                 Surface(
                                     modifier = Modifier.fillMaxWidth().drawPlainBackdrop(
                                         backdrop = globalBackdrop,
@@ -1297,13 +1265,8 @@ fun RivoDropdownMenuItem(
 ) {
     val prefs2 = koinInject<PreferenceManager>()
     val settingsVer2 by prefs2.settingsChanged.collectAsState()
-    val liquidGlass2 = remember(settingsVer2) { prefs2.getBoolean(PreferenceManager.KEY_LIQUID_GLASS, false) }
-    val lgDropdown   = remember(settingsVer2) { prefs2.getBoolean(PreferenceManager.KEY_LG_DROPDOWN_MENU, false) }
-
-    // Text color: white only when liquid glass dropdown is fully active
     val textColor  = when {
         isDestructive          -> MaterialTheme.colorScheme.error
-        liquidGlass2 && lgDropdown -> Color.White
         else                   -> MaterialTheme.colorScheme.onSurface
     }
     val tintColor  = if (isDestructive) MaterialTheme.colorScheme.error else iconTint
@@ -1334,7 +1297,7 @@ fun RivoDropdownMenuItem(
                 val solidIcons = remember(settingsVer2) { prefs2.getBoolean(PreferenceManager.KEY_SOLID_ICONS, false) }
                 val solidIconsDynamic = remember(settingsVer2) { prefs2.getBoolean(PreferenceManager.KEY_SOLID_ICONS_DYNAMIC, false) }
                 val circleIcons = remember(settingsVer2) { prefs2.getBoolean(PreferenceManager.KEY_CIRCLE_ICONS, false) }
-                val solidMode = solidIcons || (liquidGlass2 && lgDropdown)
+                val solidMode = solidIcons
                 val isDark = androidx.core.graphics.ColorUtils.calculateLuminance(MaterialTheme.colorScheme.surface.toArgb()) < 0.5
                 val solidStyle = remember(settingsVer2, isDark) { prefs2.getSolidIconsStyle(isDark) }
                 val isSaturatedActive = remember(settingsVer2, isDark) { prefs2.isSaturatedForTheme(isDark) }

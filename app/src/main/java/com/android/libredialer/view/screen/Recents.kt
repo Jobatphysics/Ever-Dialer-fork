@@ -76,12 +76,6 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinActivityViewModel
 import com.android.libredialer.controller.ContactsViewModel
-import android.os.Build
-import com.android.libredialer.liquidglass.drawBackdrop
-import com.android.libredialer.liquidglass.effects.lens
-import com.android.libredialer.liquidglass.effects.colorControls
-import com.android.libredialer.liquidglass.highlight.Highlight
-import com.android.libredialer.liquidglass.LocalLiquidGlassBackdrop
 import org.koin.compose.viewmodel.koinActivityViewModel
 import java.util.Calendar
 import java.util.Locale
@@ -371,10 +365,7 @@ fun RecentScreen(navController: NavController, navigator: DestinationsNavigator)
             },
         topBar = { TopBar(navController, navigator) },
         floatingActionButton = {
-            val globalBackdrop = LocalLiquidGlassBackdrop.current
             val settingsVer by prefs.settingsChanged.collectAsState()
-            val liquidGlass = remember(settingsVer) { prefs.getBoolean(com.android.libredialer.controller.util.PreferenceManager.KEY_LIQUID_GLASS, false) }
-            val lgRecentsFab = remember(settingsVer) { prefs.getBoolean(com.android.libredialer.controller.util.PreferenceManager.KEY_LG_RECENTS_FAB, false) }
             val blurEffects = remember(settingsVer) { prefs.getBoolean(com.android.libredialer.controller.util.PreferenceManager.KEY_BLUR_EFFECTS, false) }
             val blurRecentsFab = remember(settingsVer) { prefs.getBoolean(com.android.libredialer.controller.util.PreferenceManager.KEY_BLUR_RECENTS_FAB, false) }
             val isDark = androidx.core.graphics.ColorUtils.calculateLuminance(MaterialTheme.colorScheme.surface.toArgb()) < 0.5
@@ -382,40 +373,12 @@ fun RecentScreen(navController: NavController, navigator: DestinationsNavigator)
             val fabBg = if (isSaturatedActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer
             val fabFg = if (isSaturatedActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
             val fabShape = RoundedCornerShape(17.dp)
-            val useLiquidGlass = liquidGlass && lgRecentsFab && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && globalBackdrop != null
-            val useBlur = blurEffects && blurRecentsFab && !useLiquidGlass
+            val useBlur = blurEffects && blurRecentsFab
             val baseModifier = Modifier
                 .scale(fabScale)
                 .then(if (pillNav) Modifier.navigationBarsPadding().padding(bottom = 92.dp) else Modifier)
                 .then(if (isLandscape) Modifier.navigationBarsPadding().padding(bottom = 8.dp) else Modifier)
-            if (useLiquidGlass && globalBackdrop != null) {
-                Box(
-                    modifier = baseModifier.drawBackdrop(
-                        backdrop = globalBackdrop,
-                        shape = { fabShape },
-                        effects = {
-                            val d = density
-                            colorControls(brightness = -0.15f)
-                            lens(refractionHeight = 46f * d, refractionAmount = 64f * d)
-                        },
-                        highlight = { Highlight.Default }
-                    )
-                ) {
-                    FloatingActionButton(
-                        onClick = { showDialpad = true },
-                        containerColor = fabBg.copy(alpha = 0.0f),
-                        contentColor = fabFg,
-                        shape = fabShape,
-                        elevation = FloatingActionButtonDefaults.elevation(
-                        defaultElevation = 6.dp,
-                        pressedElevation = 6.dp,
-                        focusedElevation = 6.dp,
-                        hoveredElevation = 6.dp
-                    ),
-                    ) { Icon(Icons.Default.Dialpad, "Dialpad") }
-                }
-            } else {
-                FloatingActionButton(
+            FloatingActionButton(
                     onClick = { showDialpad = true },
                     containerColor = if (useBlur)
                         fabBg.copy(alpha = 0.75f)
@@ -431,7 +394,6 @@ fun RecentScreen(navController: NavController, navigator: DestinationsNavigator)
                     ),
                     modifier = baseModifier
                 ) { Icon(Icons.Default.Dialpad, "Dialpad") }
-            }
         },
         containerColor = MaterialTheme.colorScheme.surface,
         contentWindowInsets = WindowInsets(0)

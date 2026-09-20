@@ -52,6 +52,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.android.libredialer.liquidglass.drawPlainBackdrop
+import com.android.libredialer.liquidglass.effects.blur
+import com.android.libredialer.liquidglass.LocalLiquidGlassBackdrop
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -69,13 +72,6 @@ import org.koin.compose.koinInject
 import androidx.compose.ui.platform.LocalConfiguration
 import android.content.res.Configuration
 import android.os.Build
-import com.android.libredialer.liquidglass.drawBackdrop
-import com.android.libredialer.liquidglass.drawPlainBackdrop
-import com.android.libredialer.liquidglass.effects.blur
-import com.android.libredialer.liquidglass.effects.lens
-import com.android.libredialer.liquidglass.effects.colorControls
-import com.android.libredialer.liquidglass.highlight.Highlight
-import com.android.libredialer.liquidglass.LocalLiquidGlassBackdrop
 
 // Tab routes — only show the bar when one of these is active
 private val TAB_ROUTES = setOf(
@@ -116,8 +112,6 @@ fun BottomBar(navController: NavController) {
 
     val pillNav      = remember(settingsState) { prefs.getBoolean(PreferenceManager.KEY_PILL_NAV, true) }
     val iconOnly     = remember(settingsState) { prefs.getBoolean(PreferenceManager.KEY_ICON_ONLY_NAV, false) }
-    val liquidGlass  = remember(settingsState) { prefs.getBoolean(PreferenceManager.KEY_LIQUID_GLASS, false) }
-    val lgBottomNav  = remember(settingsState) { prefs.getBoolean(PreferenceManager.KEY_LG_BOTTOM_NAV, false) }
     val blurEffects  = remember(settingsState) { prefs.getBoolean(PreferenceManager.KEY_BLUR_EFFECTS, false) }
     val blurBottomNav = remember(settingsState) { prefs.getBoolean(PreferenceManager.KEY_BLUR_BOTTOM_NAV, false) }
     val showFavoritesTab  = remember(settingsState) { prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_FAVORITES,  true) }
@@ -293,8 +287,7 @@ fun BottomBar(navController: NavController) {
                 val globalBackdrop = LocalLiquidGlassBackdrop.current
                 val pillShape = RoundedCornerShape(32.dp)
 
-                val useLgBottomNav = liquidGlass && lgBottomNav && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && globalBackdrop != null
-                val useBlurBottomNav = blurEffects && blurBottomNav && !useLgBottomNav
+                val useBlurBottomNav = blurEffects && blurBottomNav
 
                 val pillContent: @Composable () -> Unit = {
                     Row(
@@ -318,28 +311,7 @@ fun BottomBar(navController: NavController) {
                     }
                 }
 
-                if (useLgBottomNav && globalBackdrop != null) {
-                    Surface(
-                        shape           = pillShape,
-                        color           = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.35f),
-                        shadowElevation = 0.dp,
-                        tonalElevation  = 0.dp,
-                        modifier = Modifier.drawBackdrop(
-                            backdrop = globalBackdrop,
-                            shape = { pillShape },
-                            effects = {
-                                val d = density
-                                colorControls(saturation = 1.4f)
-                                blur(2f * d)
-                                lens(
-                                    refractionHeight = 23f * d,
-                                    refractionAmount = 64f * d
-                                )
-                            },
-                            highlight = { Highlight.Default }
-                        )
-                    ) { pillContent() }
-                } else if (useBlurBottomNav && globalBackdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (useBlurBottomNav && globalBackdrop != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     Surface(
                         shape           = pillShape,
                         color           = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f),

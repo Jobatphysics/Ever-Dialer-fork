@@ -25,6 +25,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.zIndex
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.Call
@@ -68,11 +70,10 @@ import com.android.libredialer.view.components.Android14WelcomeDialog
 import com.android.libredialer.view.components.FullScreenIntentDialog
 import com.android.libredialer.view.components.BottomBar
 import com.android.libredialer.view.components.enterNotesTab
-import com.android.libredialer.liquidglass.LocalLiquidGlassBackdrop
-import com.android.libredialer.liquidglass.backdrops.rememberLayerBackdrop
-import com.android.libredialer.liquidglass.backdrops.layerBackdrop
 import com.android.libredialer.view.theme.Rivo4Theme
 import com.android.libredialer.view.theme.TabTransitionStyle
+import com.android.libredialer.view.newui.navigation.NewUiAppShell
+import com.android.libredialer.view.newui.theme.NewUiTheme
 import com.ramcosta.composedestinations.DestinationsNavHost
 import com.ramcosta.composedestinations.generated.NavGraphs
 import com.ramcosta.composedestinations.generated.destinations.ContactDetailsScreenDestination
@@ -204,6 +205,7 @@ class MainActivity : FragmentActivity() {
         setContent {
             Rivo4Theme {
                 val navController = rememberNavController()
+                var showNewUi by remember { mutableStateOf(true) }
 
                 // Eagerly create CallLogViewModel here, at the top of the compose tree, instead
                 // of letting it lazily spin up the first time the Calls/Recents screen (or any
@@ -457,7 +459,44 @@ class MainActivity : FragmentActivity() {
                         }
                     }
 
-                    // ── Main nav host + adaptive nav (bottom bar / rail) ───
+                    Box(modifier = Modifier.fillMaxSize()) {
+                    if (showNewUi) {
+                        NewUiTheme {
+                            NewUiAppShell(
+                                onCall = { number -> placeDirectCall(number) },
+                                onContactClick = { contact ->
+                                    showNewUi = false
+                                    navController.navigate(
+                                        ContactDetailsScreenDestination(
+                                            contactId = contact.id,
+                                            phoneNumber = contact.phoneNumbers.firstOrNull()
+                                        ).route
+                                    )
+                                },
+                                onCallLogClick = { log ->
+                                    showNewUi = false
+                                    if (!log.contactId.isNullOrBlank() && log.contactId != "null") {
+                                        navController.navigate(
+                                            ContactDetailsScreenDestination(
+                                                contactId = log.contactId,
+                                                phoneNumber = log.number
+                                            ).route
+                                        )
+                                    } else {
+                                        placeDirectCall(log.number)
+                                    }
+                                },
+                            )
+                        }
+                    }
+
+                    androidx.compose.foundation.layout.Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .zIndex(if (!showNewUi) 1f else -1f)
+                            .alpha(if (!showNewUi) 1f else 0f)
+                    ) {
+                    // ── Legacy main nav host retained for incremental migration ───
                     val configuration = LocalConfiguration.current
                     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
                     com.android.libredialer.view.theme.isLandscapeMode = isLandscape
@@ -487,8 +526,6 @@ class MainActivity : FragmentActivity() {
                         val railPaddingStart = 0.dp
                         val railPaddingEnd   = 0.dp
 
-                        val liquidGlassBackdropLandscape = rememberLayerBackdrop()
-                        CompositionLocalProvider(LocalLiquidGlassBackdrop provides liquidGlassBackdropLandscape) {
                         Row(modifier = Modifier.fillMaxSize()) {
                             Surface(
                                 color = MaterialTheme.colorScheme.surfaceContainer,
@@ -621,10 +658,7 @@ class MainActivity : FragmentActivity() {
                                 DestinationsNavHost(navGraph = NavGraphs.root, navController = navController, start = startDestination, defaultTransitions = TabTransitionStyle)
                             }
                         }
-                        } // end CompositionLocalProvider landscape
                     } else {
-                        val liquidGlassBackdrop = rememberLayerBackdrop()
-                        CompositionLocalProvider(LocalLiquidGlassBackdrop provides liquidGlassBackdrop) {
                             Scaffold(
                                 bottomBar = { BottomBar(navController) },
                                 containerColor = MaterialTheme.colorScheme.surface,
@@ -634,7 +668,6 @@ class MainActivity : FragmentActivity() {
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .padding(scaffoldPadding)
-                                        .layerBackdrop(liquidGlassBackdrop)
                                         .then(
                                             if (hasOngoingCall)
                                                 Modifier.consumeWindowInsets(WindowInsets.statusBars)
@@ -648,9 +681,10 @@ class MainActivity : FragmentActivity() {
                                         start         = startDestination,
                                         defaultTransitions = TabTransitionStyle
                                     )
-                                }
                             }
                         }
+                    }
+                    }
                     }
                 } // end blurred Column
 
