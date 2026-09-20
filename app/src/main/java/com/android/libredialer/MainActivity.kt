@@ -474,7 +474,7 @@ class MainActivity : FragmentActivity() {
                                     )
                                 },
                                 onCallLogClick = { log ->
-                                    showNewUi = false
+                                    showNewUi = true
                                     if (!log.contactId.isNullOrBlank() && log.contactId != "null") {
                                         navController.navigate(
                                             ContactDetailsScreenDestination(

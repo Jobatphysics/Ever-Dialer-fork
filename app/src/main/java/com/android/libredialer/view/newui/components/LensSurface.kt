@@ -43,7 +43,7 @@ fun Modifier.lensSurface(
     opticalDepthFactor: Float = 1.0f
 ): Modifier = this
     .shadow(
-        elevation = elevation * opticalDepthFactor,
+        elevation = 0.dp,
         shape = shape,
         clip = false
     )
