@@ -206,6 +206,20 @@ class MainActivity : FragmentActivity() {
             Rivo4Theme {
                 val navController = rememberNavController()
                 var showNewUi by remember { mutableStateOf(true) }
+                var showingLegacyDetailFromNewUi by remember { mutableStateOf(false) }
+                var legacyDetailReturnRoute by remember { mutableStateOf<String?>(null) }
+                val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+
+                LaunchedEffect(currentRoute) {
+                    if (showingLegacyDetailFromNewUi &&
+                        legacyDetailReturnRoute != null &&
+                        currentRoute == legacyDetailReturnRoute
+                    ) {
+                        showingLegacyDetailFromNewUi = false
+                        legacyDetailReturnRoute = null
+                        showNewUi = true
+                    }
+                }
 
                 // Eagerly create CallLogViewModel here, at the top of the compose tree, instead
                 // of letting it lazily spin up the first time the Calls/Recents screen (or any
@@ -465,6 +479,8 @@ class MainActivity : FragmentActivity() {
                             NewUiAppShell(
                                 onCall = { number -> placeDirectCall(number) },
                                 onContactClick = { contact ->
+                                    showingLegacyDetailFromNewUi = true
+                                    legacyDetailReturnRoute = currentRoute
                                     showNewUi = false
                                     navController.navigate(
                                         ContactDetailsScreenDestination(
@@ -474,8 +490,10 @@ class MainActivity : FragmentActivity() {
                                     )
                                 },
                                 onCallLogClick = { log ->
-                                    showNewUi = true
                                     if (!log.contactId.isNullOrBlank() && log.contactId != "null") {
+                                        showingLegacyDetailFromNewUi = true
+                                        legacyDetailReturnRoute = currentRoute
+                                        showNewUi = false
                                         navController.navigate(
                                             ContactDetailsScreenDestination(
                                                 contactId = log.contactId,
