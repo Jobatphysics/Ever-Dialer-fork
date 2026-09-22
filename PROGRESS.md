@@ -17,6 +17,7 @@
 
 ## Research
 - Recorded in `docs/RESEARCH.md`; source-specific licensing is in `docs/LICENSING.md`.
+- Phase 4 feasibility findings are recorded in `docs/BACKDROP.md`.
 
 ## Architecture
 - A shared scene/backdrop provider with sibling glass consumers is selected for the prototype. See `docs/ARCHITECTURE.md`.
@@ -25,7 +26,7 @@
 - P0 source is present in `LibreGlass/`. Nothing in `app/` depends on LibreGlass.
 
 ## Build
-- `:LibreGlass:assembleDebug` and `:LibreGlass:testDebugUnitTest` passed after P0 implementation.
+- `:LibreGlass:assembleDebug`, `:LibreGlass:testDebugUnitTest`, and `:LibreGlass:lintDebug` passed after P0 implementation.
 
 ## Performance
 - Not benchmarked. P0's five-tap shader prefilter is intentionally bounded but requires GPU profiling before it is retained.
