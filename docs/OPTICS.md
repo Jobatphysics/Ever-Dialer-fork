@@ -7,3 +7,5 @@ P0 will use a rounded-rectangle signed distance field (SDF). Its signed edge dis
 Chromatic dispersion, if enabled, will sample R/G/B at tiny different offsets along the refraction vector. It must decay away from the rim and be disabled or clamped for accessibility/readability. Tint, saturation, brightness and local luminance response are subsequent appearance controls—not substitutes for refraction.
 
 P0 controls: blur, lens strength, refraction width, distortion, dispersion, saturation, brightness, tint, highlight, rim and shadow. Parameter ranges, normalization, and expected units remain **incomplete** until visual tests are run.
+
+P0 implementation uses a bounded five-tap GPU prefilter before the rim lens sampling. It is intentionally modest and is not a substitute for the future shared `GraphicsLayer`/platform-blur path.

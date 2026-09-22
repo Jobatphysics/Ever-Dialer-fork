@@ -1,6 +1,6 @@
 # Architecture
 
-Status: **proposed**, informed by research; not implemented.
+Status: **partially implemented**. The P0 module and supplied-image scene are implemented; live Compose backdrop recording remains deferred to Phase 4.
 
 ## Module boundary
 

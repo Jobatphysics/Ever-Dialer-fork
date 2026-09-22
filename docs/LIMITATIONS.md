@@ -3,6 +3,7 @@
 Status: **known risks, not all tested**.
 
 - A scene can only sample draw content in its own coordinated window/layer; popups and separate windows may need separate scenes.
+- P0 accepts a shared `ImageBitmap` backdrop; it does not yet record arbitrary Compose content behind surfaces.
 - Transforms such as rotation and scale between backdrop and consumer complicate coordinate projection.
 - AGSL source compiles at runtime and must be validated on actual API 33+ devices/emulators.
 - Local backdrop luminance analysis can itself be expensive; P0 will use conservative global/context inputs until a measured local approach is justified.

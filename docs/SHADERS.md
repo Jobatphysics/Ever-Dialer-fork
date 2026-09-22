@@ -1,7 +1,7 @@
 # Shaders
 
-Status: **planned**, no shader source exists.
+Status: **partially implemented**. P0 contains an independently authored AGSL program for API 33+; device-level shader validation remains incomplete.
 
-Android 13/API 33 is the first advanced tier because `RuntimeShader`/AGSL is available there. A single compiled AGSL program per renderer should receive changing uniforms rather than source recompilation per frame. Platform `RenderEffect` blur is the first candidate for prefiltering because it avoids CPU pixel work.
+Android 13/API 33 is the first advanced tier because `RuntimeShader`/AGSL is available there. P0 creates a runtime shader per retained surface and updates uniforms as its dimensions/optics change. Its five-tap backdrop prefilter is GPU-side; replacing it with platform blur over the future recorded `GraphicsLayer` remains a Phase 4/5 investigation.
 
-The first shader must contain only independently authored SDF, normal estimation, sampling and composition code. CPU math mirrors will be created for every nontrivial formula and unit tested before visual tuning. Shader structural tests will validate uniform names and bounded loops. No reference-project source, shader text, or Apple source will be copied.
+The shader contains independently authored rounded-rect SDF, finite-difference normals, edge sampling, RGB offset, tint, highlight/rim and lower-edge shading. CPU mirrors cover the SDF, lens profile and dispersion symmetry. Shader structural/device tests remain incomplete. No reference-project source, shader text, or Apple source was copied.
