@@ -5,12 +5,13 @@
 - Phase 1: initial research of the two named Android projects and Apple public material.
 - Phase 2: initial architecture decision and documentation.
 - Phase 3: P0 implementation — independent library module, shared supplied-image scene, rounded SDF math, API 33+ AGSL lensing/prefilter, fallback material, and JVM math tests.
+- LibreGlass Visual Milestone: retained live Compose backdrop path, directional optical style controls, press interaction, and independent document showcase app.
 
 ## In Progress
-- Phase 4: investigate live Compose backdrop recording while retaining the P0 scene/surface boundary.
+- Device visual validation, backdrop-scroll correctness validation, and GPU profiling.
 
 ## Next
-- Add and validate live Compose backdrop recording, then compare it with the supplied-image P0 source.
+- Instrument and validate the Visual Showcase on API 33+ hardware/emulator; then optimize backdrop inflation and effect bounds.
 
 ## Remaining
 - Phases 3–20: prototype, shared backdrop, optics, interaction, morphing, accessibility, performance/device validation, and release work.
@@ -26,7 +27,7 @@
 - P0 source is present in `LibreGlass/`. Nothing in `app/` depends on LibreGlass.
 
 ## Build
-- `:LibreGlass:assembleDebug`, `:LibreGlass:testDebugUnitTest`, and `:LibreGlass:lintDebug` passed after P0 implementation.
+- `:LibreGlass:assembleDebug`, `:LibreGlass:testDebugUnitTest`, `:LibreGlass:lintDebug`, and `:LibreGlassShowcase:assembleDebug` passed for the Visual Milestone; physical-device testing has not occurred.
 
 ## Performance
 - Not benchmarked. P0's five-tap shader prefilter is intentionally bounded but requires GPU profiling before it is retained.

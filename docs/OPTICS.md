@@ -9,3 +9,5 @@ Chromatic dispersion, if enabled, will sample R/G/B at tiny different offsets al
 P0 controls: blur, lens strength, refraction width, distortion, dispersion, saturation, brightness, tint, highlight, rim and shadow. Parameter ranges, normalization, and expected units remain **incomplete** until visual tests are run.
 
 P0 implementation uses a bounded five-tap GPU prefilter before the rim lens sampling. It is intentionally modest and is not a substitute for the future shared `GraphicsLayer`/platform-blur path.
+
+The Visual Showcase exposes normalized transparency, refraction, horizontal/vertical edge widths, and horizontal/vertical curvature. They are independent: tint opacity responds to transparency, while edge displacement responds to refraction and the directional curved boundary. These are build-tested controls, not visually calibrated device values.

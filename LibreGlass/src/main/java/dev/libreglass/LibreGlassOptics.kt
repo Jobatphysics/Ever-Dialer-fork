@@ -6,6 +6,14 @@ import androidx.compose.ui.graphics.Color
 /** P0 tuning controls. Values are normalized defensively before reaching AGSL. */
 @Immutable
 public data class LibreGlassOptics(
+    /** 0 is opaque material tint; 1 keeps sampled content fully visible while retaining optics. */
+    val transparency: Float = 0.72f,
+    /** Normalized edge-lens strength, independent from [transparency]. */
+    val refraction: Float = 0.48f,
+    val horizontalEdgeWidth: Float = 0.18f,
+    val verticalEdgeWidth: Float = 0.18f,
+    val horizontalCurvature: Float = 0.48f,
+    val verticalCurvature: Float = 0.48f,
     val blurRadius: Float = 14f,
     val lensStrength: Float = 10f,
     val refractionWidth: Float = 20f,
@@ -19,6 +27,12 @@ public data class LibreGlassOptics(
     val shadowAlpha: Float = 0.16f,
 ) {
     internal fun normalized(): LibreGlassOptics = copy(
+        transparency = transparency.coerceIn(0f, 1f),
+        refraction = refraction.coerceIn(0f, 1f),
+        horizontalEdgeWidth = horizontalEdgeWidth.coerceIn(0f, 1f),
+        verticalEdgeWidth = verticalEdgeWidth.coerceIn(0f, 1f),
+        horizontalCurvature = horizontalCurvature.coerceIn(0f, 1f),
+        verticalCurvature = verticalCurvature.coerceIn(0f, 1f),
         blurRadius = blurRadius.coerceIn(0f, 40f),
         lensStrength = lensStrength.coerceIn(0f, 32f),
         refractionWidth = refractionWidth.coerceIn(1f, 96f),

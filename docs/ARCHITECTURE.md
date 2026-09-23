@@ -2,6 +2,8 @@
 
 Status: **partially implemented**. The P0 module and supplied-image scene are implemented; live Compose backdrop recording remains deferred to Phase 4.
 
+Update: `LibreGlassLiveScene` now records its backdrop subtree once into a retained `GraphicsLayer`. Glass surfaces in its sibling overlay project that layer from root coordinates into their local layers. The supplied-image `LibreGlassScene` remains available for deterministic testing/fallback use.
+
 ## Module boundary
 
 Introduce `:LibreGlass` as an Android library module under `LibreGlass/`, namespace `dev.libreglass`. It will contain Compose rendering and pure Kotlin math in distinct packages initially, without an `app` dependency. A future extraction can split math/core from Android rendering only when P0 demonstrates a real need; premature multi-module splitting would make the first prototype harder to validate.

@@ -7,6 +7,12 @@ import org.junit.Test
 class LibreGlassOpticsTest {
     @Test fun normalization_keepsAllShaderInputsInSafeRanges() {
         val normalized = LibreGlassOptics(
+            transparency = -1f,
+            refraction = 4f,
+            horizontalEdgeWidth = -1f,
+            verticalEdgeWidth = 5f,
+            horizontalCurvature = -1f,
+            verticalCurvature = 4f,
             blurRadius = -2f,
             lensStrength = 100f,
             refractionWidth = 0f,
@@ -19,6 +25,12 @@ class LibreGlassOpticsTest {
             shadowAlpha = 9f,
         ).normalized()
 
+        assertEquals(0f, normalized.transparency, 0f)
+        assertEquals(1f, normalized.refraction, 0f)
+        assertEquals(0f, normalized.horizontalEdgeWidth, 0f)
+        assertEquals(1f, normalized.verticalEdgeWidth, 0f)
+        assertEquals(0f, normalized.horizontalCurvature, 0f)
+        assertEquals(1f, normalized.verticalCurvature, 0f)
         assertEquals(0f, normalized.blurRadius, 0f)
         assertEquals(32f, normalized.lensStrength, 0f)
         assertEquals(1f, normalized.refractionWidth, 0f)

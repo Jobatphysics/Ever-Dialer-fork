@@ -9,6 +9,10 @@ uniform float2 sceneOrigin;
 uniform float2 sceneSize;
 uniform float cornerRadius;
 uniform float blurRadius;
+uniform float horizontalEdgeWidth;
+uniform float verticalEdgeWidth;
+uniform float horizontalCurvature;
+uniform float verticalCurvature;
 uniform float lensStrength;
 uniform float refractionWidth;
 uniform float distortion;
@@ -39,8 +43,6 @@ half4 main(float2 p) {
     float2 halfSize = resolution * 0.5;
     float radius = min(cornerRadius, min(halfSize.x, halfSize.y));
     float sd = sdRoundRect(p - halfSize, halfSize, radius);
-    float band = clamp((refractionWidth + sd) / refractionWidth, 0.0, 1.0);
-    float lens = 1.0 - sqrt(max(0.0, 1.0 - band * band));
 
     float eps = 1.0;
     float dx = sdRoundRect(p + float2(eps, 0.0) - halfSize, halfSize, radius) -
@@ -48,7 +50,13 @@ half4 main(float2 p) {
     float dy = sdRoundRect(p + float2(0.0, eps) - halfSize, halfSize, radius) -
         sdRoundRect(p - float2(0.0, eps) - halfSize, halfSize, radius);
     float2 normal = normalize(float2(dx, dy) + float2(0.0001, 0.0001));
-    float2 displacement = -normal * (lens * lensStrength + band * distortion);
+    float axis = abs(normal.x);
+    float edgeWidth = mix(verticalEdgeWidth, horizontalEdgeWidth, axis);
+    float curvature = mix(verticalCurvature, horizontalCurvature, axis);
+    float band = clamp((edgeWidth + sd) / max(edgeWidth, 0.5), 0.0, 1.0);
+    // A Snell-inspired convex edge: a flat centre transitions continuously into a curved rim.
+    float lens = (1.0 - sqrt(max(0.0, 1.0 - band * band))) * curvature;
+    float2 displacement = -normal * (lens * lensStrength + band * distortion * curvature);
     float2 samplePoint = scenePoint(p + displacement);
     float2 chroma = normal * (lens * dispersion);
 
@@ -74,3 +82,8 @@ half4 main(float2 p) {
     return half4(sampled, source.a);
 }
 """
+
+/** Live layers use the RenderEffect input shader as their coordinated backdrop source. */
+internal val LIBRE_GLASS_LIVE_SHADER: String = LIBRE_GLASS_SHADER
+    .replace("uniform shader backdrop;", "")
+    .replace("backdrop.eval(", "content.eval(")
