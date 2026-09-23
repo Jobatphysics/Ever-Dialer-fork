@@ -119,10 +119,10 @@ fun rememberPhysicalListState(): PhysicalListState {
  * and subtle compressive displacement for immediate neighbors (|index - pressedIndex| == 1).
  *
  * Parameters are strictly bounded to maintain subtle, premium movement:
- * - Primary displacement: ~1.5 dp (well within 1–3 dp limit)
- * - Neighboring response: ~0.8 dp (well within 0.5–1 dp limit)
- * - Press scale: 0.98f (within 0.97–0.99 limit)
- * - Rotation: max 0.5 degrees (under 1 degree limit)
+ * - Primary displacement: ~2 dp
+ * - Neighboring response: ~1.4 dp
+ * - Press scale: 0.96f
+ * - Rotation: max 0.6 degrees
  * - Inactive/dormant when idle: zero matrix updates
  */
 fun Modifier.physicalListItem(
@@ -146,33 +146,33 @@ fun Modifier.physicalListItem(
     when (distance) {
         0 -> {
             // DIRECTLY PRESSED ITEM
-            // Scale: 1.0f -> 0.98f
-            val currentScale = 1f - (0.02f * f)
+            // Scale: 1.0f -> 0.96f
+            val currentScale = 1f - (0.04f * f)
             scaleX = currentScale
             scaleY = currentScale
 
-            // Subtle vertical displacement: 1.5 dp
-            translationY = 1.5.dp.toPx() * f
+            // Vertical displacement remains bounded while clearly perceptible.
+            translationY = 2.dp.toPx() * f
 
             // Subtle perspective tilt based on touch X position (< 0.5 degree)
             val pos = state.pointerOffset
             if (pos != Offset.Unspecified && size.width > 0f) {
                 val normX = ((pos.x - size.width / 2f) / (size.width / 2f)).coerceIn(-1f, 1f)
-                rotationZ = normX * 0.45f * f
+                rotationZ = normX * 0.6f * f
             } else {
                 rotationZ = 0f
             }
         }
         1 -> {
             // IMMEDIATE NEIGHBOR (i-1 or i+1)
-            // Subtle compressive response: 1.0f -> 0.994f
-            val neighborScale = 1f - (0.006f * f)
+            // Neighboring items contract enough to make the shared response visible.
+            val neighborScale = 1f - (0.014f * f)
             scaleX = neighborScale
             scaleY = neighborScale
 
-            // Subtle impulse away from pressed center: 0.8 dp
+            // Impulse away from the pressed center.
             val direction = if (index < currentPressed) -1f else 1f
-            translationY = direction * 0.8.dp.toPx() * f
+            translationY = direction * 1.4.dp.toPx() * f
             rotationZ = 0f
         }
         else -> {
@@ -193,7 +193,8 @@ fun Modifier.physicalListItem(
 fun Modifier.physicalItemInput(
     state: PhysicalListState,
     index: Int,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
 ): Modifier = this.pointerInput(state, index) {
     coroutineScope {
         awaitEachGesture {
@@ -204,9 +205,16 @@ fun Modifier.physicalItemInput(
             velocityTracker.addPosition(down.uptimeMillis, down.position)
 
             state.onItemPressed(index, down.position)
-
             var currentPointer = down
             var accumulatedDistance = 0f
+            var longClickTriggered = false
+            val longPressJob = launch {
+                delay(500L)
+                if (currentPointer.pressed && accumulatedDistance < 18f) {
+                    longClickTriggered = true
+                    onLongClick.invoke()
+                }
+            }
 
             try {
                 while (true) {
@@ -220,6 +228,7 @@ fun Modifier.physicalItemInput(
 
                         // If user moved significantly, this is a scroll gesture - release physics cleanly
                         if (accumulatedDistance > 18f) {
+                            longPressJob.cancel()
                             state.onItemCancelled()
                             break
                         }
@@ -229,9 +238,11 @@ fun Modifier.physicalItemInput(
                     }
                 }
             } catch (_: Throwable) {
+                longPressJob.cancel()
                 state.onItemCancelled()
             }
 
+            longPressJob.cancel()
             val velocity = velocityTracker.calculateVelocity()
             val releaseVelocity = Offset(velocity.x, velocity.y)
 
@@ -242,7 +253,7 @@ fun Modifier.physicalItemInput(
 
                 // Trigger onClick if tap was stationary and quick
                 val duration = System.currentTimeMillis() - downTime
-                if (duration < 500L && accumulatedDistance < 18f) {
+                if (!longClickTriggered && duration < 500L && accumulatedDistance < 18f) {
                     onClick.invoke()
                 }
             }

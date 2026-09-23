@@ -246,6 +246,15 @@
             android:taskAffinity=""
             android:theme="@style/Theme.BiometricCallFloat" />
 
+        <receiver
+            android:name=".controller.util.CallReminderReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="com.android.libredialer.CALL_REMINDER_RESCHEDULE" />
+            </intent-filter>
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"

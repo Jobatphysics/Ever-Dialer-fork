@@ -5,11 +5,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -26,6 +28,9 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -33,7 +38,6 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import com.android.libredialer.view.newui.navigation.NewUiDestination
 import com.android.libredialer.view.newui.navigation.NewUiNavigator
@@ -42,17 +46,43 @@ import com.android.libredialer.view.newui.theme.NewUiDimensions
 @Composable
 fun NewUiScreenShell(
     destination: NewUiDestination,
+    showTitle: Boolean = true,
+    titleOverride: String? = null,
+    headerAction: (@Composable () -> Unit)? = null,
+    sectionSpacing: androidx.compose.ui.unit.Dp = NewUiDimensions.SectionSpacing,
     content: @Composable () -> Unit
 ) {
-    Column(
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .fillMaxHeight()
-            .padding(NewUiDimensions.PagePadding),
-        verticalArrangement = Arrangement.spacedBy(NewUiDimensions.SectionSpacing)
+            .fillMaxSize()
+            .statusBarsPadding()
     ) {
-        Text(destination.title, style = MaterialTheme.typography.headlineMedium)
-        content()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(NewUiDimensions.PagePadding)
+        ) {
+            content()
+        }
+        if (showTitle || headerAction != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(NewUiDimensions.PagePadding),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (showTitle) {
+                    Text(
+                        titleOverride ?: destination.title,
+                        style = MaterialTheme.typography.headlineMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                } else {
+                    Spacer(Modifier.weight(1f))
+                }
+                headerAction?.invoke()
+            }
+        }
     }
 }
 
@@ -73,17 +103,21 @@ fun NewUiNavigationBar(navigator: NewUiNavigator) {
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = NewUiDimensions.PagePadding, vertical = 12.dp),
+            .padding(
+                start = 16.dp,
+                top = 12.dp,
+                end = 16.dp,
+                bottom = 12.dp
+            ),
         contentAlignment = Alignment.Center
     ) {
         Surface(
             modifier = Modifier
-                .wrapContentWidth()
-                .shadow(elevation = 8.dp, shape = MaterialTheme.shapes.extraLarge),
+                .wrapContentWidth(),
             shape = MaterialTheme.shapes.extraLarge,
             color = MaterialTheme.colorScheme.surfaceContainer,
-            tonalElevation = 3.dp,
-            shadowElevation = 4.dp
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp
         ) {
             Row(
                 modifier = Modifier
@@ -93,7 +127,13 @@ fun NewUiNavigationBar(navigator: NewUiNavigator) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 NewUiDestination.entries
-                    .filter { it != NewUiDestination.Settings }
+                    .filter {
+                        it != NewUiDestination.Settings &&
+                            it != NewUiDestination.ContactDetails &&
+                            it != NewUiDestination.ContactEdit &&
+                            it != NewUiDestination.CallDetails &&
+                            it != NewUiDestination.UnknownNumberDetails
+                    }
                     .forEach { destination ->
                     NewUiNavigationItem(
                         destination = destination,
@@ -114,13 +154,16 @@ private fun NewUiNavigationItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = 1f,
+        targetValue = if (pressed) 0.98f else 1f,
         animationSpec = spring(stiffness = Spring.StiffnessMedium),
         label = "newUiNavigationScale"
     )
     Surface(
         onClick = onClick,
+        interactionSource = interactionSource,
         modifier = modifier
             .graphicsLayer {
                 scaleX = scale
@@ -167,4 +210,8 @@ private fun NewUiDestination.icon(selected: Boolean) =
         NewUiDestination.Contacts -> if (selected) Icons.Filled.Contacts else Icons.Outlined.Contacts
         NewUiDestination.Favorites -> if (selected) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder
         NewUiDestination.Settings -> if (selected) Icons.Filled.Settings else Icons.Outlined.Settings
+        NewUiDestination.ContactDetails -> if (selected) Icons.Filled.Contacts else Icons.Outlined.Contacts
+        NewUiDestination.ContactEdit -> if (selected) Icons.Filled.Contacts else Icons.Outlined.Contacts
+        NewUiDestination.CallDetails -> if (selected) Icons.Filled.History else Icons.Outlined.History
+        NewUiDestination.UnknownNumberDetails -> if (selected) Icons.Filled.Contacts else Icons.Outlined.Contacts
     }

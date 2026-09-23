@@ -7,7 +7,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextGeometricTransform
 import androidx.compose.ui.unit.sp
 
-val MyFontFamily: FontFamily = FontFamily.Default
+val MyFontFamily: FontFamily = FontFamily(androidx.compose.ui.text.font.Font(resId = com.android.libredialer.R.font.libredialer_font))
 val Typography = buildTypography(MyFontFamily, 1.0f)
 
 fun buildTypography(

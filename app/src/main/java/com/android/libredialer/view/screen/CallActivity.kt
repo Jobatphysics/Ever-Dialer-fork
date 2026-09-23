@@ -82,6 +82,8 @@ import com.android.libredialer.modal.data.CallLogEntry
 import com.android.libredialer.modal.data.Contact
 import com.android.libredialer.view.components.RivoAvatar
 import com.android.libredialer.view.components.SimSlotBadge
+import com.android.libredialer.view.newui.screens.NewCallScreen
+import com.android.libredialer.view.newui.theme.NewUiTheme
 import com.android.libredialer.view.theme.Rivo4Theme
 import com.coolappstore.evercallrecorder.by.svhp.services.recording.RecordingForegroundService
 import kotlinx.coroutines.Dispatchers
@@ -114,6 +116,7 @@ class CallActivity : FragmentActivity() {
     private val prefs: PreferenceManager by inject()
 
     companion object {
+        private const val USE_LEGACY_CALL_UI = false
         /** FloatingCallService observes this to hide the bubble when CallActivity is visible. */
         val isInForeground = kotlinx.coroutines.flow.MutableStateFlow(false)
         /** Keep the activity alive while an auto-redial dialog or job is pending. */
@@ -330,29 +333,46 @@ class CallActivity : FragmentActivity() {
                     }
 
                     val answeredFromNotification = intent?.getBooleanExtra("ANSWERED_FROM_NOTIFICATION", false) ?: false
-                    ExpressiveCallScreen(
-                        call = call,
-                        callState = session?.state ?: Call.STATE_ACTIVE,
-                        contactName = contactName,
-                        contactId = contactId,
-                        phoneNumber = number,
-                        photoUri = photoUri,
-                        audioState = audioState,
-                        hasHeldCall = heldSession != null && heldSession?.state == Call.STATE_HOLDING,
-                        heldCallName = heldContactName,
-                        incomingCallSession = incomingSession,
-                        incomingContactName = incomingContactName,
-                        incomingPhoneNumber = incomingNumber,
-                        incomingPhotoUri = incomingPhotoUri,
-                        incomingSimSlot = incomingSimSlot,
-                        contactsRepo = contactsRepo,
-                        callLogRepo = callLogRepo,
-                        prefs = prefs,
-                        isPocketBlocked = { isPocketBlocked },
-                        skipIncomingScreen = answeredFromNotification,
-                        simSlot = simSlot,
-                        showSimBadge = isDualSim
-                    )
+                    if (USE_LEGACY_CALL_UI) {
+                        ExpressiveCallScreen(
+                            call = call,
+                            callState = session?.state ?: Call.STATE_ACTIVE,
+                            contactName = contactName,
+                            contactId = contactId,
+                            phoneNumber = number,
+                            photoUri = photoUri,
+                            audioState = audioState,
+                            hasHeldCall = heldSession != null && heldSession?.state == Call.STATE_HOLDING,
+                            heldCallName = heldContactName,
+                            incomingCallSession = incomingSession,
+                            incomingContactName = incomingContactName,
+                            incomingPhoneNumber = incomingNumber,
+                            incomingPhotoUri = incomingPhotoUri,
+                            incomingSimSlot = incomingSimSlot,
+                            contactsRepo = contactsRepo,
+                            callLogRepo = callLogRepo,
+                            prefs = prefs,
+                            isPocketBlocked = { isPocketBlocked },
+                            skipIncomingScreen = answeredFromNotification,
+                            simSlot = simSlot,
+                            showSimBadge = isDualSim
+                        )
+                    } else {
+                        NewUiTheme {
+                            NewCallScreen(
+                                call = call,
+                                callState = session?.state ?: Call.STATE_ACTIVE,
+                                incomingCall = incomingSession?.call,
+                                heldCall = heldSession?.call,
+                                audioState = audioState,
+                                contactsRepository = contactsRepo,
+                                simSlot = simSlot,
+                                showSimBadge = isDualSim,
+                                onFinish = { finishAndRemoveTask() },
+                                onMoveToBackground = { moveTaskToBack(true) }
+                            )
+                        }
+                    }
 
                     if (callState == Call.STATE_SELECT_PHONE_ACCOUNT) {
                         val telecomManager = remember { this@CallActivity.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager }

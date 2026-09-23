@@ -24,6 +24,7 @@ import com.android.libredialer.controller.CallService
 import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.view.screen.settings.PasswordDialogContent
 import com.android.libredialer.view.screen.settings.PinDialogContent
+import com.android.libredialer.view.newui.theme.NewUiTheme
 import com.android.libredialer.view.theme.Rivo4Theme
 import org.koin.android.ext.android.inject
 
@@ -63,21 +64,23 @@ class BiometricCallActivity : FragmentActivity() {
 
         setContent {
             Rivo4Theme {
-                val activity = this
-                BiometricFloatingUi(
-                    biometricType  = biometricType,
-                    activity       = activity,
-                    expectedPin      = prefs.getString(PreferenceManager.KEY_BIOMETRICS_PIN, "") ?: "",
-                    expectedPassword = prefs.getString(PreferenceManager.KEY_BIOMETRICS_PASSWORD, "") ?: "",
-                    onSuccess = {
-                        when (action) {
-                            "ANSWER" -> CallService.answerCall()
-                            "DECLINE" -> CallService.declineCall()
-                        }
-                        finish()
-                    },
-                    onDismiss = { finish() }
-                )
+                NewUiTheme {
+                    val activity = this
+                    BiometricFloatingUi(
+                        biometricType  = biometricType,
+                        activity       = activity,
+                        expectedPin      = prefs.getString(PreferenceManager.KEY_BIOMETRICS_PIN, "") ?: "",
+                        expectedPassword = prefs.getString(PreferenceManager.KEY_BIOMETRICS_PASSWORD, "") ?: "",
+                        onSuccess = {
+                            when (action) {
+                                "ANSWER" -> CallService.answerCall()
+                                "DECLINE" -> CallService.declineCall()
+                            }
+                            finish()
+                        },
+                        onDismiss = { finish() }
+                    )
+                }
             }
         }
     }

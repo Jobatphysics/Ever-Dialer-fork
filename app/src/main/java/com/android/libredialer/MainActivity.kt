@@ -206,20 +206,6 @@ class MainActivity : FragmentActivity() {
             Rivo4Theme {
                 val navController = rememberNavController()
                 var showNewUi by remember { mutableStateOf(true) }
-                var showingLegacyDetailFromNewUi by remember { mutableStateOf(false) }
-                var legacyDetailReturnRoute by remember { mutableStateOf<String?>(null) }
-                val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
-
-                LaunchedEffect(currentRoute) {
-                    if (showingLegacyDetailFromNewUi &&
-                        legacyDetailReturnRoute != null &&
-                        currentRoute == legacyDetailReturnRoute
-                    ) {
-                        showingLegacyDetailFromNewUi = false
-                        legacyDetailReturnRoute = null
-                        showNewUi = true
-                    }
-                }
 
                 // Eagerly create CallLogViewModel here, at the top of the compose tree, instead
                 // of letting it lazily spin up the first time the Calls/Recents screen (or any
@@ -477,33 +463,7 @@ class MainActivity : FragmentActivity() {
                     if (showNewUi) {
                         NewUiTheme {
                             NewUiAppShell(
-                                onCall = { number -> placeDirectCall(number) },
-                                onContactClick = { contact ->
-                                    showingLegacyDetailFromNewUi = true
-                                    legacyDetailReturnRoute = currentRoute
-                                    showNewUi = false
-                                    navController.navigate(
-                                        ContactDetailsScreenDestination(
-                                            contactId = contact.id,
-                                            phoneNumber = contact.phoneNumbers.firstOrNull()
-                                        ).route
-                                    )
-                                },
-                                onCallLogClick = { log ->
-                                    if (!log.contactId.isNullOrBlank() && log.contactId != "null") {
-                                        showingLegacyDetailFromNewUi = true
-                                        legacyDetailReturnRoute = currentRoute
-                                        showNewUi = false
-                                        navController.navigate(
-                                            ContactDetailsScreenDestination(
-                                                contactId = log.contactId,
-                                                phoneNumber = log.number
-                                            ).route
-                                        )
-                                    } else {
-                                        placeDirectCall(log.number)
-                                    }
-                                },
+                                onCall = { number, contactKey -> placeDirectCall(number, contactKey) },
                             )
                         }
                     }
@@ -801,6 +761,18 @@ class MainActivity : FragmentActivity() {
 
                 LaunchedEffect(pendingIntent) {
                     pendingIntent?.let {
+                        val dataString = it.data?.toString().orEmpty()
+                        if (
+                            it.action == Intent.ACTION_INSERT ||
+                            it.action == Intent.ACTION_EDIT ||
+                            it.action == Intent.ACTION_DIAL ||
+                            (it.action == Intent.ACTION_VIEW &&
+                                (dataString.contains("contacts") ||
+                                    dataString.contains("com.android.contacts") ||
+                                    it.hasExtra("contact_id")))
+                        ) {
+                            showNewUi = false
+                        }
                         handleIntent(it, navController)
                         pendingIntent = null
                     }

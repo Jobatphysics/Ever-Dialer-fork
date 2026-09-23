@@ -16,6 +16,7 @@ import com.android.libredialer.view.newui.components.PhysicalListState
 import com.android.libredialer.view.newui.components.lensSurface
 import com.android.libredialer.view.newui.motion.rememberLensInteractionSource
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardOptions
@@ -34,6 +35,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -47,6 +49,7 @@ import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material.icons.filled.Tune
@@ -66,21 +69,36 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.combinedClickable
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import android.widget.TimePicker
+import android.app.TimePickerDialog
+import java.util.Calendar
 
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.libredialer.view.newui.components.NewUiPlaceholderCard
 import com.android.libredialer.view.newui.components.NewUiScreenShell
+import com.android.libredialer.view.newui.components.NewContextualAction
+import com.android.libredialer.view.newui.components.NewContextualActionsDialog
 import com.android.libredialer.view.newui.navigation.NewUiDestination
 import com.android.libredialer.view.newui.navigation.NewUiSettingsDestination
 import com.android.libredialer.controller.ContactsViewModel
@@ -89,6 +107,11 @@ import com.android.libredialer.modal.data.CallLogEntry
 import com.android.libredialer.controller.CallLogViewModel
 import com.android.libredialer.controller.util.formatDate
 import com.android.libredialer.controller.util.numbersLikelyMatch
+import com.android.libredialer.controller.util.BlockedNumbersManager
+import com.android.libredialer.controller.util.CallReminderManager
+import com.android.libredialer.controller.util.PreferenceManager
+import com.android.libredialer.controller.util.makeCall
+import com.android.libredialer.modal.`interface`.ICallLogRepository
 import com.android.libredialer.view.screen.settings.AboutAppScreen
 import com.android.libredialer.view.screen.settings.AppSettingsScreen
 import com.android.libredialer.view.screen.settings.BiometricScreen
@@ -115,7 +138,8 @@ import android.provider.CallLog
 @Composable
 fun NewDialerScreen(
     onCall: (String) -> Unit,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    onAddContact: (String?) -> Unit = {}
 ) {
     var number by remember { mutableStateOf("") }
 
@@ -156,7 +180,6 @@ fun NewDialerScreen(
                     val matchingPhone = contact.phoneNumbers.firstOrNull { phone ->
                         normalizeNumber(phone).contains(query)
                     }
-
                     val nameT9 = t9(contact.name)
 
                     val nameMatches = nameT9.startsWith(query)
@@ -171,25 +194,22 @@ fun NewDialerScreen(
                 .take(6)
         }
     }
-
-    NewUiScreenShell(destination = NewUiDestination.Dialer) {
+    NewUiScreenShell(
+        destination = NewUiDestination.Dialer,
+        showTitle = number.isEmpty(),
+        headerAction = if (number.isEmpty()) ({
+            IconButton(onClick = onSettings) {
+                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+            }
+        }) else null
+    ) {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
-            IconButton(
-                onClick = onSettings,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .offset(y = (-68).dp)
-            ) {
-                Icon(
-                    Icons.Filled.Settings,
-                    contentDescription = "Settings"
-                )
-            }
-
             Column(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
             // Search results area.
@@ -252,12 +272,14 @@ fun NewDialerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp),
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = MaterialTheme.typography.headlineMedium.copy(fontSize = 40.sp),
                     textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    softWrap = false,
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
-
             // Five-row keypad.
             DialerKeypad(
                 onDigit = { number += it },
@@ -266,14 +288,18 @@ fun NewDialerScreen(
                         number = number.dropLast(1)
                     }
                 },
-                onClear = {
-                    number = ""
+                onDeleteRepeat = {
+                    if (number.isNotEmpty()) {
+                        number = number.dropLast(1)
+                        true
+                    } else false
                 },
                 onCall = {
                     if (number.isNotBlank()) {
                         onCall(number)
                     }
-                }
+                },
+                onAddContact = { onAddContact(number.takeIf { it.isNotEmpty() }) }
             )
             }
         }
@@ -296,11 +322,20 @@ data class NewUiCallLogItem(
 )
 
 @Composable
-fun NewRecentsScreen(onCallLogClick: (CallLogEntry) -> Unit) {
+fun NewRecentsScreen(
+    onCallLogClick: (CallLogEntry) -> Unit,
+    onSettings: () -> Unit,
+    onCall: (String) -> Unit = {},
+    onAddContact: (String) -> Unit = {}
+) {
     val callLogViewModel: CallLogViewModel = koinActivityViewModel()
     val contactsViewModel: ContactsViewModel = koinActivityViewModel()
     val logs by callLogViewModel.allCallLogs.collectAsState()
     val contacts by contactsViewModel.allContacts.collectAsState()
+    val context = LocalContext.current
+    val prefs: PreferenceManager = koinInject()
+    var contextualItem by remember { mutableStateOf<NewUiCallLogItem?>(null) }
+    var showReminderPicker by remember { mutableStateOf<NewUiCallLogItem?>(null) }
 
     val physicalListState = rememberPhysicalListState()
 
@@ -383,7 +418,14 @@ fun NewRecentsScreen(onCallLogClick: (CallLogEntry) -> Unit) {
         }
     }
 
-    NewUiScreenShell(destination = NewUiDestination.Recents) {
+    NewUiScreenShell(
+        destination = NewUiDestination.Recents,
+        headerAction = {
+            IconButton(onClick = onSettings) {
+                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+            }
+        }
+    ) {
         if (uiLogs.isEmpty()) {
             Text(
                 text = "No recent calls",
@@ -395,6 +437,7 @@ fun NewRecentsScreen(onCallLogClick: (CallLogEntry) -> Unit) {
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = 72.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 itemsIndexed(
@@ -405,9 +448,60 @@ fun NewRecentsScreen(onCallLogClick: (CallLogEntry) -> Unit) {
                         item = item,
                         index = index,
                         physicalListState = physicalListState,
-                        onClick = { onCallLogClick(item.log) }
+                        onClick = { onCallLogClick(item.log) },
+                        onLongClick = { contextualItem = item }
                     )
                 }
+            }
+            contextualItem?.let { item ->
+                val number = item.log.number
+                val blocked = BlockedNumbersManager.isBlocked(context, prefs, number)
+                val actions = buildList {
+                    add(NewContextualAction("Call") { onCall(number) })
+                    add(NewContextualAction("Message") {
+                        context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:${Uri.encode(number)}")))
+                    })
+                    add(NewContextualAction("Delete this call") {
+                        callLogViewModel.deleteCallLog(item.log)
+                    })
+                    add(NewContextualAction("Delete call history for this number") {
+                        callLogViewModel.deleteCallLogs(logs.filter { it.number == number })
+                    })
+                    add(NewContextualAction(if (blocked) "Unblock" else "Block") {
+                        if (blocked) BlockedNumbersManager.unblock(context, prefs, number)
+                        else BlockedNumbersManager.block(context, prefs, number)
+                    })
+                    if (item.contact == null) add(NewContextualAction("Add to Contacts") { onAddContact(number) })
+                    add(NewContextualAction("Copy number") {
+                        val clipboard = context.getSystemService(ClipboardManager::class.java)
+                        clipboard?.setPrimaryClip(ClipData.newPlainText("Phone number", number))
+                    })
+                    add(NewContextualAction("Remind me") { showReminderPicker = item })
+                }
+                NewContextualActionsDialog(
+                    title = item.displayName,
+                    actions = actions,
+                    onDismiss = { contextualItem = null }
+                )
+            }
+            showReminderPicker?.let { item ->
+                TimePickerDialog(
+                    context,
+                    { _, hour, minute ->
+                        val trigger = Calendar.getInstance().apply {
+                            set(Calendar.HOUR_OF_DAY, hour)
+                            set(Calendar.MINUTE, minute)
+                            set(Calendar.SECOND, 0)
+                            set(Calendar.MILLISECOND, 0)
+                            if (timeInMillis <= System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
+                        }.timeInMillis
+                        CallReminderManager.schedule(context, item.log.number, trigger)
+                        showReminderPicker = null
+                    },
+                    Calendar.getInstance().get(Calendar.HOUR_OF_DAY),
+                    Calendar.getInstance().get(Calendar.MINUTE),
+                    true
+                ).apply { setOnDismissListener { showReminderPicker = null } }.show()
             }
         }
     }
@@ -418,25 +512,33 @@ private fun NewCallLogRow(
     item: NewUiCallLogItem,
     index: Int,
     physicalListState: PhysicalListState,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
     val interactionSource = rememberLensInteractionSource()
 
-    val surfaceColor = if (item.isMissed) {
+    val baseSurfaceColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val callTypeTint = when (item.log.type) {
+        CallLog.Calls.MISSED_TYPE -> MaterialTheme.colorScheme.error
+        CallLog.Calls.OUTGOING_TYPE -> Color(0xFF2E7D32)
+        CallLog.Calls.INCOMING_TYPE -> Color(0xFF1565C0)
+        else -> baseSurfaceColor
+    }
+    val surfaceColor = if (item.log.type == CallLog.Calls.MISSED_TYPE) {
         MaterialTheme.colorScheme.errorContainer
     } else {
-        MaterialTheme.colorScheme.surfaceContainerLow
+        androidx.compose.ui.graphics.lerp(baseSurfaceColor, callTypeTint, 0.20f)
     }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .physicalListItem(physicalListState, index)
-            .physicalItemInput(physicalListState, index, onClick)
+            .physicalItemInput(physicalListState, index, onClick, onLongClick)
             .lensSurface(
                 shape = MaterialTheme.shapes.medium,
                 tonalColor = surfaceColor,
-                translucentAlpha = if (item.isMissed) 0.65f else 0.80f,
+                translucentAlpha = 0.88f,
                 specularAlpha = 0.28f,
                 elevation = 1.dp,
                 interactionSource = interactionSource
@@ -527,7 +629,11 @@ private fun NewCallLogRow(
 }
 
 @Composable
-fun NewContactsScreen(onContactClick: (Contact) -> Unit) {
+fun NewContactsScreen(
+    onContactClick: (Contact) -> Unit,
+    onCreateContact: () -> Unit = {},
+    onSettings: () -> Unit
+) {
     val contactsViewModel: ContactsViewModel = koinActivityViewModel()
     val contacts by contactsViewModel.displayedContacts.collectAsState()
     var query by remember { mutableStateOf("") }
@@ -544,35 +650,93 @@ fun NewContactsScreen(onContactClick: (Contact) -> Unit) {
             }
         }
     }
+    val physicalListState = rememberPhysicalListState()
+    val context = LocalContext.current
+    val prefs: PreferenceManager = koinInject()
+    var contextualContact by remember { mutableStateOf<Contact?>(null) }
 
-    NewUiScreenShell(destination = NewUiDestination.Contacts) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+    NewUiScreenShell(
+        destination = NewUiDestination.Contacts,
+        sectionSpacing = 8.dp,
+        headerAction = {
+            IconButton(onClick = onSettings) {
+                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+            }
+        }
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize()
         ) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                label = { Text("Search contacts") },
-                leadingIcon = {
-                    Icon(Icons.Filled.Search, contentDescription = null)
-                }
-            )
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = 136.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(
+                itemsIndexed(
                     items = filteredContacts,
-                    key = { it.id }
-                ) { contact ->
+                    key = { _, contact -> contact.id }
+                ) { index, contact ->
                     NewContactRow(
                         contact = contact,
-                        onClick = { onContactClick(contact) }
+                        index = index,
+                        physicalListState = physicalListState,
+                        onClick = { onContactClick(contact) },
+                        onLongClick = { contextualContact = contact }
                     )
                 }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 48.dp)
+                    .zIndex(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.weight(2f),
+                    singleLine = true,
+                    label = { Text("Search contacts") },
+                    leadingIcon = {
+                        Icon(Icons.Filled.Search, contentDescription = null)
+                    }
+                )
+                androidx.compose.foundation.layout.Spacer(Modifier.width(8.dp))
+                IconButton(
+                    onClick = onCreateContact,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        Icons.Filled.PersonAdd,
+                        contentDescription = "Add contact",
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+            contextualContact?.let { contact ->
+                val number = contact.phoneNumbers.firstOrNull().orEmpty()
+                val blocked = BlockedNumbersManager.isBlocked(context, prefs, number)
+                NewContextualActionsDialog(
+                    title = contact.name.ifBlank { number },
+                    actions = listOf(
+                        NewContextualAction(if (contact.isFavorite) "Remove from Favorites" else "Add to Favorites") {
+                            contactsViewModel.toggleFavorite(contact)
+                        },
+                        NewContextualAction(if (blocked) "Unblock" else "Block") {
+                            if (blocked) BlockedNumbersManager.unblock(context, prefs, number)
+                            else BlockedNumbersManager.block(context, prefs, number)
+                        },
+                        NewContextualAction("Delete Contact") {
+                            contactsViewModel.deleteContact(contact.id)
+                        },
+                        NewContextualAction("Copy number") {
+                            context.getSystemService(ClipboardManager::class.java)
+                                ?.setPrimaryClip(ClipData.newPlainText("Phone number", number))
+                        }
+                    ),
+                    onDismiss = { contextualContact = null }
+                )
             }
         }
     }
@@ -581,11 +745,16 @@ fun NewContactsScreen(onContactClick: (Contact) -> Unit) {
 @Composable
 private fun NewContactRow(
     contact: Contact,
-    onClick: () -> Unit
+    index: Int,
+    physicalListState: PhysicalListState,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
     Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .physicalListItem(physicalListState, index)
+            .physicalItemInput(physicalListState, index, onClick, onLongClick),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         tonalElevation = 1.dp
@@ -646,14 +815,27 @@ private fun NewContactRow(
 }
 
 @Composable
-fun NewFavoritesScreen(onContactClick: (Contact) -> Unit) {
+fun NewFavoritesScreen(
+    onContactClick: (Contact) -> Unit,
+    onSettings: () -> Unit
+) {
     val contactsViewModel: ContactsViewModel = koinActivityViewModel()
     val allContacts by contactsViewModel.allContacts.collectAsState()
     val favorites = remember(allContacts) {
         allContacts.filter { it.isFavorite }
     }
+    val context = LocalContext.current
+    val prefs: PreferenceManager = koinInject()
+    var contextualContact by remember { mutableStateOf<Contact?>(null) }
 
-    NewUiScreenShell(destination = NewUiDestination.Favorites) {
+    NewUiScreenShell(
+        destination = NewUiDestination.Favorites,
+        headerAction = {
+            IconButton(onClick = onSettings) {
+                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+            }
+        }
+    ) {
         if (favorites.isEmpty()) {
             Text(
                 text = "No favorite contacts",
@@ -665,6 +847,7 @@ fun NewFavoritesScreen(onContactClick: (Contact) -> Unit) {
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = 72.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(
@@ -674,9 +857,30 @@ fun NewFavoritesScreen(onContactClick: (Contact) -> Unit) {
                     NewFavoriteRow(
                         contact = contact,
                         onClick = { onContactClick(contact) },
-                        onRemove = { contactsViewModel.toggleFavorite(contact) }
+                        onRemove = { contactsViewModel.toggleFavorite(contact) },
+                        onLongClick = { contextualContact = contact }
                     )
                 }
+            }
+            contextualContact?.let { contact ->
+                val number = contact.phoneNumbers.firstOrNull().orEmpty()
+                val blocked = BlockedNumbersManager.isBlocked(context, prefs, number)
+                NewContextualActionsDialog(
+                    title = contact.name.ifBlank { number },
+                    actions = listOf(
+                        NewContextualAction("Remove from Favorites") { contactsViewModel.toggleFavorite(contact) },
+                        NewContextualAction(if (blocked) "Unblock" else "Block") {
+                            if (blocked) BlockedNumbersManager.unblock(context, prefs, number)
+                            else BlockedNumbersManager.block(context, prefs, number)
+                        },
+                        NewContextualAction("Delete Contact") { contactsViewModel.deleteContact(contact.id) },
+                        NewContextualAction("Copy number") {
+                            context.getSystemService(ClipboardManager::class.java)
+                                ?.setPrimaryClip(ClipData.newPlainText("Phone number", number))
+                        }
+                    ),
+                    onDismiss = { contextualContact = null }
+                )
             }
         }
     }
@@ -686,11 +890,27 @@ fun NewFavoritesScreen(onContactClick: (Contact) -> Unit) {
 private fun NewFavoriteRow(
     contact: Contact,
     onClick: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    onLongClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
     Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                val scale = if (pressed) 0.96f else 1f
+                scaleX = scale
+                scaleY = scale
+            }
+            // Keep the existing pressed scale while adding the contextual long-press path.
+            // The trailing favorite button remains a separate normal tap target.
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         tonalElevation = 1.dp
@@ -803,8 +1023,8 @@ fun NewSettingsScreen(
             ),
             "Appearance" to listOf(
                 NewSettingsRow(
-                    "Colors & Theme",
-                    "Material 3 colors, theme mode, and Material You options",
+                    "Themes",
+                    "Choose System, Light, Dark, or Pure AMOLED",
                     Icons.Filled.Palette,
                     NewUiSettingsDestination.ColorsAndTheme
                 )
@@ -885,6 +1105,7 @@ fun NewSettingsScreen(
     NewUiScreenShell(destination = NewUiDestination.Settings) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(top = 72.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             rows.forEach { (section, sectionRows) ->
@@ -1041,71 +1262,85 @@ private fun NewColorsAndThemeScreen() {
             "black" to "Pure AMOLED"
         )
 
-        NewUiScreenShell(destination = NewUiDestination.Settings) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = "Theme",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    tonalElevation = 1.dp
-                ) {
-                    Column {
-                        modes.forEachIndexed { index, (mode, label) ->
-                            Surface(
-                                onClick = {
-                                    prefs.setString(
-                                        com.android.libredialer.controller.util.PreferenceManager.KEY_THEME_MODE,
-                                        mode
-                                    )
-                                },
-                                color = androidx.compose.ui.graphics.Color.Transparent
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    RadioButton(selected = selectedMode == mode, onClick = null)
-                                    Column(modifier = Modifier.padding(start = 12.dp)) {
-                                        Text(label, style = MaterialTheme.typography.titleMedium)
-                                        Text(
-                                            text = when (mode) {
-                                                "auto" -> "Follow the system and use Material You colors"
-                                                "light" -> "Force light mode with Material You colors"
-                                                "dark" -> "Force dark mode with Material You colors"
-                                                else -> "True black surfaces with Material You accents"
-                                            },
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+        NewUiScreenShell(
+            destination = NewUiDestination.Settings,
+            titleOverride = "Themes"
+        ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = 72.dp)
+            ) {
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        tonalElevation = 1.dp
+                    ) {
+                        Column {
+                                modes.forEachIndexed { index, (mode, label) ->
+                                    Surface(
+                                        onClick = {
+                                            prefs.setString(
+                                                com.android.libredialer.controller.util.PreferenceManager.KEY_THEME_MODE,
+                                                mode
+                                            )
+                                        },
+                                        color = androidx.compose.ui.graphics.Color.Transparent
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            RadioButton(selected = selectedMode == mode, onClick = null)
+                                            Column(modifier = Modifier.padding(start = 12.dp)) {
+                                                Text(label, style = MaterialTheme.typography.titleMedium)
+                                                Text(
+                                                    text = when (mode) {
+                                                        "auto" -> "Follow the system and use Material You colors"
+                                                        "light" -> "Force light mode with Material You colors"
+                                                        "dark" -> "Force dark mode with Material You colors"
+                                                        else -> "True black surfaces with Material You accents"
+                                                    },
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                    }
+                                    if (index < modes.lastIndex) {
+                                        androidx.compose.material3.HorizontalDivider(
+                                            modifier = Modifier.padding(start = 68.dp),
+                                            color = MaterialTheme.colorScheme.outlineVariant
                                         )
                                     }
                                 }
-                            }
-                            if (index < modes.lastIndex) {
-                                androidx.compose.material3.HorizontalDivider(
-                                    modifier = Modifier.padding(start = 68.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant
-                                )
                             }
                         }
                     }
                 }
             }
         }
-}
 
 @Composable
 private fun NewSettingsRowItem(
     row: NewSettingsRow,
     onClick: () -> Unit
 ) {
-    Surface(onClick = onClick, color = androidx.compose.ui.graphics.Color.Transparent) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    Surface(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        modifier = Modifier.graphicsLayer {
+            val scale = if (pressed) 0.96f else 1f
+            scaleX = scale
+            scaleY = scale
+        },
+        color = androidx.compose.ui.graphics.Color.Transparent
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1157,8 +1392,9 @@ private val DialerKeys = listOf(
 private fun DialerKeypad(
     onDigit: (String) -> Unit,
     onDelete: () -> Unit,
-    onClear: () -> Unit,
-    onCall: () -> Unit
+    onDeleteRepeat: () -> Boolean,
+    onCall: () -> Unit,
+    onAddContact: () -> Unit
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -1188,18 +1424,60 @@ private fun DialerKeypad(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Empty space under *
-            Box(
-                modifier = Modifier.size(108.dp)
-            )
+            val callInteractionSource = remember { MutableInteractionSource() }
+            val deleteInteractionSource = remember { MutableInteractionSource() }
+            val callPressed by callInteractionSource.collectIsPressedAsState()
+            val deletePressed by deleteInteractionSource.collectIsPressedAsState()
+            LaunchedEffect(deletePressed) {
+                if (deletePressed) {
+                    delay(500L)
+                    while (deletePressed && onDeleteRepeat()) {
+                        delay(80L)
+                    }
+                }
+            }
+            val addContactInteractionSource = remember { MutableInteractionSource() }
+            val addContactPressed by addContactInteractionSource.collectIsPressedAsState()
+            Surface(
+                onClick = onAddContact,
+                interactionSource = addContactInteractionSource,
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .size(108.dp)
+                    .graphicsLayer {
+                        val scale = if (addContactPressed) 0.92f else 1f
+                        scaleX = scale
+                        scaleY = scale
+                    },
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.PersonAdd,
+                        contentDescription = "Add contact",
+                        modifier = Modifier.size(40.dp)
+                    )
+                }
+            }
 
             // CALL — same 108dp circle as keypad
             Surface(
                 onClick = onCall,
+                interactionSource = callInteractionSource,
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.size(108.dp)
+                modifier = Modifier
+                    .size(108.dp)
+                    .graphicsLayer {
+                        val scale = if (callPressed) 0.92f else 1f
+                        scaleX = scale
+                        scaleY = scale
+                    }
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -1216,14 +1494,22 @@ private fun DialerKeypad(
             // DELETE — same 108dp circle as keypad
             Surface(
                 onClick = onDelete,
+                interactionSource = deleteInteractionSource,
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .size(108.dp)
+                    .graphicsLayer {
+                        val scale = if (deletePressed) 0.92f else 1f
+                        scaleX = scale
+                        scaleY = scale
+                    }
                     .combinedClickable(
+                        interactionSource = deleteInteractionSource,
+                        indication = null,
                         onClick = onDelete,
-                        onLongClick = onClear
+                        onLongClick = {}
                     )
             ) {
                 Box(
