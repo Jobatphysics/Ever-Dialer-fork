@@ -31,11 +31,13 @@ import androidx.compose.runtime.collectAsState
 import org.koin.compose.viewmodel.koinActivityViewModel
 import org.koin.compose.koinInject
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -84,6 +86,9 @@ import android.provider.Settings
 import android.widget.TimePicker
 import android.app.TimePickerDialog
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import java.text.SimpleDateFormat
 
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -97,6 +102,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.libredialer.view.newui.components.NewUiPlaceholderCard
 import com.android.libredialer.view.newui.components.NewUiScreenShell
+import com.android.libredialer.view.newui.components.NewUiDialerButton
+import com.android.libredialer.view.newui.components.newUiScrollContentPadding
+import com.android.libredialer.view.newui.components.LocalNewUiSettingsStyle
+import com.android.libredialer.view.newui.components.LocalNewUiScrollClearance
 import com.android.libredialer.view.newui.components.NewContextualAction
 import com.android.libredialer.view.newui.components.NewContextualActionsDialog
 import com.android.libredialer.view.newui.navigation.NewUiDestination
@@ -321,6 +330,12 @@ data class NewUiCallLogItem(
     val typeIcon: ImageVector
 )
 
+private data class NewUiCallLogDateSection(
+    val key: Int,
+    val title: String,
+    val items: List<IndexedValue<NewUiCallLogItem>>
+)
+
 @Composable
 fun NewRecentsScreen(
     onCallLogClick: (CallLogEntry) -> Unit,
@@ -338,6 +353,20 @@ fun NewRecentsScreen(
     var showReminderPicker by remember { mutableStateOf<NewUiCallLogItem?>(null) }
 
     val physicalListState = rememberPhysicalListState()
+    var dateRefresh by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val nextMidnight = Calendar.getInstance().apply {
+                add(Calendar.DAY_OF_YEAR, 1)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            delay((nextMidnight.timeInMillis - System.currentTimeMillis()).coerceAtLeast(1L))
+            dateRefresh++
+        }
+    }
 
     // High-performance asynchronous mapping:
     // Builds O(1) indices and pre-formats all display text off the UI main thread
@@ -362,8 +391,9 @@ fun NewRecentsScreen(
                 }
             }
 
-            val items = ArrayList<NewUiCallLogItem>(logs.size)
-            for (log in logs) {
+            val sortedLogs = logs.sortedByDescending { it.date }
+            val items = ArrayList<NewUiCallLogItem>(sortedLogs.size)
+            for (log in sortedLogs) {
                 val contact = if (!log.contactId.isNullOrBlank() && log.contactId != "null") {
                     contactById[log.contactId]
                 } else {
@@ -395,7 +425,7 @@ fun NewRecentsScreen(
                     else -> Icons.Filled.Call
                 }
 
-                val formattedDate = "$typeLabel · ${formatDate(log.date, false)}"
+                val formattedDate = formatDate(log.date, false)
                 val key = "${log.callIds.firstOrNull() ?: log.date}_${log.number}"
 
                 items.add(
@@ -418,6 +448,24 @@ fun NewRecentsScreen(
         }
     }
 
+    val dateSections = remember(uiLogs, dateRefresh) {
+        val today = Calendar.getInstance()
+        val yesterday = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -1) }
+        val grouped = LinkedHashMap<Int, MutableList<IndexedValue<NewUiCallLogItem>>>()
+        uiLogs.forEachIndexed { index, item ->
+            val callDate = Calendar.getInstance().apply { timeInMillis = item.log.date }
+            val dateKey = callDate.get(Calendar.YEAR) * 1000 + callDate.get(Calendar.DAY_OF_YEAR)
+            grouped.getOrPut(dateKey) { mutableListOf() }.add(IndexedValue(index, item))
+        }
+        grouped.map { (key, items) ->
+            NewUiCallLogDateSection(
+                key = key,
+                title = recentsDateHeader(items.first().value.log.date, today, yesterday),
+                items = items
+            )
+        }
+    }
+
     NewUiScreenShell(
         destination = NewUiDestination.Recents,
         headerAction = {
@@ -437,20 +485,27 @@ fun NewRecentsScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 72.dp),
+                contentPadding = newUiScrollContentPadding(PaddingValues(top = 72.dp)),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                itemsIndexed(
-                    items = uiLogs,
-                    key = { _, item -> item.key }
-                ) { index, item ->
-                    NewCallLogRow(
-                        item = item,
-                        index = index,
-                        physicalListState = physicalListState,
-                        onClick = { onCallLogClick(item.log) },
-                        onLongClick = { contextualItem = item }
-                    )
+                dateSections.forEach { section ->
+                    item(key = "date_${section.key}") {
+                        com.android.libredialer.view.components.RivoSectionHeader(section.title)
+                    }
+                    items(
+                        items = section.items,
+                        key = { indexedItem -> indexedItem.value.key }
+                    ) { indexedItem ->
+                        val item = indexedItem.value
+                        NewCallLogRow(
+                            item = item,
+                            index = indexedItem.index,
+                            physicalListState = physicalListState,
+                            onClick = { onCallLogClick(item.log) },
+                            onLongClick = { contextualItem = item },
+                            onCall = { onCall(item.log.number) }
+                        )
+                    }
                 }
             }
             contextualItem?.let { item ->
@@ -513,7 +568,8 @@ private fun NewCallLogRow(
     index: Int,
     physicalListState: PhysicalListState,
     onClick: () -> Unit,
-    onLongClick: () -> Unit
+    onLongClick: () -> Unit,
+    onCall: () -> Unit
 ) {
     val interactionSource = rememberLensInteractionSource()
 
@@ -534,7 +590,6 @@ private fun NewCallLogRow(
         modifier = Modifier
             .fillMaxWidth()
             .physicalListItem(physicalListState, index)
-            .physicalItemInput(physicalListState, index, onClick, onLongClick)
             .lensSurface(
                 shape = MaterialTheme.shapes.medium,
                 tonalColor = surfaceColor,
@@ -548,82 +603,124 @@ private fun NewCallLogRow(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (!item.photoUri.isNullOrBlank()) {
-                val context = LocalContext.current
-                val density = LocalDensity.current
-                val avatarPx = remember(density) { with(density) { 52.dp.roundToPx() } }
-                val imageRequest = remember(item.photoUri, avatarPx) {
-                    coil.request.ImageRequest.Builder(context)
-                        .data(item.photoUri)
-                        .size(avatarPx)
-                        .crossfade(true)
-                        .memoryCacheKey(item.photoUri)
-                        .build()
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .physicalItemInput(physicalListState, index, onClick, onLongClick),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (!item.photoUri.isNullOrBlank()) {
+                    val context = LocalContext.current
+                    val density = LocalDensity.current
+                    val avatarPx = remember(density) { with(density) { 52.dp.roundToPx() } }
+                    val imageRequest = remember(item.photoUri, avatarPx) {
+                        coil.request.ImageRequest.Builder(context)
+                            .data(item.photoUri)
+                            .size(avatarPx)
+                            .crossfade(true)
+                            .memoryCacheKey(item.photoUri)
+                            .build()
+                    }
+                    AsyncImage(
+                        model = imageRequest,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Surface(
+                        modifier = Modifier.size(52.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = item.initialLetter,
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
                 }
-                AsyncImage(
-                    model = imageRequest,
-                    contentDescription = null,
+                Column(
                     modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Surface(
-                    modifier = Modifier.size(52.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer
+                        .weight(1f)
+                        .padding(start = 12.dp)
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = item.displayName,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                    if (item.subtitle != null) {
                         Text(
-                            text = item.initialLetter,
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            text = item.subtitle,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = item.typeIcon,
+                            contentDescription = item.typeLabel,
+                            tint = when (item.log.type) {
+                                CallLog.Calls.MISSED_TYPE -> MaterialTheme.colorScheme.error
+                                CallLog.Calls.OUTGOING_TYPE -> Color(0xFF2E7D32)
+                                CallLog.Calls.INCOMING_TYPE -> Color(0xFF1565C0)
+                                else -> MaterialTheme.colorScheme.primary
+                            },
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = item.formattedDate,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (item.isMissed) {
+                                MaterialTheme.colorScheme.onErrorContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                     }
                 }
             }
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 12.dp)
+            IconButton(
+                onClick = onCall,
+                enabled = item.log.number.isNotBlank()
             ) {
-                Text(
-                    text = item.displayName,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-                if (item.subtitle != null) {
-                    Text(
-                        text = item.subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    Icon(
+                        imageVector = Icons.Filled.Call,
+                        contentDescription = "Call ${item.displayName}",
+                        tint = MaterialTheme.colorScheme.primary
                     )
-                }
-                Text(
-                    text = item.formattedDate,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (item.isMissed) {
-                        MaterialTheme.colorScheme.onErrorContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
             }
-            Icon(
-                imageVector = item.typeIcon,
-                contentDescription = item.typeLabel,
-                tint = if (item.isMissed) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.primary
-                }
-            )
+        }
+    }
+}
+
+private fun recentsDateHeader(timestamp: Long, today: Calendar, yesterday: Calendar): String {
+    val callDate = Calendar.getInstance().apply { timeInMillis = timestamp }
+    fun sameCalendarDate(first: Calendar, second: Calendar) =
+        first.get(Calendar.YEAR) == second.get(Calendar.YEAR) &&
+            first.get(Calendar.DAY_OF_YEAR) == second.get(Calendar.DAY_OF_YEAR)
+
+    return when {
+        sameCalendarDate(callDate, today) -> "Today"
+        sameCalendarDate(callDate, yesterday) -> "Yesterday"
+        else -> {
+            val pattern = if (callDate.get(Calendar.YEAR) == today.get(Calendar.YEAR)) {
+                "d MMMM"
+            } else {
+                "d MMMM yyyy"
+            }
+            SimpleDateFormat(pattern, Locale.getDefault()).format(Date(timestamp))
         }
     }
 }
@@ -639,7 +736,7 @@ fun NewContactsScreen(
     var query by remember { mutableStateOf("") }
     val filteredContacts = remember(contacts, query) {
         val normalizedQuery = query.trim()
-        if (normalizedQuery.isBlank()) {
+        val matchingContacts = if (normalizedQuery.isBlank()) {
             contacts
         } else {
             contacts.filter { contact ->
@@ -649,10 +746,34 @@ fun NewContactsScreen(
                     }
             }
         }
+        val firstContactByNumber = mutableMapOf<String, Contact>()
+        val additionalCountByContact = mutableMapOf<String, Int>()
+        val visibleContacts = mutableListOf<Contact>()
+        matchingContacts.forEach { contact ->
+            val duplicateOwner = contact.phoneNumbers
+                .asSequence()
+                .map { normalizeNumberDigits(it).filter(Char::isDigit) }
+                .firstOrNull { it.isNotBlank() && firstContactByNumber.containsKey(it) }
+                ?.let(firstContactByNumber::get)
+
+            if (duplicateOwner != null) {
+                additionalCountByContact[duplicateOwner.id] =
+                    (additionalCountByContact[duplicateOwner.id] ?: 0) + 1
+            } else {
+                visibleContacts += contact
+                contact.phoneNumbers
+                    .asSequence()
+                    .map { normalizeNumberDigits(it).filter(Char::isDigit) }
+                    .filter(String::isNotBlank)
+                    .forEach { number -> firstContactByNumber.putIfAbsent(number, contact) }
+            }
+        }
+        visibleContacts.map { contact -> contact to (additionalCountByContact[contact.id] ?: 0) }
     }
     val physicalListState = rememberPhysicalListState()
     val context = LocalContext.current
     val prefs: PreferenceManager = koinInject()
+    val contactScrollClearance = LocalNewUiScrollClearance.current
     var contextualContact by remember { mutableStateOf<Contact?>(null) }
 
     NewUiScreenShell(
@@ -674,15 +795,21 @@ fun NewContactsScreen(
             ) {
                 itemsIndexed(
                     items = filteredContacts,
-                    key = { _, contact -> contact.id }
-                ) { index, contact ->
+                    key = { _, item -> item.first.id }
+                ) { index, (contact, additionalContactCount) ->
                     NewContactRow(
                         contact = contact,
+                        additionalContactCount = additionalContactCount,
                         index = index,
                         physicalListState = physicalListState,
                         onClick = { onContactClick(contact) },
                         onLongClick = { contextualContact = contact }
                     )
+                }
+                if (filteredContacts.isNotEmpty()) {
+                    item(key = "contacts_scroll_clearance") {
+                        Spacer(Modifier.height(contactScrollClearance))
+                    }
                 }
             }
             Row(
@@ -745,6 +872,7 @@ fun NewContactsScreen(
 @Composable
 private fun NewContactRow(
     contact: Contact,
+    additionalContactCount: Int,
     index: Int,
     physicalListState: PhysicalListState,
     onClick: () -> Unit,
@@ -809,6 +937,13 @@ private fun NewContactRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                if (additionalContactCount > 0) {
+                    Text(
+                        text = "… more",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
@@ -847,7 +982,7 @@ fun NewFavoritesScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 72.dp),
+                contentPadding = newUiScrollContentPadding(PaddingValues(top = 72.dp)),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(
@@ -1105,7 +1240,7 @@ fun NewSettingsScreen(
     NewUiScreenShell(destination = NewUiDestination.Settings) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = 72.dp),
+            contentPadding = newUiScrollContentPadding(PaddingValues(top = 72.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             rows.forEach { (section, sectionRows) ->
@@ -1156,39 +1291,42 @@ private fun NewSettingsDestinationScreen(
     val navigator = remember(onBack, onNavigate) {
         NewSettingsDestinationsNavigator(onBack, onNavigate)
     }
-    when (destination) {
-        NewUiSettingsDestination.AppAndCallBehavior ->
-            AppSettingsScreen(navigator = navigator)
-        NewUiSettingsDestination.SimAndCallPlacement ->
-            SimAndCallPlacementScreen(navigator = navigator)
-        NewUiSettingsDestination.CallAccounts ->
-            CallAccountsScreen(navigator = navigator)
-        NewUiSettingsDestination.SoundAndVibration ->
-            SoundVibrationScreen(navigator = navigator)
-        NewUiSettingsDestination.BiometricAndAppLock ->
-            BiometricScreen(navigator = navigator)
-        NewUiSettingsDestination.ContactsHider ->
-            ContactsHiderScreen(navigator = navigator)
-        NewUiSettingsDestination.CallRecording -> {
-            val recorderViewModel: SettingsViewModel = viewModel()
-            RecorderSettingsScreen(
-                viewModel = recorderViewModel,
-                onBack = onBack
-            )
+    CompositionLocalProvider(LocalNewUiSettingsStyle provides true) {
+        when (destination) {
+            NewUiSettingsDestination.AppAndCallBehavior ->
+                AppSettingsScreen(navigator = navigator)
+            NewUiSettingsDestination.SimAndCallPlacement ->
+                SimAndCallPlacementScreen(navigator = navigator)
+            NewUiSettingsDestination.CallAccounts ->
+                CallAccountsScreen(navigator = navigator)
+            NewUiSettingsDestination.SoundAndVibration ->
+                SoundVibrationScreen(navigator = navigator)
+            NewUiSettingsDestination.BiometricAndAppLock ->
+                BiometricScreen(navigator = navigator)
+            NewUiSettingsDestination.ContactsHider ->
+                ContactsHiderScreen(navigator = navigator)
+            NewUiSettingsDestination.CallRecording -> {
+                val recorderViewModel: SettingsViewModel = viewModel()
+                RecorderSettingsScreen(
+                    viewModel = recorderViewModel,
+                    onBack = onBack,
+                    bottomScrollClearance = LocalNewUiScrollClearance.current
+                )
+            }
+            NewUiSettingsDestination.RaiseToAnswer ->
+                RaiseToAnswerScreen(navigator = navigator)
+            NewUiSettingsDestination.RainMode ->
+                RainModeScreen(navigator = navigator)
+            NewUiSettingsDestination.VolumeDnd ->
+                VolumeDndScreen(navigator = navigator)
+            NewUiSettingsDestination.NetworkSwitcher ->
+                AppSettingsScreen(navigator = navigator, highlightKey = "network_switcher")
+            NewUiSettingsDestination.Updates ->
+                UpdatesScreen(navigator = navigator)
+            NewUiSettingsDestination.About ->
+                AboutAppScreen(navigator = navigator)
+            NewUiSettingsDestination.ColorsAndTheme -> Unit
         }
-        NewUiSettingsDestination.RaiseToAnswer ->
-            RaiseToAnswerScreen(navigator = navigator)
-        NewUiSettingsDestination.RainMode ->
-            RainModeScreen(navigator = navigator)
-        NewUiSettingsDestination.VolumeDnd ->
-            VolumeDndScreen(navigator = navigator)
-        NewUiSettingsDestination.NetworkSwitcher ->
-            AppSettingsScreen(navigator = navigator, highlightKey = "network_switcher")
-        NewUiSettingsDestination.Updates ->
-            UpdatesScreen(navigator = navigator)
-        NewUiSettingsDestination.About ->
-            AboutAppScreen(navigator = navigator)
-        NewUiSettingsDestination.ColorsAndTheme -> Unit
     }
 }
 
@@ -1268,7 +1406,7 @@ private fun NewColorsAndThemeScreen() {
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 72.dp)
+                contentPadding = newUiScrollContentPadding(PaddingValues(top = 72.dp))
             ) {
                 item {
                     Surface(
@@ -1412,7 +1550,8 @@ private fun DialerKeypad(
                     KeypadButton(
                         digit = digit,
                         letters = letters,
-                        onClick = { onDigit(digit) }
+                        onClick = { onDigit(digit) },
+                        onLongClick = if (digit == "0") ({ onDigit("+") }) else null
                     )
                 }
             }
@@ -1426,7 +1565,6 @@ private fun DialerKeypad(
         ) {
             val callInteractionSource = remember { MutableInteractionSource() }
             val deleteInteractionSource = remember { MutableInteractionSource() }
-            val callPressed by callInteractionSource.collectIsPressedAsState()
             val deletePressed by deleteInteractionSource.collectIsPressedAsState()
             LaunchedEffect(deletePressed) {
                 if (deletePressed) {
@@ -1437,91 +1575,44 @@ private fun DialerKeypad(
                 }
             }
             val addContactInteractionSource = remember { MutableInteractionSource() }
-            val addContactPressed by addContactInteractionSource.collectIsPressedAsState()
-            Surface(
+            NewUiDialerButton(
                 onClick = onAddContact,
-                interactionSource = addContactInteractionSource,
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier
-                    .size(108.dp)
-                    .graphicsLayer {
-                        val scale = if (addContactPressed) 0.92f else 1f
-                        scaleX = scale
-                        scaleY = scale
-                    },
+                interactionSource = addContactInteractionSource
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
                     Icon(
                         Icons.Filled.PersonAdd,
                         contentDescription = "Add contact",
                         modifier = Modifier.size(40.dp)
                     )
-                }
             }
 
             // CALL — same 108dp circle as keypad
-            Surface(
+            NewUiDialerButton(
                 onClick = onCall,
                 interactionSource = callInteractionSource,
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier
-                    .size(108.dp)
-                    .graphicsLayer {
-                        val scale = if (callPressed) 0.92f else 1f
-                        scaleX = scale
-                        scaleY = scale
-                    }
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
                     Icon(
                         Icons.Filled.Call,
                         contentDescription = "Call",
                         modifier = Modifier.size(52.dp)
                     )
-                }
             }
 
             // DELETE — same 108dp circle as keypad
-            Surface(
+            NewUiDialerButton(
                 onClick = onDelete,
+                onLongClick = {},
                 interactionSource = deleteInteractionSource,
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier
-                    .size(108.dp)
-                    .graphicsLayer {
-                        val scale = if (deletePressed) 0.92f else 1f
-                        scaleX = scale
-                        scaleY = scale
-                    }
-                    .combinedClickable(
-                        interactionSource = deleteInteractionSource,
-                        indication = null,
-                        onClick = onDelete,
-                        onLongClick = {}
-                    )
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurface
             ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Filled.Backspace,
-                        contentDescription = "Delete",
-                        modifier = Modifier.size(40.dp)
-                    )
-                }
+                Icon(
+                    Icons.Filled.Backspace,
+                    contentDescription = "Delete",
+                    modifier = Modifier.size(40.dp)
+                )
             }
         }
     }
@@ -1531,27 +1622,12 @@ private fun DialerKeypad(
 private fun KeypadButton(
     digit: String,
     letters: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null
 ) {
-    val interactionSource =
-        remember {
-            androidx.compose.foundation.interaction.MutableInteractionSource()
-        }
-
-    val pressed by interactionSource.collectIsPressedAsState()
-
-    Surface(
+    NewUiDialerButton(
         onClick = onClick,
-        interactionSource = interactionSource,
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = Modifier
-            .size(108.dp)
-            .graphicsLayer {
-                val scale = if (pressed) 0.92f else 1f
-                scaleX = scale
-                scaleY = scale
-            }
+        onLongClick = onLongClick
     ) {
         if (letters.isEmpty()) {
             // * 1 # are perfectly centered.

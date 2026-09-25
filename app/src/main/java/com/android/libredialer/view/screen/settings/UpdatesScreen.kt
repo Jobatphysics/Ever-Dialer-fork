@@ -72,6 +72,7 @@ import com.android.libredialer.view.components.RivoListItem
 import com.android.libredialer.view.components.RivoSectionHeader
 import com.android.libredialer.view.components.RivoSwitchListItem
 import com.android.libredialer.view.components.performAppHaptic
+import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import com.android.libredialer.view.theme.SettingsTransitionStyle
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
@@ -272,13 +273,13 @@ fun UpdatesScreen(navigator: DestinationsNavigator) {
         },
         containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
-        val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = padding.calculateTopPadding())
                 .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 12.dp + navBarBottom),
+                .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 12.dp)
+                .newUiScrollContentPadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 

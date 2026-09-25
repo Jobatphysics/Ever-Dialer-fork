@@ -468,11 +468,9 @@ class MainActivity : FragmentActivity() {
                         }
                     }
 
+                    if (!showNewUi) {
                     androidx.compose.foundation.layout.Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .zIndex(if (!showNewUi) 1f else -1f)
-                            .alpha(if (!showNewUi) 1f else 0f)
+                        modifier = Modifier.fillMaxSize()
                     ) {
                     // ── Legacy main nav host retained for incremental migration ───
                     val configuration = LocalConfiguration.current
@@ -661,6 +659,7 @@ class MainActivity : FragmentActivity() {
                                     )
                             }
                         }
+                    }
                     }
                     }
                     }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -36,12 +37,56 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.android.libredialer.view.newui.navigation.NewUiDestination
 import com.android.libredialer.view.newui.navigation.NewUiNavigator
 import com.android.libredialer.view.newui.theme.NewUiDimensions
+import com.android.libredialer.controller.util.PreferenceManager
+import org.koin.compose.koinInject
+
+val LocalNewUiScrollClearance = compositionLocalOf { 0.dp }
+
+// Covers the 48 dp navigation item, capsule padding/margins, and an 8 dp scroll gap.
+val NewUiNavigationBarScrollClearance = 88.dp
+
+@Composable
+fun newUiScrollContentPadding(existing: PaddingValues = PaddingValues()): PaddingValues {
+    val clearance = LocalNewUiScrollClearance.current
+    val layoutDirection = LocalLayoutDirection.current
+    return remember(existing, clearance, layoutDirection) {
+        object : PaddingValues {
+            override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp =
+                existing.calculateLeftPadding(layoutDirection)
+
+            override fun calculateTopPadding(): Dp = existing.calculateTopPadding()
+
+            override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp =
+                existing.calculateRightPadding(layoutDirection)
+
+            override fun calculateBottomPadding(): Dp =
+                existing.calculateBottomPadding() + clearance
+        }
+    }
+}
+
+@Composable
+fun Modifier.newUiScrollContentPadding(): Modifier =
+    padding(bottom = LocalNewUiScrollClearance.current)
 
 @Composable
 fun NewUiScreenShell(
@@ -64,6 +109,7 @@ fun NewUiScreenShell(
         ) {
             content()
         }
+
         if (showTitle || headerAction != null) {
             Row(
                 modifier = Modifier
@@ -84,6 +130,50 @@ fun NewUiScreenShell(
             }
         }
     }
+}
+
+@Composable
+fun Modifier.newUiScrollHaptics(enabled: Boolean = true): Modifier {
+    val hapticFeedback = LocalHapticFeedback.current
+    val prefs: PreferenceManager = koinInject()
+    val settingsVersion by prefs.settingsChanged.collectAsState()
+    val userEnabled = remember(settingsVersion) {
+        prefs.getBoolean(PreferenceManager.KEY_SCROLL_HAPTICS, false)
+    }
+    val milestonePx = with(LocalDensity.current) {
+        (prefs.getFloat(PreferenceManager.KEY_SCROLL_CM_PER_HAPTIC, 1.5f).coerceIn(0.5f, 5f) * (160f / 2.54f)).dp.toPx()
+    }
+    val scrollHaptics = remember(hapticFeedback, milestonePx, enabled, userEnabled) {
+        object : NestedScrollConnection {
+            private var accumulatedScroll = 0f
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (!enabled || !userEnabled || source != NestedScrollSource.UserInput) {
+                    accumulatedScroll = 0f
+                    return Offset.Zero
+                }
+                accumulatedScroll += consumed.y
+                if (kotlin.math.abs(accumulatedScroll) >= milestonePx) {
+                    accumulatedScroll %= milestonePx
+                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPostFling(
+                consumed: androidx.compose.ui.unit.Velocity,
+                available: androidx.compose.ui.unit.Velocity
+            ): androidx.compose.ui.unit.Velocity {
+                accumulatedScroll = 0f
+                return androidx.compose.ui.unit.Velocity.Zero
+            }
+        }
+    }
+    return nestedScroll(scrollHaptics)
 }
 
 @Composable

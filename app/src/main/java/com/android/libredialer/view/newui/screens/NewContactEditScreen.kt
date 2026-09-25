@@ -73,6 +73,7 @@ import com.android.libredialer.modal.data.ContactPhone
 import com.android.libredialer.modal.data.ContactSaveTarget
 import com.android.libredialer.modal.data.getPhoneTypeLabel
 import com.android.libredialer.view.newui.theme.NewUiDimensions
+import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.koin.compose.viewmodel.koinActivityViewModel
@@ -236,7 +237,7 @@ fun NewContactEditScreen(
         ) { padding ->
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding).imePadding(),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = newUiScrollContentPadding(PaddingValues(16.dp)),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {

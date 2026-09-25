@@ -17,7 +17,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
@@ -32,6 +35,9 @@ import com.android.libredialer.view.newui.screens.NewDialerScreen
 import com.android.libredialer.view.newui.screens.NewFavoritesScreen
 import com.android.libredialer.view.newui.screens.NewRecentsScreen
 import com.android.libredialer.view.newui.screens.NewSettingsScreen
+import com.android.libredialer.view.newui.components.LocalNewUiScrollClearance
+import com.android.libredialer.view.newui.components.NewUiNavigationBarScrollClearance
+import com.android.libredialer.view.newui.components.newUiScrollHaptics
 
 @Immutable
 enum class NewUiDestination(val route: String, val title: String) {
@@ -65,6 +71,7 @@ class NewUiNavigator(initialDestination: NewUiDestination) {
     var callDetails by mutableStateOf<CallLogEntry?>(null)
         private set
     private val backStack = mutableListOf<NewUiDestination>()
+    private val settingsBackStack = mutableListOf<NewUiSettingsDestination>()
 
     fun navigate(destination: NewUiDestination) {
         if (destination == currentDestination) {
@@ -72,6 +79,7 @@ class NewUiNavigator(initialDestination: NewUiDestination) {
         }
         if (settingsDestination != null) {
             settingsDestination = null
+            settingsBackStack.clear()
         }
         contactDetails = null
         contactDetailsPhoneNumber = null
@@ -79,8 +87,9 @@ class NewUiNavigator(initialDestination: NewUiDestination) {
         contactEditInitialPhone = null
         unknownNumber = null
         callDetails = null
-        if (
-            currentDestination != destination &&
+        if (destination.isMainDestination()) {
+            backStack.clear()
+        } else if (
             currentDestination != NewUiDestination.ContactDetails &&
             currentDestination != NewUiDestination.ContactEdit
         ) {
@@ -90,6 +99,7 @@ class NewUiNavigator(initialDestination: NewUiDestination) {
     }
 
     fun navigateSettings(destination: NewUiSettingsDestination) {
+        settingsDestination?.takeIf { it != destination }?.let(settingsBackStack::add)
         settingsDestination = destination
     }
 
@@ -138,11 +148,18 @@ class NewUiNavigator(initialDestination: NewUiDestination) {
 
     fun back(): Boolean {
         if (settingsDestination != null) {
+            val previousSettingsDestination = settingsBackStack.removeLastOrNull()
+            if (previousSettingsDestination != null) {
+                settingsDestination = previousSettingsDestination
+                return true
+            }
             settingsDestination = null
             return true
         }
-        if (currentDestination != NewUiDestination.Dialer && backStack.isEmpty()) {
+        if (currentDestination.isMainDestination()) {
+            if (currentDestination == NewUiDestination.Dialer) return false
             currentDestination = NewUiDestination.Dialer
+            backStack.clear()
             return true
         }
         if (currentDestination == NewUiDestination.ContactDetails) {
@@ -164,7 +181,18 @@ class NewUiNavigator(initialDestination: NewUiDestination) {
         return true
     }
 
-    fun canGoBack(): Boolean = settingsDestination != null || backStack.isNotEmpty()
+    fun canGoBack(): Boolean =
+        settingsDestination != null ||
+            backStack.isNotEmpty() ||
+            currentDestination != NewUiDestination.Dialer
+
+    private fun NewUiDestination.isMainDestination(): Boolean = this in setOf(
+        NewUiDestination.Recents,
+        NewUiDestination.Favorites,
+        NewUiDestination.Contacts,
+        NewUiDestination.Settings,
+        NewUiDestination.Dialer
+    )
 }
 
 enum class NewUiSettingsDestination(val title: String) {
@@ -303,7 +331,6 @@ fun NewUiAppShell(
         ),
         label = "newUiBackProgress"
     )
-
     if (predictiveBackEnabled) {
         PredictiveBackHandler(enabled = navigator.canGoBack()) { progressFlow ->
             try {
@@ -321,26 +348,39 @@ fun NewUiAppShell(
             navigator.back()
         }
     }
-    Box(modifier = Modifier.fillMaxSize()) {
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalNewUiScrollClearance provides
+            WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
+                NewUiNavigationBarScrollClearance
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer {
-                    translationX = size.width * backProgress * 0.18f
-                    scaleX = 1f - backProgress * 0.02f
-                    scaleY = 1f - backProgress * 0.02f
-                    alpha = 1f - backProgress * 0.08f
-                }
+                .newUiScrollHaptics(
+                    enabled = navigator.settingsDestination != NewUiSettingsDestination.CallRecording
+                )
         ) {
-            NewUiHost(
-                navigator = navigator,
-                onCall = onCall,
-            )
-        }
-        Box(
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) {
-            com.android.libredialer.view.newui.components.NewUiNavigationBar(navigator)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        translationX = size.width * backProgress * 0.18f
+                        scaleX = 1f - backProgress * 0.02f
+                        scaleY = 1f - backProgress * 0.02f
+                        alpha = 1f - backProgress * 0.08f
+                    }
+            ) {
+                NewUiHost(
+                    navigator = navigator,
+                    onCall = onCall,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+            ) {
+                com.android.libredialer.view.newui.components.NewUiNavigationBar(navigator)
+            }
         }
     }
 }

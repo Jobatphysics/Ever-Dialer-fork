@@ -17,6 +17,7 @@ import com.android.libredialer.view.components.RivoExpressiveCard
 import com.android.libredialer.view.components.RivoListItem
 import com.android.libredialer.view.components.RivoSectionHeader
 import com.android.libredialer.view.components.ScrollToTopButton
+import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import com.android.libredialer.view.theme.SettingsTransitionStyle
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
@@ -45,7 +46,7 @@ fun CallAccountsScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             com.android.libredialer.view.components.SettingsPillTopAppBar(
-                title = "Call Settings",
+                title = "Call Accounts",
                 onBackClick = { navigator.navigateUp() }
             )
         },
@@ -60,13 +61,14 @@ fun CallAccountsScreen(
             )
         }
     ) { padding ->
-        val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = padding.calculateTopPadding()),
-            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + navBarBottom),
+            contentPadding = newUiScrollContentPadding(
+                PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp)
+            ),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
 
@@ -80,10 +82,6 @@ fun CallAccountsScreen(
                         onClick = { /* no-op: system handles */ }
                     )
                 }
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(100.dp))
             }
         }
     }

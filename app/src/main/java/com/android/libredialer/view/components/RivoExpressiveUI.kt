@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.libredialer.controller.util.PreferenceManager
+import com.android.libredialer.view.newui.components.LocalNewUiSettingsStyle
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 import androidx.compose.ui.draw.blur
@@ -389,7 +390,7 @@ fun RivoExpressiveButton(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 softWrap = false
             )
@@ -522,7 +523,7 @@ fun RivoStatCard(
                 Text(
                     text = label,
                     style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.SemiBold,
                     color = labelTextColor,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
@@ -663,13 +664,19 @@ fun RivoListItem(
     compact: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val isNewUiSettings = LocalNewUiSettingsStyle.current
     val context = LocalContext.current
     val prefs = koinInject<PreferenceManager>()
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isMenuOpen) 0.97f else if (isPressed) 0.95f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = Spring.DampingRatioMediumBouncy),
+        targetValue = if (isMenuOpen) 0.97f else if (isPressed) {
+            if (isNewUiSettings) 0.98f else 0.95f
+        } else 1f,
+        animationSpec = spring(
+            stiffness = if (isNewUiSettings) Spring.StiffnessMedium else Spring.StiffnessLow,
+            dampingRatio = if (isNewUiSettings) Spring.DampingRatioNoBouncy else Spring.DampingRatioMediumBouncy
+        ),
         label = "ListItemScale"
     )
 
@@ -686,7 +693,7 @@ fun RivoListItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
+                .clip(if (isNewUiSettings) RoundedCornerShape(0.dp) else RoundedCornerShape(16.dp))
                 .combinedClickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -702,7 +709,10 @@ fun RivoListItem(
                     },
                     onLongClick = onLongClick
                 )
-                .padding(horizontal = 12.dp, vertical = if (compact) 6.dp else 14.dp),
+                .padding(
+                    horizontal = if (isNewUiSettings) 16.dp else 12.dp,
+                    vertical = if (compact) 6.dp else 14.dp
+                ),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (avatarName != null || photoUri != null) {
@@ -723,10 +733,16 @@ fun RivoListItem(
                 )
                 Spacer(modifier = Modifier.width(16.dp))
             } else if (leadingIcon != null) {
-                RivoIconBox(
-                    icon = leadingIcon,
-                    iconContainerColor = iconContainerColor
-                )
+                if (isNewUiSettings) {
+                    Icon(
+                        imageVector = leadingIcon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    RivoIconBox(icon = leadingIcon, iconContainerColor = iconContainerColor)
+                }
                 Spacer(modifier = Modifier.width(16.dp))
             }
 
@@ -739,8 +755,8 @@ fun RivoListItem(
                         }
                         Text(
                             text = headline,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
+                            style = if (isNewUiSettings) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
+                            fontWeight = if (isNewUiSettings) FontWeight.Medium else FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = headlineMaxLines,
                             overflow = TextOverflow.Ellipsis,
@@ -754,8 +770,8 @@ fun RivoListItem(
                 } else {
                     Text(
                         text = headline,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
+                        style = if (isNewUiSettings) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
+                        fontWeight = if (isNewUiSettings) FontWeight.Medium else FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = headlineMaxLines,
                         overflow = TextOverflow.Ellipsis
@@ -770,7 +786,7 @@ fun RivoListItem(
                             }
                             Text(
                                 text = supporting,
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = if (isNewUiSettings) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -784,7 +800,7 @@ fun RivoListItem(
                     } else {
                         Text(
                             text = supporting,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = if (isNewUiSettings) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -867,6 +883,7 @@ fun RivoSwitchListItem(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
+    val isNewUiSettings = LocalNewUiSettingsStyle.current
     val context = LocalContext.current
     val prefs = koinInject<PreferenceManager>()
     val settingsVersion by prefs.settingsChanged.collectAsState()
@@ -904,29 +921,38 @@ fun RivoSwitchListItem(
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .padding(
+                    horizontal = if (isNewUiSettings) 16.dp else 12.dp,
+                    vertical = if (isNewUiSettings) 14.dp else 10.dp
+                )
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (leadingIcon != null) {
-                RivoIconBox(
-                    icon = leadingIcon,
-                    iconContainerColor = iconContainerColor
-                )
+                if (isNewUiSettings) {
+                    Icon(
+                        imageVector = leadingIcon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    RivoIconBox(icon = leadingIcon, iconContainerColor = iconContainerColor)
+                }
                 Spacer(modifier = Modifier.width(16.dp))
             }
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = headline,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
+                    style = if (isNewUiSettings) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (isNewUiSettings) FontWeight.Medium else FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 if (supporting != null) {
                     Text(
                         text = supporting,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = if (isNewUiSettings) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

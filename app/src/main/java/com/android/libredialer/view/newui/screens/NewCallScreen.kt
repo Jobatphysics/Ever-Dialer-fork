@@ -18,22 +18,25 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddIcCall
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.BluetoothDisabled
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.CallMerge
 import androidx.compose.material.icons.filled.Dialpad
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RecordVoiceOver
-import androidx.compose.material.icons.filled.VolumeDown
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.VolumeDown
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -61,6 +64,7 @@ import com.android.libredialer.controller.util.NoteManager
 import com.android.libredialer.controller.util.makeCall
 import com.android.libredialer.modal.`interface`.IContactsRepository
 import com.android.libredialer.view.newui.theme.NewUiDimensions
+import com.android.libredialer.view.newui.components.NewUiDialerButton
 import com.coolappstore.evercallrecorder.by.svhp.services.recording.RecordingForegroundService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -131,23 +135,12 @@ fun NewCallScreen(
             .padding(NewUiDimensions.PagePadding)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(NewUiDimensions.ItemSpacing)
         ) {
-            Text(
-                text = when {
-                    incomingRinging -> "Incoming call"
-                    callState == Call.STATE_DIALING || callState == Call.STATE_CONNECTING -> "Calling"
-                    callState == Call.STATE_HOLDING -> "On hold"
-                    callState == Call.STATE_ACTIVE -> formatCallDuration(duration)
-                    callState == Call.STATE_DISCONNECTED -> "Call ended"
-                    else -> "Call"
-                },
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.weight(0.25f))
+            Spacer(Modifier.weight(1f))
             if (photoUri != null) {
                 AsyncImage(
                     model = photoUri,
@@ -181,6 +174,18 @@ fun NewCallScreen(
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Text(
+                text = when {
+                    incomingRinging -> "Incoming call"
+                    callState == Call.STATE_DIALING || callState == Call.STATE_CONNECTING -> "Calling"
+                    callState == Call.STATE_HOLDING -> "On hold"
+                    callState == Call.STATE_ACTIVE -> formatCallDuration(duration)
+                    callState == Call.STATE_DISCONNECTED -> "Call ended"
+                    else -> "Call"
+                },
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             if (showSimBadge && simSlot >= 0) {
                 Text(
                     "SIM ${simSlot + 1}",
@@ -189,7 +194,6 @@ fun NewCallScreen(
                 )
             }
             Spacer(Modifier.weight(1f))
-
             if (incomingRinging) {
                 Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                     FilledTonalButton(onClick = { CallService.declineCall() }) {
@@ -202,48 +206,43 @@ fun NewCallScreen(
                     }
                 }
             } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    CallControl(
-                        icon = if (isMuted) Icons.Default.MicOff else Icons.Default.Mic,
-                        label = if (isMuted) "Unmute" else "Mute",
-                        active = isMuted
-                    ) { CallService.setMuted(!isMuted) }
-                    CallControl(
-                        icon = if (isSpeaker) Icons.Default.VolumeUp else Icons.Default.VolumeDown,
-                        label = if (isSpeaker) "Earpiece" else "Speaker",
-                        active = isSpeaker
-                    ) {
+                if (heldCall != null) {
+                    OutlinedButton(onClick = { CallService.swapCalls() }) {
+                        Text("Swap calls")
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    CallControl(Icons.Default.Mic, Icons.Default.MicOff, "Mute", isMuted) {
+                        CallService.setMuted(!isMuted)
+                    }
+                    CallControl(Icons.Default.VolumeDown, Icons.Default.VolumeUp, "Speaker", isSpeaker) {
                         CallService.setAudioRoute(
                             if (isSpeaker) CallAudioState.ROUTE_EARPIECE
                             else CallAudioState.ROUTE_SPEAKER
                         )
                     }
-                    if (bluetoothAvailable) {
-                        CallControl(
-                            icon = Icons.Default.RecordVoiceOver,
-                            label = if (isBluetooth) "Earpiece" else "Bluetooth",
-                            active = isBluetooth
-                        ) {
-                            CallService.setAudioRoute(
-                                if (isBluetooth) CallAudioState.ROUTE_EARPIECE
-                                else CallAudioState.ROUTE_BLUETOOTH
-                            )
-                        }
+                    CallControl(
+                        Icons.Default.BluetoothDisabled,
+                        Icons.Default.Bluetooth,
+                        "Bluetooth",
+                        isBluetooth,
+                        enabled = bluetoothAvailable
+                    ) {
+                        CallService.setAudioRoute(
+                            if (isBluetooth) CallAudioState.ROUTE_EARPIECE
+                            else CallAudioState.ROUTE_BLUETOOTH
+                        )
                     }
                 }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    CallControl(Icons.Default.Dialpad, "Keypad", showDialpad) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    CallControl(Icons.Default.Dialpad, Icons.Default.Dialpad, "Keypad", showDialpad) {
                         showDialpad = !showDialpad
                     }
                     CallControl(
                         if (callState == Call.STATE_HOLDING) Icons.Default.PlayArrow else Icons.Default.Pause,
-                        if (callState == Call.STATE_HOLDING) "Resume" else "Hold",
+                        if (callState == Call.STATE_HOLDING) Icons.Default.PlayArrow else Icons.Default.Pause,
+                        "Hold",
                         callState == Call.STATE_HOLDING
                     ) {
                         runCatching {
@@ -252,22 +251,15 @@ fun NewCallScreen(
                     }
                     CallControl(
                         if (heldCall != null) Icons.Default.CallMerge else Icons.Default.AddIcCall,
-                        if (heldCall != null) "Merge" else "Add call",
+                        if (heldCall != null) Icons.Default.CallMerge else Icons.Default.AddIcCall,
+                        "Add call",
                         heldCall != null
                     ) {
                         if (heldCall != null) CallService.mergeCalls() else showAddCall = true
                     }
                 }
-                if (heldCall != null) {
-                    OutlinedButton(onClick = { CallService.swapCalls() }) {
-                        Text("Swap calls")
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    CallControl(Icons.Default.RecordVoiceOver, if (isRecording) "Stop" else "Record", isRecording) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    CallControl(Icons.Default.FiberManualRecord, Icons.Default.FiberManualRecord, if (isRecording) "Stop" else "Record", isRecording) {
                         val action = if (isRecording) {
                             RecordingForegroundService.ACTION_STOP_RECORDING
                         } else RecordingForegroundService.ACTION_MANUAL_START
@@ -277,29 +269,24 @@ fun NewCallScreen(
                         )
                         isRecording = !isRecording
                     }
-                    CallControl(Icons.Default.Person, "Note", showNote) {
-                        showNote = true
-                    }
-                }
-                IconButton(
-                    onClick = {
+                    CallControl(
+                        Icons.Default.CallEnd,
+                        Icons.Default.CallEnd,
+                        "End call",
+                        active = true,
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ) {
                         if (noteText.isNotBlank()) {
                             NoteManager.writeNote(context, contactName, number, noteText)
                         }
                         runCatching { call.disconnect() }
                         onFinish()
-                    },
-                    modifier = Modifier.size(72.dp)
-                ) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.error
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.CallEnd, "End call", tint = MaterialTheme.colorScheme.onError)
-                        }
                     }
+                    CallControl(Icons.Default.Person, Icons.Default.EditNote, "Note", showNote) {
+                        showNote = true
+                    }
+                }
                 }
             }
         }
@@ -364,23 +351,28 @@ fun NewCallScreen(
 
 @Composable
 private fun CallControl(
+    inactiveIcon: androidx.compose.ui.graphics.vector.ImageVector,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     active: Boolean,
+    enabled: Boolean = true,
+    containerColor: Color? = null,
+    contentColor: Color? = null,
     onClick: () -> Unit
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(onClick = onClick) {
-            Surface(
-                modifier = Modifier.size(52.dp),
-                shape = CircleShape,
-                color = if (active) MaterialTheme.colorScheme.secondaryContainer
-                else MaterialTheme.colorScheme.surfaceContainerHigh
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = label)
-                }
-            }
+        NewUiDialerButton(
+            onClick = onClick,
+            containerColor = containerColor ?: if (active) MaterialTheme.colorScheme.secondaryContainer
+            else MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = contentColor ?: MaterialTheme.colorScheme.onSurface,
+            enabled = enabled,
+        ) {
+            Icon(
+                imageVector = if (active) icon else inactiveIcon,
+                contentDescription = label,
+                modifier = Modifier.size(52.dp)
+            )
         }
         Text(label, style = MaterialTheme.typography.labelSmall)
     }

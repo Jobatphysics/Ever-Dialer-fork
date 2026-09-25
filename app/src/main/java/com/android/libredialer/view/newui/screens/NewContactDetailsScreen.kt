@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.QrCode2
@@ -105,6 +106,7 @@ import com.android.libredialer.controller.util.numbersLikelyMatch
 import com.android.libredialer.modal.data.CallLogEntry
 import com.android.libredialer.modal.data.Contact
 import com.android.libredialer.view.newui.theme.NewUiDimensions
+import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
@@ -228,11 +230,7 @@ fun NewContactDetailsScreen(
                 IconButton(onClick = onBack) {
                     Icon(Icons.Default.ArrowBack, "Back")
                 }
-                Text(
-                    currentContact.name.ifBlank { numbers.firstOrNull() ?: "Contact" },
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleLarge
-                )
+                Spacer(Modifier.weight(1f))
                 if (!isUnknownNumber) {
                     IconButton(onClick = { contactsViewModel.toggleFavorite(currentContact) }) {
                         Icon(
@@ -247,7 +245,11 @@ fun NewContactDetailsScreen(
             }
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                contentPadding = newUiScrollContentPadding(androidx.compose.foundation.layout.PaddingValues(
+                    top = 12.dp,
+                    bottom = 24.dp
+                )),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 item {
                     Column(
@@ -276,7 +278,20 @@ fun NewContactDetailsScreen(
                                 }
                             }
                         }
-                        Spacer(Modifier.size(8.dp))
+                        Spacer(Modifier.size(12.dp))
+                        Text(
+                            currentContact.name.ifBlank { numbers.firstOrNull() ?: "Contact" },
+                            style = MaterialTheme.typography.headlineSmall,
+                            textAlign = TextAlign.Center
+                        )
+                        if (currentContact.name.isNotBlank() && numbers.isNotEmpty()) {
+                            Text(
+                                numbers.first(),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
                 if (isUnknownNumber && onAddContact != null) {
@@ -287,224 +302,162 @@ fun NewContactDetailsScreen(
                     }
                 }
                 item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        numbers.take(3).forEach { number ->
-                            Button(onClick = { call(number) }, modifier = Modifier.weight(1f)) {
-                                Icon(Icons.Default.Call, "Call $number")
-                                Spacer(Modifier.size(4.dp))
+                    ActionGroup(label = "Contact") {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Button(
+                                onClick = { numbers.firstOrNull()?.let(::call) },
+                                enabled = numbers.isNotEmpty(),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Call, contentDescription = null)
+                                Spacer(Modifier.size(6.dp))
                                 Text("Call")
                             }
-                        }
-                    }
-                }
-                item {
-                    ActionGroup(label = "Actions") {
-                        ActionTileRow(
-                            ContactActionTile(
-                                icon = Icons.Default.Message,
-                                label = "Message",
-                                contentDescription = "Message",
+                            androidx.compose.material3.OutlinedButton(
                                 onClick = {
                                     numbers.firstOrNull()?.let {
                                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("sms:$it")))
                                     }
-                                }
-                            ),
-                            ContactActionTile(
-                                icon = Icons.Default.ContentCopy,
-                                label = "Copy",
-                                contentDescription = "Copy phone number",
-                                onClick = {
-                                    numbers.firstOrNull()?.let { clipboard.setText(AnnotatedString(it)) }
-                                }
-                            ),
-                            ContactActionTile(
-                                icon = Icons.Default.Share,
-                                label = "Share",
-                                contentDescription = "Share contact",
-                                onClick = {
-                                    val share = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(
-                                            Intent.EXTRA_TEXT,
-                                            listOf(currentContact.name, *numbers.toTypedArray()).joinToString("\n")
-                                        )
-                                    }
-                                    context.startActivity(Intent.createChooser(share, "Share contact"))
-                                }
-                            ),
-                            ContactActionTile(
-                                icon = Icons.Default.QrCode2,
-                                label = "QR code",
-                                contentDescription = "Show contact QR code",
-                                onClick = { showQr = true }
-                            )
-                        )
-                    }
-                }
-                item {
-                    ActionGroup(label = "Contact controls") {
-                        val controlTiles = buildList {
-                            add(
-                                ContactActionTile(
-                                    icon = Icons.Default.SimCard,
-                                    label = "SIM",
-                                    contentDescription = "Choose SIM",
-                                    onClick = { showSimDialog = true }
-                                )
-                            )
-                            add(
-                                ContactActionTile(
-                                    icon = Icons.Default.Block,
-                                    label = if (blockState) "Unblock" else "Block",
-                                    contentDescription = if (blockState) "Unblock contact" else "Block contact",
-                                    onClick = { showBlockDialog = true }
-                                )
-                            )
-                            if (!isUnknownNumber) {
-                                add(
-                                    ContactActionTile(
-                                        icon = Icons.Default.MusicNote,
-                                        label = "Ringtone",
-                                        contentDescription = "Choose ringtone",
-                                        onClick = { showRingtoneDialog = true }
-                                    )
-                                )
-                                add(
-                                    ContactActionTile(
-                                        icon = Icons.Default.Home,
-                                        label = "Shortcut",
-                                        contentDescription = "Add to Home Screen",
-                                        onClick = {
-                                            if (numbers.size > 1) showShortcutNumberDialog = true
-                                            else if (numbers.isNotEmpty()) showShortcutDialog = true
-                                        }
-                                    )
-                                )
+                                },
+                                enabled = numbers.isNotEmpty(),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Message, contentDescription = null)
+                                Spacer(Modifier.size(6.dp))
+                                Text("Message")
                             }
                         }
-                        ActionTileGrid(controlTiles)
+                    }
+                }
+                if (numbers.isNotEmpty() || currentContact.emails.isNotEmpty() || currentContact.addresses.isNotEmpty()) {
+                    item {
+                        DetailsCard("Contact information") {
+                            numbers.forEach { number ->
+                                DetailRow(number, "Phone", Icons.Default.Call) { call(number) }
+                            }
+                            currentContact.emails.forEach { email ->
+                                DetailRow(email, "Email", Icons.Default.Email) {
+                                    context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$email")))
+                                }
+                            }
+                            currentContact.addresses.forEach { address ->
+                                DetailRow(address, "Open map", Icons.Default.LocationOn) {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(address)}")))
+                                }
+                            }
+                        }
+                    }
+                }
+                if (contactLogs.isNotEmpty()) {
+                    item {
+                        DetailsCard("Recent activity") {
+                            contactLogs.take(10).forEach { log ->
+                                DetailRow(formatDate(log.date), "${callTypeLabel(log)} · ${log.duration}s", Icons.Default.History) {
+                                    call(log.number)
+                                }
+                            }
+                        }
                     }
                 }
                 if (!isUnknownNumber && socialApps.any { it.second }) {
                     item {
-                        ActionGroup(label = "Apps") {
+                        ActionGroup(label = "Connected apps") {
                             val appTiles = buildList {
                                 if (socialApps.first { it.first == "whatsapp" }.second) {
-                                    add(
-                                        ContactActionTile(
-                                            icon = Icons.Default.Message,
-                                            label = "WhatsApp",
-                                            contentDescription = "WhatsApp",
-                                            onClick = {
-                                                socialNumber = numbers.firstOrNull()
-                                                showSocialActions = "whatsapp"
-                                            }
-                                        )
-                                    )
+                                    add(ContactActionTile(Icons.Default.Message, "WhatsApp", "WhatsApp", {
+                                        socialNumber = numbers.firstOrNull()
+                                        showSocialActions = "whatsapp"
+                                    }))
                                 }
                                 if (socialApps.first { it.first == "whatsapp_business" }.second) {
-                                    add(
-                                        ContactActionTile(
-                                            icon = Icons.Default.Message,
-                                            label = "WA Business",
-                                            contentDescription = "WhatsApp Business",
-                                            onClick = {
-                                                socialNumber = numbers.firstOrNull()
-                                                showSocialActions = "whatsapp_business"
-                                            }
-                                        )
-                                    )
+                                    add(ContactActionTile(Icons.Default.Message, "WA Business", "WhatsApp Business", {
+                                        socialNumber = numbers.firstOrNull()
+                                        showSocialActions = "whatsapp_business"
+                                    }))
                                 }
                                 if (socialApps.first { it.first == "telegram" }.second) {
-                                    add(
-                                        ContactActionTile(
-                                            icon = Icons.Default.Send,
-                                            label = "Telegram",
-                                            contentDescription = "Telegram",
-                                            onClick = {
-                                                socialNumber = numbers.firstOrNull()
-                                                showSocialActions = "telegram"
-                                            }
-                                        )
-                                    )
+                                    add(ContactActionTile(Icons.Default.Send, "Telegram", "Telegram", {
+                                        socialNumber = numbers.firstOrNull()
+                                        showSocialActions = "telegram"
+                                    }))
                                 }
                                 if (socialApps.first { it.first == "googlemeet" }.second) {
-                                    add(
-                                        ContactActionTile(
-                                            icon = Icons.Default.VideoCall,
-                                            label = "Meet",
-                                            contentDescription = "Google Meet",
-                                            onClick = {
-                                                socialNumber = numbers.firstOrNull()
-                                                showSocialActions = "googlemeet"
-                                            }
-                                        )
-                                    )
+                                    add(ContactActionTile(Icons.Default.VideoCall, "Meet", "Google Meet", {
+                                        socialNumber = numbers.firstOrNull()
+                                        showSocialActions = "googlemeet"
+                                    }))
                                 }
                             }
                             ActionTileGrid(appTiles)
                         }
                     }
                 }
-                if (numbers.isNotEmpty()) {
-                    item { DetailsCard("Phone numbers") {
-                        numbers.forEach { number ->
-                            DetailRow(number, "Phone", Icons.Default.Call) { call(number) }
+                item {
+                    DetailsCard("Additional information") {
+                        Text(
+                            if (note.isBlank()) "No phone note" else note,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        TextButton(onClick = { showNoteEditor = true }) {
+                            Icon(Icons.Default.Edit, if (note.isBlank()) "Add note" else "Edit note")
+                            Spacer(Modifier.size(6.dp))
+                            Text(if (note.isBlank()) "Add note" else "Edit note")
                         }
-                    } }
-                }
-                if (currentContact.emails.isNotEmpty()) {
-                    item { DetailsCard("Email") {
-                        currentContact.emails.forEach { email ->
-                            DetailRow(email, "Email", Icons.Default.Email) {
-                                context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$email")))
+                        if (currentContact.sourceAccounts.isNotEmpty() || currentContact.events.isNotEmpty()) {
+                            currentContact.events.forEach { event ->
+                                DetailRow(event.date, event.label ?: "Event", Icons.Default.Event)
+                            }
+                            if (currentContact.sourceAccounts.isNotEmpty()) {
+                                currentContact.sourceAccounts.forEach { account ->
+                                    DetailRow(account, "Saved in", Icons.Default.Info)
+                                }
                             }
                         }
-                    } }
-                }
-                if (currentContact.addresses.isNotEmpty()) {
-                    item { DetailsCard("Addresses") {
-                        currentContact.addresses.forEach { address ->
-                            DetailRow(address, "Open map", Icons.Default.LocationOn) {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(address)}")))
-                            }
-                        }
-                    } }
-                }
-                item { DetailsCard("Notes") {
-                    Text(
-                        if (note.isBlank()) "No phone note" else note,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    TextButton(onClick = { showNoteEditor = true }) {
-                        Icon(Icons.Default.Edit, "Edit note")
-                        Spacer(Modifier.size(6.dp))
-                        Text(if (note.isBlank()) "Add note" else "Edit note")
                     }
-                } }
-                if (currentContact.sourceAccounts.isNotEmpty()) {
-                    item { DetailsCard("Saved in") {
-                        currentContact.sourceAccounts.forEach { Text(it, modifier = Modifier.padding(vertical = 4.dp)) }
-                    } }
                 }
-                if (contactLogs.isNotEmpty()) {
-                    item { DetailsCard("Recent activity") {
-                        contactLogs.take(10).forEach { log ->
-                            DetailRow(formatDate(log.date), "${callTypeLabel(log)} · ${log.duration}s", Icons.Default.History) { call(log.number) }
+                item {
+                    ActionGroup(label = "Contact settings") {
+                        val controlTiles = buildList {
+                            add(ContactActionTile(Icons.Default.SimCard, "SIM", "Choose SIM") { showSimDialog = true })
+                            add(ContactActionTile(
+                                Icons.Default.Block,
+                                if (blockState) "Unblock" else "Block",
+                                if (blockState) "Unblock contact" else "Block contact"
+                            ) { showBlockDialog = true })
+                            if (!isUnknownNumber) {
+                                add(ContactActionTile(Icons.Default.MusicNote, "Ringtone", "Choose ringtone") {
+                                    showRingtoneDialog = true
+                                })
+                                add(ContactActionTile(Icons.Default.Home, "Shortcut", "Add to Home Screen") {
+                                    if (numbers.size > 1) showShortcutNumberDialog = true
+                                    else if (numbers.isNotEmpty()) showShortcutDialog = true
+                                })
+                            }
                         }
-                    } }
+                        ActionTileGrid(controlTiles)
+                    }
                 }
-                if (currentContact.events.isNotEmpty()) {
-                    item { DetailsCard("Events") {
-                        currentContact.events.forEach { event ->
-                            DetailRow(event.date, event.label ?: "Event", Icons.Default.Event)
-                        }
-                    } }
+                item {
+                    ActionGroup(label = "More actions") {
+                        ActionTileRow(
+                            ContactActionTile(Icons.Default.ContentCopy, "Copy", "Copy phone number") {
+                                numbers.firstOrNull()?.let { clipboard.setText(AnnotatedString(it)) }
+                            },
+                            ContactActionTile(Icons.Default.Share, "Share", "Share contact") {
+                                val share = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, listOf(currentContact.name, *numbers.toTypedArray()).joinToString("\n"))
+                                }
+                                context.startActivity(Intent.createChooser(share, "Share contact"))
+                            },
+                            ContactActionTile(Icons.Default.QrCode2, "QR code", "Show contact QR code") {
+                                showQr = true
+                            }
+                        )
+                    }
                 }
                 item {
                     TextButton(onClick = { showDelete = true }) {

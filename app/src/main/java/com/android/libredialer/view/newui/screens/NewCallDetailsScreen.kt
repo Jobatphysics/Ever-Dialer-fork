@@ -58,6 +58,7 @@ import com.android.libredialer.controller.util.formatDate
 import com.android.libredialer.controller.util.numbersLikelyMatch
 import com.android.libredialer.modal.data.CallLogEntry
 import com.android.libredialer.modal.data.Contact
+import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinActivityViewModel
 
@@ -109,7 +110,7 @@ fun NewCallDetailsScreen(
         }
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 24.dp),
+            contentPadding = newUiScrollContentPadding(PaddingValues(bottom = 24.dp)),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {

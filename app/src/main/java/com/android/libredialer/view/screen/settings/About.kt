@@ -36,6 +36,7 @@ import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import org.koin.compose.koinInject
 
+import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import com.android.libredialer.view.theme.SettingsTransitionStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,13 +70,13 @@ fun AboutAppScreen(navigator: DestinationsNavigator) {
             )
         }
     ) { padding ->
-        val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = padding.calculateTopPadding())
                 .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 24.dp + navBarBottom),
+                .padding(start = 16.dp, top = 12.dp, end = 16.dp, bottom = 24.dp)
+                .newUiScrollContentPadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             SettingsSearchEntryPoint(navigator = navigator)

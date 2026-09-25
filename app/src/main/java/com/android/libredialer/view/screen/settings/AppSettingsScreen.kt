@@ -45,6 +45,7 @@ import com.android.libredialer.controller.MissedCallPopupService
 import com.android.libredialer.controller.RaiseToAnswerManager
 import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.view.components.*
+import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import com.android.libredialer.view.theme.SettingsTransitionStyle
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
@@ -199,18 +200,18 @@ fun AppSettingsScreen(navigator: DestinationsNavigator, highlightKey: String? = 
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             SettingsPillTopAppBar(
-                title = "Interesting Settings !",
+                title = "App & Call Behavior",
                 onBackClick = { navigator.navigateUp() }
             )
         }
     ) { padding ->
-        val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = padding.calculateTopPadding())
                 .verticalScroll(scrollState)
-                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + navBarBottom),
+                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp)
+                .newUiScrollContentPadding(),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             SettingsSearchEntryPoint(navigator = navigator)

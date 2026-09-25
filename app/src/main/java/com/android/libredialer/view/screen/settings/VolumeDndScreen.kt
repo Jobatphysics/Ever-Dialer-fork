@@ -33,6 +33,7 @@ import com.android.libredialer.view.components.RivoSwitchListItem
 import com.android.libredialer.view.components.SettingsPillTopAppBar
 import com.android.libredialer.view.components.SettingsSearchEntryPoint
 import com.android.libredialer.view.components.settingsSearchHighlight
+import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import com.android.libredialer.view.theme.SettingsTransitionStyle
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
@@ -187,13 +188,13 @@ fun VolumeDndScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
             )
         }
     ) { padding ->
-        val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = padding.calculateTopPadding())
                 .verticalScroll(scrollState)
-                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + navBarBottom),
+                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp)
+                .newUiScrollContentPadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             SettingsSearchEntryPoint(navigator = navigator)

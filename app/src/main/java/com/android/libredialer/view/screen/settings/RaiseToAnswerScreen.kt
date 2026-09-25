@@ -28,6 +28,7 @@ import com.android.libredialer.view.components.RivoAnimatedSection
 import com.android.libredialer.view.components.RivoExpressiveCard
 import com.android.libredialer.view.components.RivoSwitchListItem
 import com.android.libredialer.view.components.settingsSearchHighlight
+import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import com.android.libredialer.view.theme.SettingsTransitionStyle
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
@@ -72,13 +73,13 @@ fun RaiseToAnswerScreen(navigator: DestinationsNavigator, highlightKey: String? 
             )
         }
     ) { padding ->
-        val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = padding.calculateTopPadding())
                 .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + navBarBottom),
+                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp)
+                .newUiScrollContentPadding(),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
 

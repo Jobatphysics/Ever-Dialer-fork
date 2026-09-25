@@ -29,6 +29,7 @@ import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.modal.data.Contact
 import com.android.libredialer.view.components.RivoAvatar
 import com.android.libredialer.view.components.RivoExpressiveCard
+import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import com.android.libredialer.view.theme.SettingsTransitionStyle
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
@@ -84,14 +85,13 @@ fun ContactsHiderScreen(navigator: DestinationsNavigator) {
         },
         containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
-        val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = padding.calculateTopPadding())
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 32.dp + navBarBottom)
+            contentPadding = newUiScrollContentPadding(PaddingValues(top = 8.dp, bottom = 32.dp))
         ) {
 
             // ── Secret Code ──────────────────────────────────────────────────

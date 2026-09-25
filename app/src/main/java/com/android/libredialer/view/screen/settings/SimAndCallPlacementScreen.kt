@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.view.components.*
+import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import com.android.libredialer.view.theme.SettingsTransitionStyle
 import com.android.libredialer.controller.ContactsViewModel
 import com.android.libredialer.modal.data.ContactAccount
@@ -179,7 +180,7 @@ fun SimAndCallPlacementScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             SettingsPillTopAppBar(
-                title = "Sim And Call Placement",
+                title = "SIM & Call Placement",
                 onBackClick = { navigator.navigateUp() }
             )
         },
@@ -190,13 +191,13 @@ fun SimAndCallPlacementScreen(
             )
         }
     ) { padding ->
-        val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = padding.calculateTopPadding())
                 .verticalScroll(scrollState)
-                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + navBarBottom),
+                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp)
+                .newUiScrollContentPadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             SettingsSearchEntryPoint(navigator = navigator)

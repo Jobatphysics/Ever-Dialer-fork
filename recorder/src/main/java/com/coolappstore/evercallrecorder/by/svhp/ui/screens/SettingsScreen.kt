@@ -74,7 +74,13 @@ import org.xmlpull.v1.XmlPullParser
 import java.util.Locale
 
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit = {}, onOpenWebView: (url: String, enableDownloads: Boolean, extraBottomDp: Int) -> Unit = { _, _, _ -> }, modifier: Modifier = Modifier) {
+fun SettingsScreen(
+    viewModel: SettingsViewModel,
+    onBack: () -> Unit = {},
+    onOpenWebView: (url: String, enableDownloads: Boolean, extraBottomDp: Int) -> Unit = { _, _, _ -> },
+    modifier: Modifier = Modifier,
+    bottomScrollClearance: androidx.compose.ui.unit.Dp = 0.dp
+) {
     val context = LocalContext.current
     val updateTrigger by viewModel.updateTrigger.collectAsState()
     val contactPickerViewModel: ContactPickerViewModel = viewModel()
@@ -107,7 +113,8 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit = {}, onOpen
         onExportLogs = { exportLogLauncher.launch("evercallrecorder_bug_report.log") },
         onBack = onBack,
         onOpenWebView = onOpenWebView,
-        modifier = modifier
+        modifier = modifier,
+        bottomScrollClearance = bottomScrollClearance
     )
 
     if (showStorageChoiceDialog) {
@@ -141,22 +148,34 @@ fun SettingsContent(
     onExportLogs: () -> Unit,
     onBack: () -> Unit = {},
     onOpenWebView: (url: String, enableDownloads: Boolean, extraBottomDp: Int) -> Unit = { _, _, _ -> },
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    bottomScrollClearance: androidx.compose.ui.unit.Dp = 0.dp
 ) {
     var showLicensesDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(
-                title = { Text("Settings", fontWeight = FontWeight.SemiBold) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(imageVector = Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(start = 20.dp, end = 20.dp, top = 20.dp)
+                    .height(56.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Call Recording",
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = "Back"
+                    )
+                }
+            }
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
@@ -165,11 +184,11 @@ fun SettingsContent(
         LazyColumn(
             state = settingsListState,
             modifier = Modifier.fillMaxSize().padding(innerPadding),
-            contentPadding = PaddingValues(bottom = 32.dp)
+            contentPadding = PaddingValues(bottom = 32.dp + bottomScrollClearance)
         ) {
             item {
                 Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(16.dp))
                     // ORDER: Call Recording Switch → Notifications → Recording → Audio → Security → Languages → About → Debug
                     CallRecordingMasterSwitchSection(preferences, updateTrigger, actions)
                     AppearanceSection(preferences, updateTrigger, actions)
@@ -219,7 +238,7 @@ fun SettingsContent(
 @Composable
 private fun CallRecordingMasterSwitchSection(preferences: AppPreferences, updateTrigger: Int, actions: SettingsActions) {
     val enabled = remember(updateTrigger) { preferences.isCallRecordingEnabled() }
-    SettingsSection(title = "Call Recording", icon = Icons.Outlined.FiberManualRecord) {
+    SettingsSection(title = "Recording controls", icon = Icons.Outlined.FiberManualRecord) {
         ToggleListItem(
             label = "Enable Call Recording",
             description = if (enabled)

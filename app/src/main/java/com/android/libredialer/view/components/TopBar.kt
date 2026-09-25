@@ -213,82 +213,36 @@ fun SettingsPillTopAppBar(
     onBackClick: (() -> Unit)? = null,
     actions: @Composable (RowScope.() -> Unit)? = null
 ) {
-    val prefs = koinInject<PreferenceManager>()
-    val settingsVer by prefs.settingsChanged.collectAsState()
-    val isDark = androidx.core.graphics.ColorUtils.calculateLuminance(MaterialTheme.colorScheme.surface.toArgb()) < 0.5
-    val isSaturatedActive = remember(settingsVer, isDark) { prefs.isSaturatedForTheme(isDark) }
-
-    val pillBackground = if (isSaturatedActive) {
-        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.70f)
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f)
-    }
-    val borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)
-
-    Box(
+    Row(
         modifier = modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 8.dp),
-        contentAlignment = Alignment.CenterStart
+            .padding(start = 20.dp, end = 20.dp, top = 20.dp)
+            .height(56.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Surface(
-            modifier = Modifier.wrapContentSize(),
-            shape = RoundedCornerShape(36.dp),
-            color = pillBackground,
-            tonalElevation = 0.dp,
-            shadowElevation = 0.dp,
-            border = BorderStroke(1.dp, borderColor)
+        Box(
+            modifier = Modifier.weight(1f),
+            contentAlignment = Alignment.CenterStart
         ) {
-            Row(
-                modifier = Modifier
-                    .wrapContentWidth()
-                    .heightIn(min = 58.dp)
-                    .padding(start = 7.dp, end = if (actions != null) 8.dp else 22.dp, top = 6.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
+            ProvideTextStyle(MaterialTheme.typography.headlineMedium) {
+                title()
+            }
+        }
+        actions?.let {
+            Row(verticalAlignment = Alignment.CenterVertically, content = it)
+        }
+        if (onBackClick != null) {
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier.size(48.dp)
             ) {
-                if (onBackClick != null) {
-                    FilledIconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier.size(44.dp),
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = if (isSaturatedActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = if (isSaturatedActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    Spacer(Modifier.width(10.dp))
-                } else {
-                    Spacer(Modifier.width(16.dp))
-                }
-
-                Box(
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    ProvideTextStyle(
-                        MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 20.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    ) {
-                        title()
-                    }
-                }
-
-                if (actions != null) {
-                    Spacer(Modifier.width(8.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        actions()
-                    }
-                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
     }
@@ -305,9 +259,7 @@ fun SettingsPillTopAppBar(
         title = {
             Text(
                 text = title,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 20.sp,
-                color = MaterialTheme.colorScheme.primary,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
