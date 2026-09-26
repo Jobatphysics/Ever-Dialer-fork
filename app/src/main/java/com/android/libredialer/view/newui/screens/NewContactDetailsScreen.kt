@@ -5,7 +5,6 @@ import android.net.Uri
 import android.media.RingtoneManager
 import android.app.Activity
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,7 +20,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -115,6 +113,39 @@ import com.android.libredialer.view.components.ChooseSimDialog
 import com.android.libredialer.view.components.ShortcutActionDialog
 import com.android.libredialer.view.components.NumberPickerDialog
 import com.android.libredialer.view.components.AppQuickActionsDialog
+import com.android.libredialer.view.newui.components.newUiClickable
+
+internal val NewUiContactAvatarSize = 192.dp
+
+@Composable
+internal fun NewUiContactAvatar(
+    photoUri: String?,
+    displayName: String,
+    modifier: Modifier = Modifier
+) {
+    if (!photoUri.isNullOrBlank()) {
+        AsyncImage(
+            model = photoUri,
+            contentDescription = "$displayName photo",
+            modifier = modifier.size(NewUiContactAvatarSize).clip(CircleShape),
+            contentScale = ContentScale.Crop
+        )
+    } else {
+        Surface(
+            modifier = modifier.size(NewUiContactAvatarSize),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    displayName.firstOrNull()?.uppercase() ?: "?",
+                    style = MaterialTheme.typography.displaySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun NewContactDetailsScreen(
@@ -227,9 +258,6 @@ fun NewContactDetailsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, "Back")
-                }
                 Spacer(Modifier.weight(1f))
                 if (!isUnknownNumber) {
                     IconButton(onClick = { contactsViewModel.toggleFavorite(currentContact) }) {
@@ -256,42 +284,13 @@ fun NewContactDetailsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        if (!currentContact.photoUri.isNullOrBlank()) {
-                            AsyncImage(
-                                model = currentContact.photoUri,
-                                contentDescription = "${currentContact.name} photo",
-                                modifier = Modifier.size(104.dp).clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Surface(
-                                modifier = Modifier.size(104.dp),
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primaryContainer
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        currentContact.name.firstOrNull()?.uppercase() ?: "?",
-                                        style = MaterialTheme.typography.displaySmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                }
-                            }
-                        }
+                        NewUiContactAvatar(currentContact.photoUri, currentContact.name)
                         Spacer(Modifier.size(12.dp))
                         Text(
                             currentContact.name.ifBlank { numbers.firstOrNull() ?: "Contact" },
                             style = MaterialTheme.typography.headlineSmall,
                             textAlign = TextAlign.Center
                         )
-                        if (currentContact.name.isNotBlank() && numbers.isNotEmpty()) {
-                            Text(
-                                numbers.first(),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
-                        }
                     }
                 }
                 if (isUnknownNumber && onAddContact != null) {
@@ -302,34 +301,55 @@ fun NewContactDetailsScreen(
                     }
                 }
                 item {
-                    ActionGroup(label = "Contact") {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Button(
-                                onClick = { numbers.firstOrNull()?.let(::call) },
-                                enabled = numbers.isNotEmpty(),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Call, contentDescription = null)
-                                Spacer(Modifier.size(6.dp))
-                                Text("Call")
-                            }
-                            androidx.compose.material3.OutlinedButton(
-                                onClick = {
-                                    numbers.firstOrNull()?.let {
-                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("sms:$it")))
-                                    }
-                                },
-                                enabled = numbers.isNotEmpty(),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Message, contentDescription = null)
-                                Spacer(Modifier.size(6.dp))
-                                Text("Message")
-                            }
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        PrimaryContactAction(
+                            icon = Icons.Default.Call,
+                            label = "Call",
+                            enabled = numbers.isNotEmpty(),
+                            onClick = { numbers.firstOrNull()?.let(::call) },
+                            modifier = Modifier.weight(1f)
+                        )
+                        PrimaryContactAction(
+                            icon = Icons.Default.Message,
+                            label = "Message",
+                            enabled = numbers.isNotEmpty(),
+                            onClick = {
+                                numbers.firstOrNull()?.let {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("sms:$it")))
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        PrimaryContactAction(
+                            icon = Icons.Default.VideoCall,
+                            label = "Video",
+                            enabled = numbers.isNotEmpty() && socialApps.any { it.second },
+                            onClick = {
+                                val app = socialApps.firstOrNull { it.second }?.first
+                                val number = numbers.firstOrNull()
+                                if (app != null && number != null) {
+                                    socialNumber = number
+                                    showSocialActions = app
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        PrimaryContactAction(
+                            icon = Icons.Default.Email,
+                            label = "Email",
+                            enabled = currentContact.emails.any(String::isNotBlank),
+                            onClick = {
+                                currentContact.emails.firstOrNull(String::isNotBlank)?.let { email ->
+                                    context.startActivity(
+                                        Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$email"))
+                                    )
+                                }
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
                 if (numbers.isNotEmpty() || currentContact.emails.isNotEmpty() || currentContact.addresses.isNotEmpty()) {
@@ -637,7 +657,7 @@ fun NewContactDetailsScreen(
 }
 
 @Composable
-private fun DetailsCard(title: String, content: @Composable () -> Unit) {
+internal fun DetailsCard(title: String, content: @Composable () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
@@ -650,7 +670,54 @@ private fun DetailsCard(title: String, content: @Composable () -> Unit) {
     }
 }
 
-private data class ContactActionTile(
+@Composable
+internal fun PrimaryContactAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Surface(
+            modifier = Modifier
+                .size(68.dp)
+                .newUiClickable(
+                    shape = CircleShape,
+                    enabled = enabled,
+                    pressedScale = 0.80f,
+                    onClick = onClick
+                ),
+            shape = CircleShape,
+            color = if (enabled) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            },
+            contentColor = if (enabled) {
+                MaterialTheme.colorScheme.onSecondaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            }
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = label, modifier = Modifier.size(24.dp))
+            }
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
+        )
+    }
+}
+
+internal data class ContactActionTile(
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
     val label: String,
     val contentDescription: String,
@@ -658,7 +725,7 @@ private data class ContactActionTile(
 )
 
 @Composable
-private fun ActionGroup(label: String, content: @Composable () -> Unit) {
+internal fun ActionGroup(label: String, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             label,
@@ -670,7 +737,7 @@ private fun ActionGroup(label: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun ActionTileRow(vararg actions: ContactActionTile) {
+internal fun ActionTileRow(vararg actions: ContactActionTile) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -682,7 +749,7 @@ private fun ActionTileRow(vararg actions: ContactActionTile) {
 }
 
 @Composable
-private fun ActionTileGrid(actions: List<ContactActionTile>) {
+internal fun ActionTileGrid(actions: List<ContactActionTile>) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         actions.chunked(4).forEach { row ->
             ActionTileRow(*row.toTypedArray())
@@ -691,11 +758,11 @@ private fun ActionTileGrid(actions: List<ContactActionTile>) {
 }
 
 @Composable
-private fun ContactActionTile(action: ContactActionTile, modifier: Modifier = Modifier) {
+internal fun ContactActionTile(action: ContactActionTile, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier
             .heightIn(min = 68.dp)
-            .clickable(onClick = action.onClick),
+            .newUiClickable(MaterialTheme.shapes.medium, onClick = action.onClick),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerHigh
     ) {
@@ -726,7 +793,7 @@ private fun ContactActionTile(action: ContactActionTile, modifier: Modifier = Mo
 }
 
 @Composable
-private fun DetailRow(
+internal fun DetailRow(
     headline: String,
     supporting: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
@@ -735,7 +802,11 @@ private fun DetailRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+            .then(
+                if (onClick != null) {
+                    Modifier.newUiClickable(androidx.compose.ui.graphics.RectangleShape) { onClick() }
+                } else Modifier
+            )
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

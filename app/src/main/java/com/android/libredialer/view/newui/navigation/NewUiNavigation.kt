@@ -289,7 +289,6 @@ fun NewUiHost(
                     if (details != null) {
                         NewCallDetailsScreen(
                             entry = details,
-                            onBack = navigator::back,
                             onCall = onCall,
                             onOpenContact = { selected, number ->
                                 navigator.openContactDetails(selected, number)
@@ -301,7 +300,6 @@ fun NewUiHost(
                 NewUiDestination.ContactEdit -> NewContactEditScreen(
                     contact = navigator.contactToEdit,
                     initialPhone = navigator.contactEditInitialPhone,
-                    onBack = navigator::back,
                     onSaved = navigator::back
                 )
                 NewUiDestination.Settings -> NewSettingsScreen(

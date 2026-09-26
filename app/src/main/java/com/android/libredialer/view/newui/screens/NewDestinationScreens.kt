@@ -18,7 +18,6 @@ import com.android.libredialer.view.newui.motion.rememberLensInteractionSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -31,6 +30,7 @@ import androidx.compose.runtime.collectAsState
 import org.koin.compose.viewmodel.koinActivityViewModel
 import org.koin.compose.koinInject
 import androidx.compose.runtime.Composable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -104,6 +104,8 @@ import com.android.libredialer.view.newui.components.NewUiPlaceholderCard
 import com.android.libredialer.view.newui.components.NewUiScreenShell
 import com.android.libredialer.view.newui.components.NewUiDialerButton
 import com.android.libredialer.view.newui.components.newUiScrollContentPadding
+import com.android.libredialer.view.newui.components.newUiClickable
+import com.android.libredialer.view.newui.motion.NewUiMotion
 import com.android.libredialer.view.newui.components.LocalNewUiSettingsStyle
 import com.android.libredialer.view.newui.components.LocalNewUiScrollClearance
 import com.android.libredialer.view.newui.components.NewContextualAction
@@ -240,7 +242,7 @@ fun NewDialerScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable {
+                                    .newUiClickable(androidx.compose.ui.graphics.RectangleShape) {
                                         matchedNumber?.let {
                                             number = it
                                         }
@@ -321,9 +323,7 @@ data class NewUiCallLogItem(
     val log: CallLogEntry,
     val contact: Contact?,
     val displayName: String,
-    val subtitle: String?,
     val photoUri: String?,
-    val initialLetter: String,
     val typeLabel: String,
     val formattedDate: String,
     val isMissed: Boolean,
@@ -401,13 +401,8 @@ fun NewRecentsScreen(
                     contactByNumber[digits] ?: if (digits.length >= 7) contactByNumber[digits.takeLast(7)] else null
                 }
 
-                val displayName = contact?.name?.takeIf { it.isNotBlank() }
-                    ?: log.name?.takeIf { it.isNotBlank() && it != log.number && !log.isCallerIdName }
-                    ?: log.number
-
-                val subtitle = if (contact != null || displayName == log.number) log.number else null
+                val displayName = contact?.name?.takeIf { it.isNotBlank() } ?: log.number
                 val photoUri = contact?.photoUri ?: log.photoUri
-                val initialLetter = displayName.trim().firstOrNull()?.uppercase() ?: "?"
 
                 val isMissed = log.type == CallLog.Calls.MISSED_TYPE
                 val typeLabel = when (log.type) {
@@ -434,9 +429,7 @@ fun NewRecentsScreen(
                         log = log,
                         contact = contact,
                         displayName = displayName,
-                        subtitle = subtitle,
                         photoUri = photoUri,
-                        initialLetter = initialLetter,
                         typeLabel = typeLabel,
                         formattedDate = formattedDate,
                         isMissed = isMissed,
@@ -575,16 +568,13 @@ private fun NewCallLogRow(
 
     val baseSurfaceColor = MaterialTheme.colorScheme.surfaceContainerLow
     val callTypeTint = when (item.log.type) {
-        CallLog.Calls.MISSED_TYPE -> MaterialTheme.colorScheme.error
-        CallLog.Calls.OUTGOING_TYPE -> Color(0xFF2E7D32)
-        CallLog.Calls.INCOMING_TYPE -> Color(0xFF1565C0)
+        CallLog.Calls.MISSED_TYPE ->
+            androidx.compose.ui.graphics.lerp(MaterialTheme.colorScheme.error, baseSurfaceColor, 0.35f)
+        CallLog.Calls.OUTGOING_TYPE -> Color(0xFF66856B)
+        CallLog.Calls.INCOMING_TYPE -> Color(0xFF6B849E)
         else -> baseSurfaceColor
     }
-    val surfaceColor = if (item.log.type == CallLog.Calls.MISSED_TYPE) {
-        MaterialTheme.colorScheme.errorContainer
-    } else {
-        androidx.compose.ui.graphics.lerp(baseSurfaceColor, callTypeTint, 0.20f)
-    }
+    val surfaceColor = androidx.compose.ui.graphics.lerp(baseSurfaceColor, callTypeTint, 0.16f)
 
     Box(
         modifier = Modifier
@@ -609,41 +599,11 @@ private fun NewCallLogRow(
                     .physicalItemInput(physicalListState, index, onClick, onLongClick),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (!item.photoUri.isNullOrBlank()) {
-                    val context = LocalContext.current
-                    val density = LocalDensity.current
-                    val avatarPx = remember(density) { with(density) { 52.dp.roundToPx() } }
-                    val imageRequest = remember(item.photoUri, avatarPx) {
-                        coil.request.ImageRequest.Builder(context)
-                            .data(item.photoUri)
-                            .size(avatarPx)
-                            .crossfade(true)
-                            .memoryCacheKey(item.photoUri)
-                            .build()
-                    }
-                    AsyncImage(
-                        model = imageRequest,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Surface(
-                        modifier = Modifier.size(52.dp),
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = item.initialLetter,
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
-                }
+                NewContactAvatar(
+                    photoUri = item.photoUri,
+                    displayName = item.displayName,
+                    size = 52.dp
+                )
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -655,36 +615,18 @@ private fun NewCallLogRow(
                         maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
-                    if (item.subtitle != null) {
-                        Text(
-                            text = item.subtitle,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                        )
-                    }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = item.typeIcon,
                             contentDescription = item.typeLabel,
-                            tint = when (item.log.type) {
-                                CallLog.Calls.MISSED_TYPE -> MaterialTheme.colorScheme.error
-                                CallLog.Calls.OUTGOING_TYPE -> Color(0xFF2E7D32)
-                                CallLog.Calls.INCOMING_TYPE -> Color(0xFF1565C0)
-                                else -> MaterialTheme.colorScheme.primary
-                            },
+                            tint = callTypeTint,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
                             text = item.formattedDate,
                             style = MaterialTheme.typography.labelMedium,
-                            color = if (item.isMissed) {
-                                MaterialTheme.colorScheme.onErrorContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
+                            color = if (item.isMissed) callTypeTint else MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
@@ -891,30 +833,11 @@ private fun NewContactRow(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (!contact.photoUri.isNullOrBlank()) {
-                AsyncImage(
-                    model = contact.photoUri,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Surface(
-                    modifier = Modifier.size(52.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = contact.name.trim().firstOrNull()?.uppercase() ?: "?",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
-            }
+            NewContactAvatar(
+                photoUri = contact.photoUri,
+                displayName = contact.name,
+                size = 56.dp
+            )
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -944,6 +867,47 @@ private fun NewContactRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NewContactAvatar(
+    photoUri: String?,
+    displayName: String,
+    size: androidx.compose.ui.unit.Dp
+) {
+    if (!photoUri.isNullOrBlank()) {
+        val context = LocalContext.current
+        val density = LocalDensity.current
+        val avatarPx = remember(density, size) { with(density) { size.roundToPx() } }
+        val imageRequest = remember(photoUri, avatarPx) {
+            coil.request.ImageRequest.Builder(context)
+                .data(photoUri)
+                .size(avatarPx)
+                .crossfade(true)
+                .memoryCacheKey(photoUri)
+                .build()
+        }
+        AsyncImage(
+            model = imageRequest,
+            contentDescription = null,
+            modifier = Modifier.size(size).clip(CircleShape),
+            contentScale = ContentScale.Crop
+        )
+    } else {
+        Surface(
+            modifier = Modifier.size(size),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = displayName.trim().firstOrNull()?.uppercase() ?: "?",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
             }
         }
     }
@@ -1030,11 +994,15 @@ private fun NewFavoriteRow(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) NewUiMotion.PressedScale else 1f,
+        animationSpec = NewUiMotion.Interaction.animationSpec(),
+        label = "newFavoriteRowScale"
+    )
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
-                val scale = if (pressed) 0.96f else 1f
                 scaleX = scale
                 scaleY = scale
             }
@@ -1469,11 +1437,15 @@ private fun NewSettingsRowItem(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) NewUiMotion.PressedScale else 1f,
+        animationSpec = NewUiMotion.Interaction.animationSpec(),
+        label = "newSettingsRowScale"
+    )
     Surface(
         onClick = onClick,
         interactionSource = interactionSource,
         modifier = Modifier.graphicsLayer {
-            val scale = if (pressed) 0.96f else 1f
             scaleX = scale
             scaleY = scale
         },
@@ -1586,7 +1558,7 @@ private fun DialerKeypad(
                     )
             }
 
-            // CALL — same 108dp circle as keypad
+            // CALL — same 98dp circle as keypad
             NewUiDialerButton(
                 onClick = onCall,
                 interactionSource = callInteractionSource,
@@ -1600,7 +1572,7 @@ private fun DialerKeypad(
                     )
             }
 
-            // DELETE — same 108dp circle as keypad
+            // DELETE — same 98dp circle as keypad
             NewUiDialerButton(
                 onClick = onDelete,
                 onLongClick = {},
@@ -1627,7 +1599,8 @@ private fun KeypadButton(
 ) {
     NewUiDialerButton(
         onClick = onClick,
-        onLongClick = onLongClick
+        onLongClick = onLongClick,
+        pressedScale = 0.80f
     ) {
         if (letters.isEmpty()) {
             // * 1 # are perfectly centered.

@@ -21,8 +21,10 @@ data class NewUiSpringSpec(
 }
 
 object NewUiMotion {
+    const val PressedScale = 0.95f
+
     val Interaction = NewUiSpringSpec(
-        stiffness = Spring.StiffnessMedium,
+        stiffness = Spring.StiffnessMedium * 1.5f,
         dampingRatio = Spring.DampingRatioNoBouncy
     )
     val Expressive = NewUiSpringSpec(

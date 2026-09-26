@@ -65,6 +65,7 @@ import com.android.libredialer.controller.util.makeCall
 import com.android.libredialer.modal.`interface`.IContactsRepository
 import com.android.libredialer.view.newui.theme.NewUiDimensions
 import com.android.libredialer.view.newui.components.NewUiDialerButton
+import com.android.libredialer.view.newui.motion.NewUiMotion
 import com.coolappstore.evercallrecorder.by.svhp.services.recording.RecordingForegroundService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -259,7 +260,13 @@ fun NewCallScreen(
                     }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    CallControl(Icons.Default.FiberManualRecord, Icons.Default.FiberManualRecord, if (isRecording) "Stop" else "Record", isRecording) {
+                    CallControl(
+                        Icons.Default.FiberManualRecord,
+                        Icons.Default.FiberManualRecord,
+                        if (isRecording) "Stop" else "Record",
+                        isRecording,
+                        diameter = 98.dp
+                    ) {
                         val action = if (isRecording) {
                             RecordingForegroundService.ACTION_STOP_RECORDING
                         } else RecordingForegroundService.ACTION_MANUAL_START
@@ -275,7 +282,9 @@ fun NewCallScreen(
                         "End call",
                         active = true,
                         containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
+                        contentColor = MaterialTheme.colorScheme.onError,
+                        diameter = 98.dp,
+                        pressedScale = NewUiMotion.PressedScale
                     ) {
                         if (noteText.isNotBlank()) {
                             NoteManager.writeNote(context, contactName, number, noteText)
@@ -288,6 +297,7 @@ fun NewCallScreen(
                     }
                 }
                 }
+                Spacer(Modifier.weight(0.2f))
             }
         }
     }
@@ -358,6 +368,8 @@ private fun CallControl(
     enabled: Boolean = true,
     containerColor: Color? = null,
     contentColor: Color? = null,
+    diameter: androidx.compose.ui.unit.Dp = 90.dp,
+    pressedScale: Float = 0.80f,
     onClick: () -> Unit
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -367,6 +379,8 @@ private fun CallControl(
             else MaterialTheme.colorScheme.surfaceContainerHigh,
             contentColor = contentColor ?: MaterialTheme.colorScheme.onSurface,
             enabled = enabled,
+            diameter = diameter,
+            pressedScale = pressedScale
         ) {
             Icon(
                 imageVector = if (active) icon else inactiveIcon,

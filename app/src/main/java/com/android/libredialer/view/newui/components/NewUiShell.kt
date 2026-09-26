@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -30,18 +33,17 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.Spring
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -56,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import com.android.libredialer.view.newui.navigation.NewUiDestination
 import com.android.libredialer.view.newui.navigation.NewUiNavigator
 import com.android.libredialer.view.newui.theme.NewUiDimensions
+import com.android.libredialer.view.newui.motion.NewUiMotion
 import com.android.libredialer.controller.util.PreferenceManager
 import org.koin.compose.koinInject
 
@@ -87,6 +90,34 @@ fun newUiScrollContentPadding(existing: PaddingValues = PaddingValues()): Paddin
 @Composable
 fun Modifier.newUiScrollContentPadding(): Modifier =
     padding(bottom = LocalNewUiScrollClearance.current)
+
+@Composable
+fun Modifier.newUiClickable(
+    shape: Shape,
+    enabled: Boolean = true,
+    pressedScale: Float = NewUiMotion.PressedScale,
+    onClick: () -> Unit
+): Modifier {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) pressedScale else 1f,
+        animationSpec = NewUiMotion.Interaction.animationSpec(),
+        label = "newUiClickableScale"
+    )
+    return this
+        .clip(shape)
+        .graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        }
+        .clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            enabled = enabled,
+            onClick = onClick
+        )
+}
 
 @Composable
 fun NewUiScreenShell(
@@ -247,7 +278,7 @@ private fun NewUiNavigationItem(
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.98f else 1f,
+        targetValue = if (pressed) NewUiMotion.PressedScale else 1f,
         animationSpec = spring(stiffness = Spring.StiffnessMedium),
         label = "newUiNavigationScale"
     )

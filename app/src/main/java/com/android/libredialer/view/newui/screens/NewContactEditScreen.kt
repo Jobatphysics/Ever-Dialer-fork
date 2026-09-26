@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
@@ -88,7 +87,6 @@ private data class NewEditablePhone(
 fun NewContactEditScreen(
     contact: Contact?,
     initialPhone: String? = null,
-    onBack: () -> Unit,
     onSaved: () -> Unit
 ) {
     val context = LocalContext.current
@@ -210,11 +208,6 @@ fun NewContactEditScreen(
                             if (isNew) "Create Contact" else "Edit Contact",
                             style = MaterialTheme.typography.headlineMedium
                         )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBack, enabled = !saving) {
-                            Icon(Icons.Default.ArrowBack, "Back")
-                        }
                     },
                     actions = {
                         Button(

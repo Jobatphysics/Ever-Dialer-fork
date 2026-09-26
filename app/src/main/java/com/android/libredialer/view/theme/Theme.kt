@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -369,12 +370,23 @@ fun Rivo4Theme(
     }
 
     val typography = remember { Typography }
+    val viewConfiguration = LocalViewConfiguration.current
+    val responsiveViewConfiguration = remember(viewConfiguration) {
+        object : androidx.compose.ui.platform.ViewConfiguration by viewConfiguration {
+            override val longPressTimeoutMillis: Long =
+                (viewConfiguration.longPressTimeoutMillis * 0.7f).toLong()
+        }
+    }
 
     MaterialTheme(
             colorScheme = colorScheme,
             typography  = typography
         ) {
-            ProvideScaledDensity(prefs = prefs, content = content)
+            CompositionLocalProvider(
+                LocalViewConfiguration provides responsiveViewConfiguration
+            ) {
+                ProvideScaledDensity(prefs = prefs, content = content)
+            }
         }
 }
 

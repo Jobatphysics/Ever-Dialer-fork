@@ -1,5 +1,6 @@
 package com.android.libredialer.view.newui.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.android.libredialer.view.newui.motion.NewUiMotion
 
 @Composable
 fun NewUiDialerButton(
@@ -28,17 +30,22 @@ fun NewUiDialerButton(
     enabled: Boolean = true,
     containerColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.surfaceContainerHigh,
     contentColor: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
-    diameter: Dp = 108.dp,
+    diameter: Dp = 98.dp,
+    pressedScale: Float = NewUiMotion.PressedScale,
     content: @Composable BoxScope.() -> Unit
 ) {
     val source = interactionSource ?: remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) pressedScale else 1f,
+        animationSpec = NewUiMotion.Interaction.animationSpec(),
+        label = "newUiDialerButtonScale"
+    )
 
     Surface(
         modifier = modifier
             .size(diameter)
             .graphicsLayer {
-                val scale = if (pressed) 0.92f else 1f
                 scaleX = scale
                 scaleY = scale
             }
