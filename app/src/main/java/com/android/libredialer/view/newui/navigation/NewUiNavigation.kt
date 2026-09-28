@@ -207,9 +207,7 @@ enum class NewUiSettingsDestination(val title: String) {
     RaiseToAnswer("Raise to Answer"),
     RainMode("Rain Mode"),
     VolumeDnd("Volume DND"),
-    NetworkSwitcher("Network Switcher"),
-    Updates("Updates"),
-    About("About")
+    NetworkSwitcher("Network Switcher")
 }
 
 @Composable

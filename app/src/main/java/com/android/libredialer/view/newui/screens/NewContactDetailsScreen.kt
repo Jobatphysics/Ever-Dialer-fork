@@ -109,10 +109,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
-import com.android.libredialer.view.components.ChooseSimDialog
-import com.android.libredialer.view.components.ShortcutActionDialog
-import com.android.libredialer.view.components.NumberPickerDialog
-import com.android.libredialer.view.components.AppQuickActionsDialog
+import com.android.libredialer.view.newui.components.NewUiShortcutActionDialog
+import com.android.libredialer.view.newui.components.NewUiChooseSimDialog
+import com.android.libredialer.view.newui.components.NewUiNumberPickerDialog
+import com.android.libredialer.view.newui.components.NewUiAppQuickActionsDialog
 import com.android.libredialer.view.newui.components.newUiClickable
 
 internal val NewUiContactAvatarSize = 192.dp
@@ -529,7 +529,7 @@ fun NewContactDetailsScreen(
                 }
             }
             if (showSimDialog) {
-                ChooseSimDialog(
+                NewUiChooseSimDialog(
                     currentChoice = simChoice,
                     onSelect = {
                         simChoice = it
@@ -582,7 +582,7 @@ fun NewContactDetailsScreen(
                 )
             }
             if (showShortcutNumberDialog) {
-                NumberPickerDialog(
+                NewUiNumberPickerDialog(
                     numbers = numbers,
                     onDismissRequest = { showShortcutNumberDialog = false },
                     onNumberSelected = {
@@ -593,7 +593,7 @@ fun NewContactDetailsScreen(
                 )
             }
             if (showShortcutDialog) {
-                ShortcutActionDialog(
+                NewUiShortcutActionDialog(
                     onOpenContactInfo = {
                         ContactShortcutUtils.pinOpenContactShortcut(context, currentContact.id, currentContact.name, currentContact.photoUri)
                         showShortcutDialog = false
@@ -616,7 +616,7 @@ fun NewContactDetailsScreen(
                     "telegram" -> "Telegram"
                     else -> "Google Meet"
                 }
-                AppQuickActionsDialog(
+                NewUiAppQuickActionsDialog(
                     appName = label,
                     onChat = if (app == "googlemeet") null else {
                         {

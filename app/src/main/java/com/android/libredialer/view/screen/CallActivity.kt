@@ -39,7 +39,6 @@ import androidx.compose.material.icons.automirrored.filled.PhoneCallback
 import androidx.compose.material.icons.automirrored.filled.PhoneForwarded
 import androidx.compose.material.icons.filled.*
 import com.android.libredialer.view.components.performAppHaptic
-import com.android.libredialer.view.components.ClassicSwipeToAnswer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -61,6 +60,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.layout.onSizeChanged
@@ -82,6 +83,8 @@ import com.android.libredialer.modal.data.CallLogEntry
 import com.android.libredialer.modal.data.Contact
 import com.android.libredialer.view.components.RivoAvatar
 import com.android.libredialer.view.components.SimSlotBadge
+import com.android.libredialer.view.newui.components.NewUiDialerButton
+import com.android.libredialer.view.newui.motion.NewUiMotion
 import com.android.libredialer.view.newui.screens.NewCallScreen
 import com.android.libredialer.view.newui.theme.NewUiTheme
 import com.android.libredialer.view.theme.Rivo4Theme
@@ -333,7 +336,8 @@ class CallActivity : FragmentActivity() {
                     }
 
                     val answeredFromNotification = intent?.getBooleanExtra("ANSWERED_FROM_NOTIFICATION", false) ?: false
-                    if (USE_LEGACY_CALL_UI) {
+                    val showIncomingCallUi = callState == Call.STATE_RINGING && !answeredFromNotification
+                    if (USE_LEGACY_CALL_UI || showIncomingCallUi) {
                         ExpressiveCallScreen(
                             call = call,
                             callState = session?.state ?: Call.STATE_ACTIVE,
@@ -368,7 +372,6 @@ class CallActivity : FragmentActivity() {
                                 contactsRepository = contactsRepo,
                                 simSlot = simSlot,
                                 showSimBadge = isDualSim,
-                                onFinish = { finishAndRemoveTask() },
                                 onMoveToBackground = { moveTaskToBack(true) }
                             )
                         }
@@ -898,6 +901,26 @@ fun ExpressiveCallScreen(
     var showCallBiometricUnlock by remember { mutableStateOf(false) }
     var biometricGatesScreen by remember { mutableStateOf(false) }
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val onAcceptIncomingCall: () -> Unit = {
+        if (!isPocketBlocked()) {
+            if (callBiometricUnlocked) {
+                CallService.answerCall()
+            } else {
+                pendingAction = { CallService.answerCall() }
+                showCallBiometricUnlock = true
+            }
+        }
+    }
+    val onDeclineIncomingCall: () -> Unit = {
+        if (!isPocketBlocked()) {
+            if (callBiometricUnlocked) {
+                try { CallService.declineCall() } catch (_: Exception) {}
+            } else {
+                pendingAction = { try { CallService.declineCall() } catch (_: Exception) {} }
+                showCallBiometricUnlock = true
+            }
+        }
+    }
 
     // Gate the incoming call screen behind biometric when call arrives ringing
     LaunchedEffect(callState) {
@@ -1299,11 +1322,6 @@ fun ExpressiveCallScreen(
     val customFontColorInt = currentBgConfig.customFontColorInt
     val showContactPfp = currentBgConfig.showContactPfp
     val showPhoneNumber = currentBgConfig.showPhoneNumber
-    val showIncomingMuteButton = remember(settingsVersion) { prefs?.getBoolean(PreferenceManager.KEY_INCOMING_SHOW_MUTE_BUTTON, false) ?: false }
-    val incomingAnswerStyle = remember(settingsVersion) {
-        prefs?.getString(PreferenceManager.KEY_INCOMING_ANSWER_STYLE, PreferenceManager.ANSWER_STYLE_MODERN) ?: PreferenceManager.ANSWER_STYLE_MODERN
-    }
-
     val isIncomingElementsDark = when (incomingBgConfig.elementsTheme) {
         "light" -> false
         "dark" -> true
@@ -1796,78 +1814,19 @@ fun ExpressiveCallScreen(
                             }
                         }
                     } else {
-                        Column(modifier = Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                            if (incomingAnswerStyle == PreferenceManager.ANSWER_STYLE_CLASSIC) {
-                                ClassicSwipeToAnswer(
-                                    onAnswer = {
-                                        if (!isPocketBlocked()) {
-                                            if (callBiometricUnlocked) {
-                                                try { call.answer(VideoProfile.STATE_AUDIO_ONLY) } catch (_: Exception) {}
-                                                handleOngoingUiAfterAnswer(context, prefs)
-                                            } else {
-                                                pendingAction = {
-                                                    try { call.answer(VideoProfile.STATE_AUDIO_ONLY) } catch (_: Exception) {}
-                                                    handleOngoingUiAfterAnswer(context, prefs)
-                                                }
-                                                showCallBiometricUnlock = true
-                                            }
-                                        }
-                                    },
-                                    onDecline = {
-                                        if (!isPocketBlocked()) {
-                                            if (callBiometricUnlocked) {
-                                                try { call.disconnect() } catch (_: Exception) {}
-                                            } else {
-                                                pendingAction = { try { call.disconnect() } catch (_: Exception) {} }
-                                                showCallBiometricUnlock = true
-                                            }
-                                        }
-                                    },
-                                    onMessage = onMessageButtonClick,
-                                    onMute = { com.android.libredialer.controller.util.silenceRingingCall(context) },
-                                    showMuteButton = showIncomingMuteButton,
-                                    labelColor = incomingElemFgColor,
-                                    bgColor = incomingElemBgColor,
-                                    isPocketBlocked = isPocketBlocked,
-                                    isDark = isIncomingElementsDark,
-                                    handleColor = if (isSaturatedSolidBrightDark) Color.Black else null
-                                )
-                            } else {
-                                NewSwipeToAnswer(
-                                    onAnswer = {
-                                        if (!isPocketBlocked()) {
-                                            if (callBiometricUnlocked) {
-                                                try { call.answer(VideoProfile.STATE_AUDIO_ONLY) } catch (_: Exception) {}
-                                                handleOngoingUiAfterAnswer(context, prefs)
-                                            } else {
-                                                pendingAction = {
-                                                    try { call.answer(VideoProfile.STATE_AUDIO_ONLY) } catch (_: Exception) {}
-                                                    handleOngoingUiAfterAnswer(context, prefs)
-                                                }
-                                                showCallBiometricUnlock = true
-                                            }
-                                        }
-                                    },
-                                    onDecline = {
-                                        if (!isPocketBlocked()) {
-                                            if (callBiometricUnlocked) {
-                                                try { call.disconnect() } catch (_: Exception) {}
-                                            } else {
-                                                pendingAction = { try { call.disconnect() } catch (_: Exception) {} }
-                                                showCallBiometricUnlock = true
-                                            }
-                                        }
-                                    },
-                                    onMessage = onMessageButtonClick,
-                                    onMute = { com.android.libredialer.controller.util.silenceRingingCall(context) },
-                                    showMuteButton = showIncomingMuteButton,
-                                    labelColor = incomingElemFgColor,
-                                    bgColor = incomingElemBgColor,
-                                    isPocketBlocked = isPocketBlocked,
-                                    isDark = isIncomingElementsDark,
-                                    handleColor = if (isSaturatedSolidBrightDark) Color.Black else null
-                                )
-                            }
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            contentAlignment = Alignment.BottomCenter
+                        ) {
+                            IncomingCallActions(
+                                onMessage = onMessageButtonClick,
+                                onDecline = onDeclineIncomingCall,
+                                onAccept = onAcceptIncomingCall,
+                                secondaryColor = incomingElemBgColor,
+                                secondaryContentColor = incomingElemFgColor
+                            )
                         }
                     }
                 }
@@ -2150,83 +2109,20 @@ fun ExpressiveCallScreen(
                             }
                         }
                     } else {
-                        // Ringing state — swipe to answer, also anchored to bottom
+                        // Fixed incoming-call actions sit below the caller information.
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .align(Alignment.BottomCenter)
                         ) {
-                            if (incomingAnswerStyle == PreferenceManager.ANSWER_STYLE_CLASSIC) {
-                                ClassicSwipeToAnswer(
-                                    onAnswer = {
-                                        if (!isPocketBlocked()) {
-                                            if (callBiometricUnlocked) {
-                                                try { call.answer(VideoProfile.STATE_AUDIO_ONLY) } catch (_: Exception) {}
-                                                handleOngoingUiAfterAnswer(context, prefs)
-                                            } else {
-                                                pendingAction = {
-                                                    try { call.answer(VideoProfile.STATE_AUDIO_ONLY) } catch (_: Exception) {}
-                                                    handleOngoingUiAfterAnswer(context, prefs)
-                                                }
-                                                showCallBiometricUnlock = true
-                                            }
-                                        }
-                                    },
-                                    onDecline = {
-                                        if (!isPocketBlocked()) {
-                                            if (callBiometricUnlocked) {
-                                                try { call.disconnect() } catch (_: Exception) {}
-                                            } else {
-                                                pendingAction = { try { call.disconnect() } catch (_: Exception) {} }
-                                                showCallBiometricUnlock = true
-                                            }
-                                        }
-                                    },
-                                    onMessage = onMessageButtonClick,
-                                    onMute = { com.android.libredialer.controller.util.silenceRingingCall(context) },
-                                    showMuteButton = showIncomingMuteButton,
-                                    labelColor = incomingElemFgColor,
-                                    bgColor = incomingElemBgColor,
-                                    isPocketBlocked = isPocketBlocked,
-                                    isDark = isIncomingElementsDark,
-                                    handleColor = if (isSaturatedSolidBrightDark) Color.Black else null
-                                )
-                            } else {
-                                NewSwipeToAnswer(
-                                    onAnswer = {
-                                        if (!isPocketBlocked()) {
-                                            if (callBiometricUnlocked) {
-                                                try { call.answer(VideoProfile.STATE_AUDIO_ONLY) } catch (_: Exception) {}
-                                                handleOngoingUiAfterAnswer(context, prefs)
-                                            } else {
-                                                pendingAction = {
-                                                    try { call.answer(VideoProfile.STATE_AUDIO_ONLY) } catch (_: Exception) {}
-                                                    handleOngoingUiAfterAnswer(context, prefs)
-                                                }
-                                                showCallBiometricUnlock = true
-                                            }
-                                        }
-                                    },
-                                    onDecline = {
-                                        if (!isPocketBlocked()) {
-                                            if (callBiometricUnlocked) {
-                                                try { call.disconnect() } catch (_: Exception) {}
-                                            } else {
-                                                pendingAction = { try { call.disconnect() } catch (_: Exception) {} }
-                                                showCallBiometricUnlock = true
-                                            }
-                                        }
-                                    },
-                                    onMessage = onMessageButtonClick,
-                                    onMute = { com.android.libredialer.controller.util.silenceRingingCall(context) },
-                                    showMuteButton = showIncomingMuteButton,
-                                    labelColor = incomingElemFgColor,
-                                    bgColor = incomingElemBgColor,
-                                    isPocketBlocked = isPocketBlocked,
-                                    isDark = isIncomingElementsDark,
-                                    handleColor = if (isSaturatedSolidBrightDark) Color.Black else null
-                                )
-                            }
+                            IncomingCallActions(
+                                modifier = Modifier.padding(bottom = 32.dp),
+                                onMessage = onMessageButtonClick,
+                                onDecline = onDeclineIncomingCall,
+                                onAccept = onAcceptIncomingCall,
+                                secondaryColor = incomingElemBgColor,
+                                secondaryContentColor = incomingElemFgColor
+                            )
                         }
                     }
 
@@ -2930,6 +2826,114 @@ fun AnimatedCallButton(
                 overflow = TextOverflow.Ellipsis
             )
         }
+    }
+}
+
+@Composable
+private fun IncomingCallActions(
+    modifier: Modifier = Modifier,
+    onMessage: () -> Unit,
+    onDecline: () -> Unit,
+    onAccept: () -> Unit,
+    secondaryColor: Color,
+    secondaryContentColor: Color
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(30.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IncomingCallAction(
+                label = "Message",
+                icon = Icons.Default.ChatBubble,
+                onClick = onMessage,
+                circleSize = 64.dp,
+                iconSize = 30.dp,
+                circleColor = secondaryColor,
+                contentColor = secondaryContentColor
+            )
+            IncomingCallAction(
+                label = "Voicemail",
+                icon = Icons.Default.Voicemail,
+                onClick = {},
+                enabled = false,
+                circleSize = 64.dp,
+                iconSize = 30.dp,
+                circleColor = secondaryColor,
+                contentColor = secondaryContentColor
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IncomingCallAction(
+                label = "Decline",
+                icon = Icons.Default.CallEnd,
+                onClick = onDecline,
+                circleSize = 84.dp,
+                iconSize = 40.dp,
+                circleColor = Color(0xFFD32F2F),
+                contentColor = Color.White
+            )
+            IncomingCallAction(
+                label = "Accept",
+                icon = Icons.AutoMirrored.Filled.PhoneCallback,
+                onClick = onAccept,
+                circleSize = 84.dp,
+                iconSize = 40.dp,
+                circleColor = Color(0xFF2E7D32),
+                contentColor = Color.White
+            )
+        }
+    }
+}
+
+@Composable
+private fun IncomingCallAction(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    circleSize: androidx.compose.ui.unit.Dp,
+    iconSize: androidx.compose.ui.unit.Dp,
+    circleColor: Color,
+    contentColor: Color,
+    enabled: Boolean = true
+) {
+    val actionContentColor = if (enabled) contentColor else contentColor.copy(alpha = 0.58f)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        NewUiDialerButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.semantics { contentDescription = label },
+            containerColor = circleColor,
+            contentColor = actionContentColor,
+            diameter = circleSize,
+            pressedScale = NewUiMotion.PressedScale
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(iconSize),
+                tint = actionContentColor
+            )
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = actionContentColor,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 

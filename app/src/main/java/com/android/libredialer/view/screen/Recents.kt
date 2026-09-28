@@ -1153,6 +1153,17 @@ fun CallLogFullContent(
                                 val topEnd = if (isFirst) cornerRadius else 0.dp
                                 val bottomStart = if (isLast) cornerRadius else 0.dp
                                 val bottomEnd = if (isLast) cornerRadius else 0.dp
+                                val isDarkSurface = androidx.core.graphics.ColorUtils
+                                    .calculateLuminance(MaterialTheme.colorScheme.surface.toArgb()) < 0.5
+                                val callCardColor = when (lg.type) {
+                                    CallLog.Calls.OUTGOING_TYPE ->
+                                        if (isDarkSurface) Color(0xFF1B3B28) else Color(0xFFD5EBD9)
+                                    CallLog.Calls.INCOMING_TYPE ->
+                                        if (isDarkSurface) Color(0xFF1B3652) else Color(0xFFD9E9F8)
+                                    CallLog.Calls.MISSED_TYPE ->
+                                        if (isDarkSurface) Color(0xFF48272A) else Color(0xFFF3D9DA)
+                                    else -> MaterialTheme.colorScheme.surfaceContainerLow
+                                }
                                 RivoScrollAnimatedItem(delayMs = 0L, enabled = callLogDisplayConfig.isScrollAnimEnabled) {
                                     Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                                         Surface(
@@ -1162,7 +1173,7 @@ fun CallLogFullContent(
                                                 bottomStart = bottomStart,
                                                 bottomEnd = bottomEnd
                                             ),
-                                            color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                            color = callCardColor,
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
                                             Column {

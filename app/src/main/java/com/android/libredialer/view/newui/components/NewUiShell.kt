@@ -65,7 +65,7 @@ import org.koin.compose.koinInject
 val LocalNewUiScrollClearance = compositionLocalOf { 0.dp }
 
 // Covers the 48 dp navigation item, capsule padding/margins, and an 8 dp scroll gap.
-val NewUiNavigationBarScrollClearance = 88.dp
+val NewUiNavigationBarScrollClearance = 104.dp
 
 @Composable
 fun newUiScrollContentPadding(existing: PaddingValues = PaddingValues()): PaddingValues {
@@ -243,7 +243,7 @@ fun NewUiNavigationBar(navigator: NewUiNavigator) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 3.dp),
+                    .padding(horizontal = 4.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -305,7 +305,7 @@ private fun NewUiNavigationItem(
         Column(
             modifier = Modifier.padding(
                 horizontal = 4.dp,
-                vertical = 5.dp
+                vertical = 6.dp
             ),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -313,7 +313,7 @@ private fun NewUiNavigationItem(
             androidx.compose.material3.Icon(
                 imageVector = destination.icon(selected),
                 contentDescription = destination.title,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(28.dp)
             )
             Text(
                 text = destination.title,

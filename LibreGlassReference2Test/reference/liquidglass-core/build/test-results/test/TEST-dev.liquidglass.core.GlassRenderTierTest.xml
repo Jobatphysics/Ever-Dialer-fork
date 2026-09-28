@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="dev.liquidglass.core.GlassRenderTierTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-09-26T11:05:16.109Z" hostname="Macbook-Air-M1.local" time="0.001">
+  <properties/>
+  <testcase name="callers can downgrade below device capability" classname="dev.liquidglass.core.GlassRenderTierTest" time="0.0"/>
+  <testcase name="android 13 and newer get the full shader tier" classname="dev.liquidglass.core.GlassRenderTierTest" time="0.0"/>
+  <testcase name="callers can never exceed device capability" classname="dev.liquidglass.core.GlassRenderTierTest" time="0.001"/>
+  <testcase name="requesting the available tier is a no-op" classname="dev.liquidglass.core.GlassRenderTierTest" time="0.0"/>
+  <testcase name="android 12 gets the blur tier" classname="dev.liquidglass.core.GlassRenderTierTest" time="0.0"/>
+  <testcase name="everything older falls back to the scrim tier" classname="dev.liquidglass.core.GlassRenderTierTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="dev.liquidglass.core.LiquidGlassShadersTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-09-26T11:05:16.127Z" hostname="Macbook-Air-M1.local" time="0.009">
+  <properties/>
+  <testcase name="the program has the AGSL entry point" classname="dev.liquidglass.core.LiquidGlassShadersTest" time="0.001"/>
+  <testcase name="the shader mirrors GlassMath constants" classname="dev.liquidglass.core.LiquidGlassShadersTest" time="0.0"/>
+  <testcase name="no GLSL vector types leak in - AGSL is SkSL" classname="dev.liquidglass.core.LiquidGlassShadersTest" time="0.003"/>
+  <testcase name="no derivative intrinsics - AGSL has none" classname="dev.liquidglass.core.LiquidGlassShadersTest" time="0.0"/>
+  <testcase name="braces and parentheses are balanced" classname="dev.liquidglass.core.LiquidGlassShadersTest" time="0.001"/>
+  <testcase name="the scene loop bound matches MAX_SHAPES" classname="dev.liquidglass.core.LiquidGlassShadersTest" time="0.0"/>
+  <testcase name="all Kotlin templates resolved - no stray dollar signs" classname="dev.liquidglass.core.LiquidGlassShadersTest" time="0.0"/>
+  <testcase name="every float uniform constant is declared in the source" classname="dev.liquidglass.core.LiquidGlassShadersTest" time="0.004"/>
+  <testcase name="the backdrop input is declared as a shader uniform" classname="dev.liquidglass.core.LiquidGlassShadersTest" time="0.0"/>
+  <testcase name="shape uniforms are fixed-size arrays sized to MAX_SHAPES" classname="dev.liquidglass.core.LiquidGlassShadersTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

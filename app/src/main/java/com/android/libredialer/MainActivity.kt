@@ -420,7 +420,7 @@ class MainActivity : FragmentActivity() {
                     ) {
                     // ── Ongoing Call Banner (above all content) ────────────
                     AnimatedVisibility(
-                        visible = hasOngoingCall,
+                        visible = hasOngoingCall && !showNewUi,
                         enter = slideInVertically { -it } + fadeIn(),
                         exit = slideOutVertically { -it } + fadeOut()
                     ) {
@@ -666,7 +666,7 @@ class MainActivity : FragmentActivity() {
                 } // end blurred Column
 
                     // ── Biometric overlay (above blur, inside Box) ─────────
-                    val showAuthOverlay = !isAppUnlocked || callAuthRequired
+                    val showAuthOverlay = callAuthRequired || (!isAppUnlocked && !hasOngoingCall)
                     if (showAuthOverlay) {
                         val activity = this@MainActivity
                         LaunchedEffect(biometricType, callAuthRequired) {
@@ -744,6 +744,41 @@ class MainActivity : FragmentActivity() {
                                     finish()
                                 }
                             )
+                        }
+                    }
+
+                    if (!isAppUnlocked && hasOngoingCall && !callAuthRequired) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clickable(
+                                    interactionSource = remember {
+                                        androidx.compose.foundation.interaction.MutableInteractionSource()
+                                    },
+                                    indication = null,
+                                    onClick = {}
+                                )
+                        )
+                    }
+
+                    AnimatedVisibility(
+                        visible = showNewUi && hasOngoingCall,
+                        enter = slideInVertically { -it } + fadeIn(),
+                        exit = slideOutVertically { -it } + fadeOut()
+                    ) {
+                        callSession?.let { session ->
+                            NewUiTheme {
+                                com.android.libredialer.view.newui.screens.NewUiOngoingCallPicker(
+                                    session = session,
+                                    onReturnToCall = {
+                                        startActivity(
+                                            Intent(this@MainActivity, CallActivity::class.java).apply {
+                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                                            }
+                                        )
+                                    }
+                                )
+                            }
                         }
                     }
                 } // end outer Box

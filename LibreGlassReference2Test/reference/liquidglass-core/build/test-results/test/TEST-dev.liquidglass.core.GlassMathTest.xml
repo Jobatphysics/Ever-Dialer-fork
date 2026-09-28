@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="dev.liquidglass.core.GlassMathTest" tests="21" skipped="0" failures="0" errors="0" timestamp="2026-09-26T11:05:16.075Z" hostname="Macbook-Air-M1.local" time="0.032">
+  <properties/>
+  <testcase name="a capsule surface passes through the cap apex" classname="dev.liquidglass.core.GlassMathTest" time="0.009"/>
+  <testcase name="center of a rounded box is the negative distance to the nearest edge" classname="dev.liquidglass.core.GlassMathTest" time="0.0"/>
+  <testcase name="with enough smoothing two circles melt into one liquid form" classname="dev.liquidglass.core.GlassMathTest" time="0.015"/>
+  <testcase name="the lens bends hardest exactly at the rim" classname="dev.liquidglass.core.GlassMathTest" time="0.001"/>
+  <testcase name="zero smoothing collapses to a hard minimum" classname="dev.liquidglass.core.GlassMathTest" time="0.0"/>
+  <testcase name="the normal is always unit length where defined" classname="dev.liquidglass.core.GlassMathTest" time="0.0"/>
+  <testcase name="a single packed shape matches the raw box field exactly" classname="dev.liquidglass.core.GlassMathTest" time="0.0"/>
+  <testcase name="smoothMin never exceeds the hard minimum" classname="dev.liquidglass.core.GlassMathTest" time="0.0"/>
+  <testcase name="smoothMin is symmetric in its operands" classname="dev.liquidglass.core.GlassMathTest" time="0.0"/>
+  <testcase name="a zero-height band never refracts" classname="dev.liquidglass.core.GlassMathTest" time="0.001"/>
+  <testcase name="the normal near a vertical edge points straight outward" classname="dev.liquidglass.core.GlassMathTest" time="0.0"/>
+  <testcase name="outside distance grows linearly past a flat edge" classname="dev.liquidglass.core.GlassMathTest" time="0.0"/>
+  <testcase name="sceneSd rejects malformed uniform arrays" classname="dev.liquidglass.core.GlassMathTest" time="0.002"/>
+  <testcase name="values far apart pass through unchanged" classname="dev.liquidglass.core.GlassMathTest" time="0.0"/>
+  <testcase name="the field is symmetric in both axes" classname="dev.liquidglass.core.GlassMathTest" time="0.001"/>
+  <testcase name="rounded corners cut the sharp corner off" classname="dev.liquidglass.core.GlassMathTest" time="0.0"/>
+  <testcase name="equal values blend below themselves creating the liquid neck" classname="dev.liquidglass.core.GlassMathTest" time="0.0"/>
+  <testcase name="without smoothing the gap between two circles stays open" classname="dev.liquidglass.core.GlassMathTest" time="0.0"/>
+  <testcase name="the lens profile decreases monotonically into the glass" classname="dev.liquidglass.core.GlassMathTest" time="0.0"/>
+  <testcase name="points on the flat edges sit exactly on the surface" classname="dev.liquidglass.core.GlassMathTest" time="0.001"/>
+  <testcase name="the lens flattens to nothing at the inner end of the band" classname="dev.liquidglass.core.GlassMathTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

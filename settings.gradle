@@ -30,3 +30,9 @@ include ':networkswitch'
 include ':hiddenapi'
 include ':LibreGlass'
 include ':LibreGlassShowcase'
+include ':LibreGlassReference1Test'
+
+// Isolated Reference #2 experiment (upstream core + Compose renderer + test app).
+include ':LibreGlassReference2Core', ':LibreGlassReference2Compose', ':LibreGlassReference2Test'
+project(':LibreGlassReference2Core').projectDir = file('LibreGlassReference2Test/reference/liquidglass-core')
+project(':LibreGlassReference2Compose').projectDir = file('LibreGlassReference2Test/reference/liquidglass-compose')

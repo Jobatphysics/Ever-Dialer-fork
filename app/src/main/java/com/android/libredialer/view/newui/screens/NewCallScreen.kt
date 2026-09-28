@@ -2,6 +2,8 @@ package com.android.libredialer.view.newui.screens
 
 import android.telecom.Call
 import android.telecom.CallAudioState
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +51,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,7 +71,9 @@ import com.android.libredialer.view.newui.components.NewUiDialerButton
 import com.android.libredialer.view.newui.motion.NewUiMotion
 import com.coolappstore.evercallrecorder.by.svhp.services.recording.RecordingForegroundService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -81,7 +86,6 @@ fun NewCallScreen(
     contactsRepository: IContactsRepository,
     simSlot: Int = -1,
     showSimBadge: Boolean = false,
-    onFinish: () -> Unit,
     onMoveToBackground: () -> Unit
 ) {
     val context = LocalContext.current
@@ -94,8 +98,10 @@ fun NewCallScreen(
     var noteText by remember { mutableStateOf("") }
     var addCallNumber by remember { mutableStateOf("") }
     var dtmf by remember { mutableStateOf("") }
+    var dtmfToneJob by remember { mutableStateOf<Job?>(null) }
     var isRecording by remember { mutableStateOf(false) }
     var duration by remember { mutableLongStateOf(0L) }
+    val dtmfScope = rememberCoroutineScope()
 
     LaunchedEffect(number) {
         if (number.isNotBlank()) {
@@ -109,7 +115,7 @@ fun NewCallScreen(
         }
     }
     LaunchedEffect(callState, call) {
-        while (callState == Call.STATE_ACTIVE) {
+        while (callState == Call.STATE_ACTIVE || callState == Call.STATE_HOLDING) {
             val connectedAt = call.details?.connectTimeMillis ?: 0L
             duration = if (connectedAt > 0L) {
                 ((System.currentTimeMillis() - connectedAt) / 1000L).coerceAtLeast(0L)
@@ -126,7 +132,11 @@ fun NewCallScreen(
     val isMuted = audioState?.isMuted == true
     val isSpeaker = audioState?.route == CallAudioState.ROUTE_SPEAKER
     val isBluetooth = audioState?.route == CallAudioState.ROUTE_BLUETOOTH
-    val bluetoothAvailable = (audioState?.supportedRouteMask ?: 0 and CallAudioState.ROUTE_BLUETOOTH) != 0
+    val bluetoothAvailable =
+        ((audioState?.supportedRouteMask ?: 0) and CallAudioState.ROUTE_BLUETOOTH) != 0
+    val canHoldCall = callState == Call.STATE_HOLDING ||
+        (callState == Call.STATE_ACTIVE &&
+            ((call.details?.callCapabilities ?: 0) and Call.Details.CAPABILITY_HOLD) != 0)
 
     Box(
         modifier = Modifier
@@ -178,9 +188,11 @@ fun NewCallScreen(
             Text(
                 text = when {
                     incomingRinging -> "Incoming call"
-                    callState == Call.STATE_DIALING || callState == Call.STATE_CONNECTING -> "Calling"
-                    callState == Call.STATE_HOLDING -> "On hold"
+                    callState == Call.STATE_DIALING -> "Calling"
+                    callState == Call.STATE_CONNECTING -> "Connecting"
+                    callState == Call.STATE_HOLDING -> "On hold · ${formatCallDuration(duration)}"
                     callState == Call.STATE_ACTIVE -> formatCallDuration(duration)
+                    callState == Call.STATE_DISCONNECTING -> "Ending call"
                     callState == Call.STATE_DISCONNECTED -> "Call ended"
                     else -> "Call"
                 },
@@ -214,7 +226,12 @@ fun NewCallScreen(
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    CallControl(Icons.Default.Mic, Icons.Default.MicOff, "Mute", isMuted) {
+                    CallControl(
+                        Icons.Default.Mic,
+                        Icons.Default.MicOff,
+                        if (isMuted) "Unmute" else "Mute",
+                        isMuted
+                    ) {
                         CallService.setMuted(!isMuted)
                     }
                     CallControl(Icons.Default.VolumeDown, Icons.Default.VolumeUp, "Speaker", isSpeaker) {
@@ -228,7 +245,9 @@ fun NewCallScreen(
                         Icons.Default.Bluetooth,
                         "Bluetooth",
                         isBluetooth,
-                        enabled = bluetoothAvailable
+                        enabled = bluetoothAvailable,
+                        containerColor = if (bluetoothAvailable) null else MaterialTheme.colorScheme.surfaceContainerLow,
+                        contentColor = if (bluetoothAvailable) null else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
                     ) {
                         CallService.setAudioRoute(
                             if (isBluetooth) CallAudioState.ROUTE_EARPIECE
@@ -243,17 +262,24 @@ fun NewCallScreen(
                     CallControl(
                         if (callState == Call.STATE_HOLDING) Icons.Default.PlayArrow else Icons.Default.Pause,
                         if (callState == Call.STATE_HOLDING) Icons.Default.PlayArrow else Icons.Default.Pause,
-                        "Hold",
-                        callState == Call.STATE_HOLDING
+                        if (callState == Call.STATE_HOLDING) "Resume" else "Hold",
+                        callState == Call.STATE_HOLDING,
+                        enabled = canHoldCall
                     ) {
-                        runCatching {
-                            if (callState == Call.STATE_HOLDING) call.unhold() else call.hold()
+                        try {
+                            when (call.state) {
+                                Call.STATE_HOLDING -> call.unhold()
+                                Call.STATE_ACTIVE -> call.hold()
+                            }
+                        } catch (error: Exception) {
+                            Log.e("NewCallScreen", "Telecom rejected hold/resume request", error)
+                            Toast.makeText(context, "Unable to change call hold state", Toast.LENGTH_SHORT).show()
                         }
                     }
                     CallControl(
                         if (heldCall != null) Icons.Default.CallMerge else Icons.Default.AddIcCall,
                         if (heldCall != null) Icons.Default.CallMerge else Icons.Default.AddIcCall,
-                        "Add call",
+                        if (heldCall != null) "Merge calls" else "Add call",
                         heldCall != null
                     ) {
                         if (heldCall != null) CallService.mergeCalls() else showAddCall = true
@@ -270,11 +296,16 @@ fun NewCallScreen(
                         val action = if (isRecording) {
                             RecordingForegroundService.ACTION_STOP_RECORDING
                         } else RecordingForegroundService.ACTION_MANUAL_START
-                        context.startService(
-                            android.content.Intent(context, RecordingForegroundService::class.java)
-                                .setAction(action)
-                        )
-                        isRecording = !isRecording
+                        try {
+                            context.startService(
+                                android.content.Intent(context, RecordingForegroundService::class.java)
+                                    .setAction(action)
+                            )
+                            isRecording = !isRecording
+                        } catch (error: Exception) {
+                            Log.e("NewCallScreen", "Unable to send recording command", error)
+                            Toast.makeText(context, "Unable to change recording state", Toast.LENGTH_SHORT).show()
+                        }
                     }
                     CallControl(
                         Icons.Default.CallEnd,
@@ -284,13 +315,18 @@ fun NewCallScreen(
                         containerColor = MaterialTheme.colorScheme.error,
                         contentColor = MaterialTheme.colorScheme.onError,
                         diameter = 98.dp,
+                        iconSize = 52.dp,
                         pressedScale = NewUiMotion.PressedScale
                     ) {
                         if (noteText.isNotBlank()) {
                             NoteManager.writeNote(context, contactName, number, noteText)
                         }
-                        runCatching { call.disconnect() }
-                        onFinish()
+                        try {
+                            call.disconnect()
+                        } catch (error: Exception) {
+                            Log.e("NewCallScreen", "Telecom rejected end-call request", error)
+                            Toast.makeText(context, "Unable to end call", Toast.LENGTH_SHORT).show()
+                        }
                     }
                     CallControl(Icons.Default.Person, Icons.Default.EditNote, "Note", showNote) {
                         showNote = true
@@ -307,9 +343,27 @@ fun NewCallScreen(
             value = dtmf,
             onDigit = { digit ->
                 dtmf += digit
-                runCatching { call.playDtmfTone(digit.first()) }
+                dtmfToneJob?.cancel()
+                dtmfToneJob = dtmfScope.launch {
+                    try {
+                        call.stopDtmfTone()
+                        call.playDtmfTone(digit.first())
+                        delay(150L)
+                        call.stopDtmfTone()
+                    } catch (error: Exception) {
+                        Log.e("NewCallScreen", "Unable to send DTMF tone", error)
+                    }
+                }
             },
-            onDismiss = { showDialpad = false }
+            onDismiss = {
+                dtmfToneJob?.cancel()
+                try {
+                    call.stopDtmfTone()
+                } catch (error: Exception) {
+                    Log.e("NewCallScreen", "Unable to stop DTMF tone", error)
+                }
+                showDialpad = false
+            }
         )
     }
     if (showAddCall) {
@@ -370,6 +424,7 @@ private fun CallControl(
     contentColor: Color? = null,
     diameter: androidx.compose.ui.unit.Dp = 90.dp,
     pressedScale: Float = 0.80f,
+    iconSize: androidx.compose.ui.unit.Dp = 42.dp,
     onClick: () -> Unit
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -385,10 +440,15 @@ private fun CallControl(
             Icon(
                 imageVector = if (active) icon else inactiveIcon,
                 contentDescription = label,
-                modifier = Modifier.size(52.dp)
+                modifier = Modifier.size(iconSize)
             )
         }
-        Text(label, style = MaterialTheme.typography.labelSmall)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface
+            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+        )
     }
 }
 

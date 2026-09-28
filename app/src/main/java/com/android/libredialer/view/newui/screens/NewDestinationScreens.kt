@@ -48,14 +48,12 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.automirrored.filled.CallMade
 import androidx.compose.material.icons.automirrored.filled.CallMissed
@@ -123,17 +121,7 @@ import com.android.libredialer.controller.util.CallReminderManager
 import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.controller.util.makeCall
 import com.android.libredialer.modal.`interface`.ICallLogRepository
-import com.android.libredialer.view.screen.settings.AboutAppScreen
-import com.android.libredialer.view.screen.settings.AppSettingsScreen
-import com.android.libredialer.view.screen.settings.BiometricScreen
-import com.android.libredialer.view.screen.settings.CallAccountsScreen
 import com.android.libredialer.view.screen.settings.ContactsHiderScreen
-import com.android.libredialer.view.screen.settings.RainModeScreen
-import com.android.libredialer.view.screen.settings.RaiseToAnswerScreen
-import com.android.libredialer.view.screen.settings.SimAndCallPlacementScreen
-import com.android.libredialer.view.screen.settings.SoundVibrationScreen
-import com.android.libredialer.view.screen.settings.UpdatesScreen
-import com.android.libredialer.view.screen.settings.VolumeDndScreen
 import com.coolappstore.evercallrecorder.by.svhp.ui.screens.SettingsScreen as RecorderSettingsScreen
 import com.coolappstore.evercallrecorder.by.svhp.ui.viewmodels.SettingsViewModel
 import com.ramcosta.composedestinations.navigation.DestinationsNavOptionsBuilder
@@ -574,16 +562,19 @@ private fun NewCallLogRow(
         CallLog.Calls.INCOMING_TYPE -> Color(0xFF6B849E)
         else -> baseSurfaceColor
     }
-    val surfaceColor = androidx.compose.ui.graphics.lerp(baseSurfaceColor, callTypeTint, 0.16f)
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .physicalListItem(physicalListState, index)
             .lensSurface(
                 shape = MaterialTheme.shapes.medium,
-                tonalColor = surfaceColor,
-                translucentAlpha = 0.88f,
+                tonalColor = when (item.log.type) {
+                    CallLog.Calls.OUTGOING_TYPE -> Color(0xFFDDEBDD)
+                    CallLog.Calls.INCOMING_TYPE -> Color(0xFFDDE8F2)
+                    CallLog.Calls.MISSED_TYPE -> Color(0xFFF1DDDE)
+                    else -> baseSurfaceColor
+                },
+                translucentAlpha = 1f,
                 specularAlpha = 0.28f,
                 elevation = 1.dp,
                 interactionSource = interactionSource
@@ -1187,20 +1178,6 @@ fun NewSettingsScreen(
                     Icons.Filled.Tune,
                     NewUiSettingsDestination.NetworkSwitcher
                 )
-            ),
-            "Other" to listOf(
-                NewSettingsRow(
-                    "Updates",
-                    "Check for app updates",
-                    Icons.Filled.Update,
-                    NewUiSettingsDestination.Updates
-                ),
-                NewSettingsRow(
-                    "About",
-                    "App information, links, and support",
-                    Icons.Filled.Info,
-                    NewUiSettingsDestination.About
-                )
             )
         )
     }
@@ -1262,17 +1239,17 @@ private fun NewSettingsDestinationScreen(
     CompositionLocalProvider(LocalNewUiSettingsStyle provides true) {
         when (destination) {
             NewUiSettingsDestination.AppAndCallBehavior ->
-                AppSettingsScreen(navigator = navigator)
+                NewUiAppSettingsScreen(navigator = navigator)
             NewUiSettingsDestination.SimAndCallPlacement ->
-                SimAndCallPlacementScreen(navigator = navigator)
+                NewUiSimAndCallPlacementScreen(navigator = navigator)
             NewUiSettingsDestination.CallAccounts ->
-                CallAccountsScreen(navigator = navigator)
+                NewUiCallAccountsScreen()
             NewUiSettingsDestination.SoundAndVibration ->
-                SoundVibrationScreen(navigator = navigator)
+                NewUiSoundVibrationScreen(navigator = navigator)
             NewUiSettingsDestination.BiometricAndAppLock ->
-                BiometricScreen(navigator = navigator)
+                NewUiBiometricScreen(navigator = navigator)
             NewUiSettingsDestination.ContactsHider ->
-                ContactsHiderScreen(navigator = navigator)
+                NewUiContactsHiderScreen()
             NewUiSettingsDestination.CallRecording -> {
                 val recorderViewModel: SettingsViewModel = viewModel()
                 RecorderSettingsScreen(
@@ -1282,17 +1259,13 @@ private fun NewSettingsDestinationScreen(
                 )
             }
             NewUiSettingsDestination.RaiseToAnswer ->
-                RaiseToAnswerScreen(navigator = navigator)
+                NewUiRaiseToAnswerScreen(navigator = navigator)
             NewUiSettingsDestination.RainMode ->
-                RainModeScreen(navigator = navigator)
+                NewUiRainModeScreen(navigator = navigator)
             NewUiSettingsDestination.VolumeDnd ->
-                VolumeDndScreen(navigator = navigator)
+                NewUiVolumeDndScreen(navigator = navigator)
             NewUiSettingsDestination.NetworkSwitcher ->
-                AppSettingsScreen(navigator = navigator, highlightKey = "network_switcher")
-            NewUiSettingsDestination.Updates ->
-                UpdatesScreen(navigator = navigator)
-            NewUiSettingsDestination.About ->
-                AboutAppScreen(navigator = navigator)
+                NewUiAppSettingsScreen(navigator = navigator, highlightKey = "network_switcher")
             NewUiSettingsDestination.ColorsAndTheme -> Unit
         }
     }
@@ -1321,6 +1294,12 @@ private class NewSettingsDestinationsNavigator(
                 onNavigate(NewUiSettingsDestination.RainMode)
             direction.route.startsWith("volume_dnd_screen") ->
                 onNavigate(NewUiSettingsDestination.VolumeDnd)
+            direction.route.startsWith("sim_and_call_placement_screen") ->
+                onNavigate(NewUiSettingsDestination.SimAndCallPlacement)
+            direction.route.startsWith("biometric_screen") ->
+                onNavigate(NewUiSettingsDestination.BiometricAndAppLock)
+            direction.route.startsWith("contacts_hider_screen") ->
+                onNavigate(NewUiSettingsDestination.ContactsHider)
             direction.route.startsWith("recordings_screen") ->
                 onNavigate(NewUiSettingsDestination.CallRecording)
             direction.route.startsWith("app_settings_screen") ->
