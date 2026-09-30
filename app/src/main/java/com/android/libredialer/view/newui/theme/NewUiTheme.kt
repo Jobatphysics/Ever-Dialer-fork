@@ -1,4 +1,6 @@
 package com.android.libredialer.view.newui.theme
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.background
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
@@ -107,7 +109,14 @@ fun NewUiTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = colors,
         typography = typography,
-        shapes = NewUiShapes,
-        content = content
-    )
+        shapes = NewUiShapes
+    ) {
+        androidx.compose.foundation.layout.Box(
+            modifier = androidx.compose.ui.Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            content()
+        }
+    }
 }

@@ -152,6 +152,7 @@ fun NewUiScreenShell(
                     Text(
                         titleOverride ?: destination.title,
                         style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.weight(1f)
                     )
                 } else {

@@ -1,4 +1,5 @@
 package com.android.libredialer.view.newui.screens
+import androidx.compose.foundation.isSystemInDarkTheme
 
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -198,7 +199,11 @@ fun NewDialerScreen(
         showTitle = number.isEmpty(),
         headerAction = if (number.isEmpty()) ({
             IconButton(onClick = onSettings) {
-                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                Icon(
+                    Icons.Filled.Settings,
+                    contentDescription = "Settings",
+                    tint = MaterialTheme.colorScheme.onBackground
+                )
             }
         }) else null
     ) {
@@ -451,7 +456,11 @@ fun NewRecentsScreen(
         destination = NewUiDestination.Recents,
         headerAction = {
             IconButton(onClick = onSettings) {
-                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                Icon(
+                    Icons.Filled.Settings,
+                    contentDescription = "Settings",
+                    tint = MaterialTheme.colorScheme.onBackground
+                )
             }
         }
     ) {
@@ -555,12 +564,18 @@ private fun NewCallLogRow(
     val interactionSource = rememberLensInteractionSource()
 
     val baseSurfaceColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val prefs: PreferenceManager = koinInject()
+    val themeMode = prefs.getString(PreferenceManager.KEY_THEME_MODE, "auto") ?: "auto"
+    val appDarkTheme = when (themeMode) {
+        "dark", "black" -> true
+        "light", "white" -> false
+        else -> isSystemInDarkTheme()
+    }
     val callTypeTint = when (item.log.type) {
-        CallLog.Calls.MISSED_TYPE ->
-            androidx.compose.ui.graphics.lerp(MaterialTheme.colorScheme.error, baseSurfaceColor, 0.35f)
-        CallLog.Calls.OUTGOING_TYPE -> Color(0xFF66856B)
-        CallLog.Calls.INCOMING_TYPE -> Color(0xFF6B849E)
-        else -> baseSurfaceColor
+        CallLog.Calls.MISSED_TYPE -> MaterialTheme.colorScheme.error
+        CallLog.Calls.OUTGOING_TYPE -> MaterialTheme.colorScheme.secondary
+        CallLog.Calls.INCOMING_TYPE -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Box(
         modifier = Modifier
@@ -569,9 +584,24 @@ private fun NewCallLogRow(
             .lensSurface(
                 shape = MaterialTheme.shapes.medium,
                 tonalColor = when (item.log.type) {
-                    CallLog.Calls.OUTGOING_TYPE -> Color(0xFFDDEBDD)
-                    CallLog.Calls.INCOMING_TYPE -> Color(0xFFDDE8F2)
-                    CallLog.Calls.MISSED_TYPE -> Color(0xFFF1DDDE)
+                    CallLog.Calls.OUTGOING_TYPE ->
+                        if (!appDarkTheme) {
+                            Color(0xFFDDEBDD)
+                        } else {
+                            Color(0xFF3E7548)
+                        }
+                    CallLog.Calls.INCOMING_TYPE ->
+                        if (!appDarkTheme) {
+                            Color(0xFFDDE8F2)
+                        } else {
+                            Color(0xFF3B6382)
+                        }
+                    CallLog.Calls.MISSED_TYPE ->
+                        if (!appDarkTheme) {
+                            Color(0xFFF1DDDE)
+                        } else {
+                            Color(0xFF7A454B)
+                        }
                     else -> baseSurfaceColor
                 },
                 translucentAlpha = 1f,
@@ -603,6 +633,7 @@ private fun NewCallLogRow(
                     Text(
                         text = item.displayName,
                         style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
@@ -617,7 +648,11 @@ private fun NewCallLogRow(
                         Text(
                             text = item.formattedDate,
                             style = MaterialTheme.typography.labelMedium,
-                            color = if (item.isMissed) callTypeTint else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (item.isMissed) {
+                                callTypeTint
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f)
+                            },
                             maxLines = 1,
                             overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
@@ -631,7 +666,7 @@ private fun NewCallLogRow(
                     Icon(
                         imageVector = Icons.Filled.Call,
                         contentDescription = "Call ${item.displayName}",
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
                     )
             }
         }
@@ -714,7 +749,7 @@ fun NewContactsScreen(
         sectionSpacing = 8.dp,
         headerAction = {
             IconButton(onClick = onSettings) {
-                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onBackground)
             }
         }
     ) {
@@ -770,6 +805,7 @@ fun NewContactsScreen(
                     Icon(
                         Icons.Filled.PersonAdd,
                         contentDescription = "Add contact",
+                        tint = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.size(32.dp)
                     )
                 }
@@ -922,7 +958,7 @@ fun NewFavoritesScreen(
         destination = NewUiDestination.Favorites,
         headerAction = {
             IconButton(onClick = onSettings) {
-                Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onBackground)
             }
         }
     ) {
@@ -1064,7 +1100,7 @@ private fun NewFavoriteRow(
                 Icon(
                     imageVector = Icons.Filled.Favorite,
                     contentDescription = "Remove from favorites",
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
                 )
             }
         }
@@ -1440,7 +1476,7 @@ private fun NewSettingsRowItem(
                 imageVector = row.icon,
                 contentDescription = null,
                 modifier = Modifier.size(24.dp),
-                tint = MaterialTheme.colorScheme.primary
+                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
             )
             Column(
                 modifier = Modifier

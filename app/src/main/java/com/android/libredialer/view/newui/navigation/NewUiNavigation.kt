@@ -371,11 +371,18 @@ fun NewUiAppShell(
                     onCall = onCall,
                 )
             }
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
+            if (
+                navigator.currentDestination == NewUiDestination.Dialer ||
+                navigator.currentDestination == NewUiDestination.Recents ||
+                navigator.currentDestination == NewUiDestination.Contacts ||
+                navigator.currentDestination == NewUiDestination.Favorites
             ) {
-                com.android.libredialer.view.newui.components.NewUiNavigationBar(navigator)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                ) {
+                    com.android.libredialer.view.newui.components.NewUiNavigationBar(navigator)
+                }
             }
         }
     }
