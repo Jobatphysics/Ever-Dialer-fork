@@ -1,8 +1,0 @@
-dev.liquidglass.compose.LibreGlassReference2Compose-pngs-0 /Users/jobatphysics/AndroidProjects/LibreDialer/LibreGlassReference2Test/reference/liquidglass-compose/build/generated/res/pngs/debug
-dev.liquidglass.compose.LibreGlassReference2Compose-updated_navigation_xml-1 /Users/jobatphysics/AndroidProjects/LibreDialer/LibreGlassReference2Test/reference/liquidglass-compose/build/generated/updated_navigation_xml/debug
-dev.liquidglass.compose.LibreGlassReference2Compose-mergeDebugResources-2 /Users/jobatphysics/AndroidProjects/LibreDialer/LibreGlassReference2Test/reference/liquidglass-compose/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
-dev.liquidglass.compose.LibreGlassReference2Compose-mergeDebugResources-3 /Users/jobatphysics/AndroidProjects/LibreDialer/LibreGlassReference2Test/reference/liquidglass-compose/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
-dev.liquidglass.compose.LibreGlassReference2Compose-debug-4 /Users/jobatphysics/AndroidProjects/LibreDialer/LibreGlassReference2Test/reference/liquidglass-compose/build/intermediates/merged_res/debug/mergeDebugResources
-dev.liquidglass.compose.LibreGlassReference2Compose-debug-5 /Users/jobatphysics/AndroidProjects/LibreDialer/LibreGlassReference2Test/reference/liquidglass-compose/build/intermediates/packaged_res/debug/packageDebugResources
-dev.liquidglass.compose.LibreGlassReference2Compose-debug-6 /Users/jobatphysics/AndroidProjects/LibreDialer/LibreGlassReference2Test/reference/liquidglass-compose/src/debug/res
-dev.liquidglass.compose.LibreGlassReference2Compose-main-7 /Users/jobatphysics/AndroidProjects/LibreDialer/LibreGlassReference2Test/reference/liquidglass-compose/src/main/res

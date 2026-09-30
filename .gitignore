@@ -19,3 +19,6 @@ local.properties
 captures/
 .navigation/
 .kotlin/
+
+# Gradle build outputs
+**/build/
