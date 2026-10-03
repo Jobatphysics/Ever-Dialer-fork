@@ -4,6 +4,8 @@ import android.app.Application
 import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
+import android.util.Log
 import android.provider.CallLog
 import android.provider.ContactsContract
 import com.android.libredialer.modal.`interface`.ICallLogRepository
@@ -108,7 +110,12 @@ class CallLogViewModel(
         ensureObservers()
         // Step 1: serve disk cache immediately so UI is instant
         viewModelScope.launch(Dispatchers.IO) {
+            val cacheLoadStartedAt = SystemClock.elapsedRealtime()
             val diskCache = loadFromDisk()
+            Log.d(
+                "RecentsColdStart",
+                "Call-log disk cache load: ${diskCache.size} rows, ${SystemClock.elapsedRealtime() - cacheLoadStartedAt}ms"
+            )
             if (diskCache.isNotEmpty()) {
                 cachedLogs = diskCache
                 withContext(Dispatchers.Main) {
@@ -236,17 +243,17 @@ class CallLogViewModel(
         if (isFetching) return
         isFetching = true
         try {
+            val repositoryStartedAt = SystemClock.elapsedRealtime()
             val result = callLogRepo.getCallLogs()
+            Log.d(
+                "RecentsColdStart",
+                "Call-log repository refresh: ${result.size} rows, ${SystemClock.elapsedRealtime() - repositoryStartedAt}ms"
+            )
             // Only push an update to the UI if the data actually changed.
             // This prevents a visible "refresh flicker" when the disk cache
             // and the freshly-fetched data are identical (the common case on
             // every app open after the first one).
-            val changed = result.size != cachedLogs.size ||
-                result.zip(cachedLogs).any { (a, b) ->
-                    a.number != b.number || a.date != b.date || a.type != b.type ||
-                        a.name != b.name || a.photoUri != b.photoUri || a.count != b.count ||
-                        a.callIds != b.callIds
-                }
+            val changed = result != cachedLogs
             cachedLogs = result
             if (changed) {
                 // Only touch disk when the data actually changed. This method gets called
@@ -254,7 +261,12 @@ class CallLogViewModel(
                 // ContentObserver, and the screen's own onResume refresh can all land within a
                 // second of each other), and on a large call history serializing and writing the
                 // full JSON every single time - even when nothing changed - was pure wasted I/O.
+                val saveStartedAt = SystemClock.elapsedRealtime()
                 saveToDisk(result)
+                Log.d(
+                    "RecentsColdStart",
+                    "Call-log disk cache save: ${result.size} rows, ${SystemClock.elapsedRealtime() - saveStartedAt}ms"
+                )
                 withContext(Dispatchers.Main) {
                     _allCallLogs.value = result
                 }

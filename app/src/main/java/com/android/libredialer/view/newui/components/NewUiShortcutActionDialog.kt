@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.android.libredialer.view.components.providedCallIcon
 import androidx.compose.ui.window.Dialog
 
 @Composable
@@ -49,7 +50,7 @@ fun NewUiShortcutActionDialog(
                     onClick = onOpenContactInfo
                 )
                 ShortcutActionRow(
-                    icon = Icons.Default.Call,
+                    icon = providedCallIcon(),
                     label = "Call directly",
                     supporting = "Shortcut calls this contact right away",
                     onClick = onCallDirectly

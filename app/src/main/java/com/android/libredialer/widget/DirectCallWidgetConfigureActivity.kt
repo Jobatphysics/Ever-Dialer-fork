@@ -30,6 +30,7 @@ import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.android.libredialer.modal.data.Contact
 import com.android.libredialer.modal.`interface`.IContactsRepository
+import com.android.libredialer.view.components.providedCallIcon
 import com.android.libredialer.view.theme.Rivo4Theme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -141,7 +142,7 @@ class DirectCallWidgetConfigureActivity : ComponentActivity() {
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        Icons.Default.Call,
+                                        providedCallIcon(),
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(20.dp)

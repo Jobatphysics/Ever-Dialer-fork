@@ -1111,7 +1111,7 @@ fun ContactDetailsScreen(
                                                 horizontalArrangement = Arrangement.Center,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Icon(Icons.Default.Call, contentDescription = "Call", modifier = Modifier.size(26.dp))
+                                                Icon(providedCallIcon(), contentDescription = "Call", modifier = Modifier.size(26.dp))
                                                 Spacer(modifier = Modifier.width(10.dp))
                                                 Text("Call", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Medium)
                                             }
@@ -1237,7 +1237,7 @@ fun ContactDetailsScreen(
                                                 horizontalArrangement = Arrangement.Center,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Icon(Icons.AutoMirrored.Filled.Message, contentDescription = "Text", modifier = Modifier.size(26.dp))
+                                                Icon(providedMessageIcon(), contentDescription = "Text", modifier = Modifier.size(26.dp))
                                                 Spacer(modifier = Modifier.width(10.dp))
                                                 Text("Text", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Medium)
                                             }
@@ -1249,7 +1249,7 @@ fun ContactDetailsScreen(
                                         ) {
                                             RivoDropdownMenuItem(
                                                 text = "SMS",
-                                                icon = Icons.AutoMirrored.Filled.Message,
+                                                icon = providedMessageIcon(),
                                                 onClick = {
                                                     showTextLongPressMenu = false
                                                     chooseTextApp("sms")
@@ -1303,7 +1303,7 @@ fun ContactDetailsScreen(
                                             RivoListItem(
                                                 headline = number,
                                                 supporting = if (isPrimary) "$typeLabel • Primary" else typeLabel,
-                                                leadingIcon = Icons.Default.Phone,
+                                                leadingIcon = providedCallIcon(),
                                                 compact = contactPhoneNumbers.size > 1,
                                                 onClick = { initiateCall(number) },
                                                 onLongClick = {
@@ -1350,7 +1350,7 @@ fun ContactDetailsScreen(
                                         RivoListItem(
                                             headline = phoneNumber,
                                             supporting = "Unknown Number",
-                                            leadingIcon = Icons.Default.Phone,
+                                            leadingIcon = providedCallIcon(),
                                             onClick = { initiateCall(phoneNumber) },
                                             onLongClick = {
                                                 selectedNumberForMenu = phoneNumber
@@ -1366,7 +1366,7 @@ fun ContactDetailsScreen(
                                         val isPrimaryNum = contactDefaultNumber == menuNum
                                         RivoDropdownMenuItem(
                                             text = "Send message",
-                                            icon = Icons.AutoMirrored.Filled.Message,
+                                            icon = providedMessageIcon(),
                                             iconTint = Color(0xFF4CAF50),
                                             onClick = {
                                                 selectedNumberForMenu = null
@@ -1948,7 +1948,7 @@ fun ContactDetailsScreen(
                                             if (meetInstalled) {
                                                 RivoExpressiveButton(
                                                     modifier = Modifier.widthIn(min = 76.dp),
-                                                    icon = Icons.Default.VideoCall, iconBitmap = meetIcon, label = "Meet", size = 56.dp, iconSize = 22.dp, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh, contentColor = MaterialTheme.colorScheme.onSurface, onClick = {
+                                                    icon = providedVideoCallIcon(), iconBitmap = meetIcon, label = "Meet", size = 56.dp, iconSize = 22.dp, containerColor = MaterialTheme.colorScheme.surfaceContainerHigh, contentColor = MaterialTheme.colorScheme.onSurface, onClick = {
                                                         if (displayPhone == "Unknown") return@RivoExpressiveButton
                                                         chooseSocialApp("googlemeet")
                                                     }

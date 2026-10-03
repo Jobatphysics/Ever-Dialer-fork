@@ -52,6 +52,9 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.android.libredialer.controller.CallLogViewModel
+import com.android.libredialer.view.components.providedMessageIcon
+import com.android.libredialer.view.components.providedCallIcon
+import com.android.libredialer.view.components.providedVideoCallIcon
 import com.android.libredialer.controller.ContactsViewModel
 import com.android.libredialer.controller.util.BlockedNumbersManager
 import com.android.libredialer.controller.util.PreferenceManager
@@ -154,14 +157,14 @@ fun NewCallDetailsScreen(
                 ) {
                     if (entry.number.isNotBlank()) {
                         PrimaryContactAction(
-                            icon = Icons.Default.Call,
+                            icon = providedCallIcon(),
                             label = "Call",
                             enabled = true,
                             onClick = { onCall(entry.number, contact?.id) },
                             modifier = Modifier.weight(1f)
                         )
                         PrimaryContactAction(
-                            icon = Icons.AutoMirrored.Filled.Message,
+                            icon = providedMessageIcon(),
                             label = "Message",
                             enabled = true,
                             onClick = {
@@ -174,7 +177,7 @@ fun NewCallDetailsScreen(
                     }
                     if (videoApp != null && entry.number.isNotBlank()) {
                         PrimaryContactAction(
-                            icon = Icons.Default.VideoCall,
+                            icon = providedVideoCallIcon(),
                             label = "Video",
                             enabled = true,
                             onClick = {
@@ -242,7 +245,7 @@ fun NewCallDetailsScreen(
             item {
                 DetailsCard("Call information") {
                     if (contact != null) {
-                        DetailRow(entry.number, "Phone number", Icons.Default.Call)
+                        DetailRow(entry.number, "Phone number", providedCallIcon())
                     }
                     if (contact != null) {
                         DetailRow(callTypeLabel(entry.type), "Call type", callTypeIcon(entry.type))
@@ -250,7 +253,7 @@ fun NewCallDetailsScreen(
                     DetailRow(formatDate(entry.date), "Date and time", Icons.Default.Event)
                     DetailRow(durationLabel(entry.duration), "Duration", Icons.Default.History)
                     if (entry.simSlot >= 0) {
-                        DetailRow("SIM ${entry.simSlot + 1}", "Call placement", Icons.Default.Call)
+                        DetailRow("SIM ${entry.simSlot + 1}", "Call placement", providedCallIcon())
                     }
                 }
             }

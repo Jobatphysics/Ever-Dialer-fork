@@ -19,6 +19,7 @@ import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.controller.util.makeCall
 import com.android.libredialer.modal.data.Contact
 import com.android.libredialer.view.components.RivoAvatar
+import com.android.libredialer.view.components.providedCallIcon
 import com.android.libredialer.view.components.SimPickerDialog
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
@@ -190,7 +191,7 @@ private fun HiddenContactCard(
             if (contact.phoneNumbers.isNotEmpty()) {
                 IconButton(onClick = { onCallClick(contact.phoneNumbers.first()) }) {
                     Icon(
-                        Icons.Default.Call,
+                        providedCallIcon(),
                         contentDescription = "Call",
                         tint = MaterialTheme.colorScheme.primary
                     )

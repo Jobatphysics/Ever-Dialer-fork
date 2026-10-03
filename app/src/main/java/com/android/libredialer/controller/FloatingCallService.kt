@@ -46,6 +46,7 @@ import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.view.screen.CallActivity
+import com.android.libredialer.view.components.providedCallIcon
 import com.android.libredialer.view.theme.Rivo4Theme
 import kotlinx.coroutines.*
 
@@ -570,14 +571,14 @@ class FloatingCallService : Service() {
                         ) {
                             if (isRinging) {
                                 SheetAction(3,
-                                    Icons.Default.Call, "Answer Call",
+                                    providedCallIcon(), "Answer Call",
                                     Color.White,
                                     Color(0xFF2E7D32),
                                     isLandscape = isLandscape
                                 ) { onAction(MenuAction.AnswerCall(context)) }
                             } else {
                                 SheetAction(3,
-                                    Icons.Default.Phone, "Back to call",
+                                    providedCallIcon(), "Back to call",
                                     MaterialTheme.colorScheme.onPrimaryContainer,
                                     MaterialTheme.colorScheme.primaryContainer,
                                     isLandscape = isLandscape

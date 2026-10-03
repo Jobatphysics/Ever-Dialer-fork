@@ -63,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -78,6 +79,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import coil.compose.AsyncImage
 import com.android.libredialer.controller.CallLogViewModel
 import com.android.libredialer.controller.ContactsViewModel
+import com.android.libredialer.view.components.providedMessageIcon
+import com.android.libredialer.view.components.providedCallIcon
+import com.android.libredialer.view.components.providedVideoCallIcon
 import com.android.libredialer.controller.util.NoteManager
 import com.android.libredialer.controller.util.QrCodeUtils
 import com.android.libredialer.controller.util.PreferenceManager
@@ -306,14 +310,14 @@ fun NewContactDetailsScreen(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         PrimaryContactAction(
-                            icon = Icons.Default.Call,
+                            icon = providedCallIcon(),
                             label = "Call",
                             enabled = numbers.isNotEmpty(),
                             onClick = { numbers.firstOrNull()?.let(::call) },
                             modifier = Modifier.weight(1f)
                         )
                         PrimaryContactAction(
-                            icon = Icons.Default.Message,
+                            icon = providedMessageIcon(),
                             label = "Message",
                             enabled = numbers.isNotEmpty(),
                             onClick = {
@@ -324,7 +328,7 @@ fun NewContactDetailsScreen(
                             modifier = Modifier.weight(1f)
                         )
                         PrimaryContactAction(
-                            icon = Icons.Default.VideoCall,
+                            icon = providedVideoCallIcon(),
                             label = "Video",
                             enabled = numbers.isNotEmpty() && socialApps.any { it.second },
                             onClick = {
@@ -341,6 +345,7 @@ fun NewContactDetailsScreen(
                             icon = Icons.Default.Email,
                             label = "Email",
                             enabled = currentContact.emails.any(String::isNotBlank),
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             onClick = {
                                 currentContact.emails.firstOrNull(String::isNotBlank)?.let { email ->
                                     context.startActivity(
@@ -356,7 +361,7 @@ fun NewContactDetailsScreen(
                     item {
                         DetailsCard("Contact information") {
                             numbers.forEach { number ->
-                                DetailRow(number, "Phone", Icons.Default.Call) { call(number) }
+                                DetailRow(number, "Phone", providedCallIcon()) { call(number) }
                             }
                             currentContact.emails.forEach { email ->
                                 DetailRow(email, "Email", Icons.Default.Email) {
@@ -405,7 +410,7 @@ fun NewContactDetailsScreen(
                                     }))
                                 }
                                 if (socialApps.first { it.first == "googlemeet" }.second) {
-                                    add(ContactActionTile(Icons.Default.VideoCall, "Meet", "Google Meet", {
+                                    add(ContactActionTile(providedVideoCallIcon(), "Meet", "Google Meet", {
                                         socialNumber = numbers.firstOrNull()
                                         showSocialActions = "googlemeet"
                                     }))
@@ -676,7 +681,8 @@ internal fun PrimaryContactAction(
     label: String,
     enabled: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    containerColor: Color? = null
 ) {
     Column(
         modifier = modifier,
@@ -693,7 +699,7 @@ internal fun PrimaryContactAction(
                     onClick = onClick
                 ),
             shape = CircleShape,
-            color = if (enabled) {
+            color = containerColor ?: if (enabled) {
                 MaterialTheme.colorScheme.secondaryContainer
             } else {
                 MaterialTheme.colorScheme.surfaceContainerHigh

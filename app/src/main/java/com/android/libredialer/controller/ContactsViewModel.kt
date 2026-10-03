@@ -3,6 +3,8 @@ package com.android.libredialer.controller
 import android.Manifest
 import android.app.Application
 import android.content.pm.PackageManager
+import android.os.SystemClock
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.android.libredialer.controller.util.ContactsCache
 import com.android.libredialer.controller.util.ContactsHiderManager
@@ -330,7 +332,12 @@ class ContactsViewModel(
             return
         }
         viewModelScope.launch(Dispatchers.IO) {
+            val cacheStartedAt = SystemClock.elapsedRealtime()
             val cached = runCatching { ContactsCache.read(ctx) }.getOrDefault(emptyList())
+            Log.d(
+                "RecentsColdStart",
+                "Contacts disk cache load: ${cached.size} contacts, ${SystemClock.elapsedRealtime() - cacheStartedAt}ms"
+            )
             if (cached.isNotEmpty() && !hasLoadedFromCache) {
                 _allContacts.value = cached
                 updateDisplayedContacts(cached)
@@ -356,6 +363,7 @@ class ContactsViewModel(
         val enabledKeys = getEnabledAccountKeys()
         val isUnfiltered = enabledKeys == null
         fetchJob = viewModelScope.launch(Dispatchers.IO) {
+            val fetchStartedAt = SystemClock.elapsedRealtime()
             runCatching {
                 val raw = if (enabledKeys == null) {
                     contactsRepo.getContacts()
@@ -367,12 +375,20 @@ class ContactsViewModel(
                 val backedUp = ContactsHiderManager.getBackedUpContacts(prefs).values.toList()
                 (raw + backedUp).distinctBy { it.id }
             }.onSuccess { contacts ->
+                Log.d(
+                    "RecentsColdStart",
+                    "Contacts provider refresh: ${contacts.size} contacts, ${SystemClock.elapsedRealtime() - fetchStartedAt}ms"
+                )
                 hasLoadedFromCache = true
                 _allContacts.value = contacts
                 updateDisplayedContacts(contacts)
                 _isLoading.value = false
                 if (isUnfiltered) ContactsCache.write(ctx, contacts)
             }.onFailure {
+                Log.d(
+                    "RecentsColdStart",
+                    "Contacts provider refresh failed after ${SystemClock.elapsedRealtime() - fetchStartedAt}ms"
+                )
                 _isLoading.value = false
             }
         }

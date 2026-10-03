@@ -302,7 +302,7 @@ fun AnswerStyleScreen(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.Center
                                             ) {
-                                                Icon(Icons.Default.ChatBubble, null, tint = previewElemFg, modifier = Modifier.size(10.dp))
+                                                Icon(providedMessageIcon(), null, tint = previewElemFg, modifier = Modifier.size(10.dp))
                                                 Spacer(Modifier.width(4.dp))
                                                 Text("Message", color = previewElemFg, style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.5.sp, fontWeight = FontWeight.Bold))
                                             }
@@ -330,7 +330,7 @@ fun AnswerStyleScreen(
                                                 modifier = Modifier.size(38.dp)
                                             ) {
                                                 Box(contentAlignment = Alignment.Center) {
-                                                    Icon(Icons.Default.Call, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(18.dp))
+                                                    Icon(providedCallIcon(), contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(18.dp))
                                                 }
                                             }
 
@@ -358,7 +358,7 @@ fun AnswerStyleScreen(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.Center
                                             ) {
-                                                Icon(Icons.Default.ChatBubble, null, tint = previewElemFg, modifier = Modifier.size(11.dp))
+                                                Icon(providedMessageIcon(), null, tint = previewElemFg, modifier = Modifier.size(11.dp))
                                                 Spacer(Modifier.width(4.dp))
                                                 Text("Message", color = previewElemFg, style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold))
                                             }
@@ -390,7 +390,7 @@ fun AnswerStyleScreen(
                                                 modifier = Modifier.size(36.dp)
                                             ) {
                                                 Box(contentAlignment = Alignment.Center) {
-                                                    Icon(Icons.Default.Call, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(18.dp))
+                                                    Icon(providedCallIcon(), contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(18.dp))
                                                 }
                                             }
                                         }

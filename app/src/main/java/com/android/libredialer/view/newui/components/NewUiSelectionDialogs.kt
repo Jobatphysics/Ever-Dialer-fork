@@ -37,6 +37,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.android.libredialer.view.components.SIM_CHOICE_OPTIONS
 import com.android.libredialer.view.components.SimChoiceOption
+import com.android.libredialer.view.components.providedCallIcon
+import com.android.libredialer.view.components.providedVideoCallIcon
 
 @Composable
 fun NewUiChooseSimDialog(
@@ -136,12 +138,12 @@ fun NewUiAppQuickActionsDialog(
                     )
                 }
                 SelectionRow(
-                    icon = Icons.Default.Call,
+                    icon = providedCallIcon(),
                     label = "Voice call",
                     onClick = onVoiceCall
                 )
                 SelectionRow(
-                    icon = Icons.Default.VideoCall,
+                    icon = providedVideoCallIcon(),
                     label = "Video call",
                     onClick = onVideoCall
                 )

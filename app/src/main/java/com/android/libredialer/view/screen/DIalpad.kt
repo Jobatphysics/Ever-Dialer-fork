@@ -107,6 +107,7 @@ import com.android.libredialer.controller.util.startTelegramVideoCall
 import com.android.libredialer.controller.util.numbersLikelyMatch
 import com.android.libredialer.controller.util.placeCallHonoringContactSim
 import com.android.libredialer.view.components.AppQuickActionsDialog
+import com.android.libredialer.view.components.providedCallIcon
 import com.android.libredialer.view.components.AddContactChoiceDialog
 import com.android.libredialer.view.components.SelectExistingContactDialog
 import com.android.libredialer.modal.data.Contact
@@ -1373,7 +1374,7 @@ fun DialPadContent(
                                     }
                                 },
                                 onLongClick = if (number.isNotEmpty()) ({ showAppPicker = true }) else null,
-                                icon = Icons.Default.Call,
+                                icon = providedCallIcon(),
                                 contentDescription = "Call",
                                 containerColor = Color(0xFF34A853),
                                 contentColor = Color.White,
@@ -2065,7 +2066,7 @@ fun DialPadContent(
                                 }
                             },
                             onLongClick = if (number.isNotEmpty()) ({ showAppPicker = true }) else null,
-                            icon = Icons.Default.Call,
+                            icon = providedCallIcon(),
                             contentDescription = "Call",
                             containerColor = Color(0xFF34A853),
                             contentColor = Color.White,

@@ -2,6 +2,7 @@ package com.android.libredialer.view.newui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -16,6 +17,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -24,6 +26,9 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import android.os.SystemClock
 import android.util.Log
 import com.android.libredialer.controller.util.PreferenceManager
@@ -54,8 +59,26 @@ enum class NewUiDestination(val route: String, val title: String) {
     UnknownNumberDetails("new/unknown-number-details", "Number details")
 }
 
+private fun NewUiDestination.isMainDestination(): Boolean = this in setOf(
+    NewUiDestination.Recents,
+    NewUiDestination.Favorites,
+    NewUiDestination.Contacts,
+    NewUiDestination.Settings,
+    NewUiDestination.Dialer
+)
+
+private fun PreferenceManager.lastMainDestination(): NewUiDestination {
+    val savedRoute = getString(PreferenceManager.KEY_NEW_UI_LAST_MAIN_DESTINATION, null)
+    return NewUiDestination.entries.firstOrNull {
+        it.route == savedRoute && it.isMainDestination()
+    } ?: NewUiDestination.Dialer
+}
+
 @Stable
-class NewUiNavigator(initialDestination: NewUiDestination) {
+class NewUiNavigator(
+    initialDestination: NewUiDestination,
+    private val onMainDestinationChanged: (NewUiDestination) -> Unit = {}
+) {
     var currentDestination by mutableStateOf(initialDestination)
         private set
     var settingsDestination by mutableStateOf<NewUiSettingsDestination?>(null)
@@ -102,11 +125,28 @@ class NewUiNavigator(initialDestination: NewUiDestination) {
             backStack += currentDestination
         }
         currentDestination = destination
+        if (destination.isMainDestination()) {
+            onMainDestinationChanged(destination)
+        }
     }
 
     fun navigateSettings(destination: NewUiSettingsDestination) {
         settingsDestination?.takeIf { it != destination }?.let(settingsBackStack::add)
         settingsDestination = destination
+    }
+
+    fun restoreLastMainDestination(destination: NewUiDestination) {
+        currentDestination = destination.takeIf { it.isMainDestination() }
+            ?: NewUiDestination.Dialer
+        settingsDestination = null
+        settingsBackStack.clear()
+        backStack.clear()
+        contactDetails = null
+        contactDetailsPhoneNumber = null
+        contactToEdit = null
+        contactEditInitialPhone = null
+        unknownNumber = null
+        callDetails = null
     }
 
     fun openContactDetails(contact: Contact, phoneNumber: String? = null) {
@@ -166,6 +206,7 @@ class NewUiNavigator(initialDestination: NewUiDestination) {
             if (currentDestination == NewUiDestination.Dialer) return false
             currentDestination = NewUiDestination.Dialer
             backStack.clear()
+            onMainDestinationChanged(currentDestination)
             return true
         }
         if (currentDestination == NewUiDestination.ContactDetails) {
@@ -192,13 +233,6 @@ class NewUiNavigator(initialDestination: NewUiDestination) {
             backStack.isNotEmpty() ||
             currentDestination != NewUiDestination.Dialer
 
-    private fun NewUiDestination.isMainDestination(): Boolean = this in setOf(
-        NewUiDestination.Recents,
-        NewUiDestination.Favorites,
-        NewUiDestination.Contacts,
-        NewUiDestination.Settings,
-        NewUiDestination.Dialer
-    )
 }
 
 internal object NewUiNavigationTiming {
@@ -236,8 +270,11 @@ enum class NewUiSettingsDestination(val title: String) {
 
 @Composable
 fun rememberNewUiNavigator(
-    startDestination: NewUiDestination = NewUiDestination.Dialer
-): NewUiNavigator = remember(startDestination) { NewUiNavigator(startDestination) }
+    startDestination: NewUiDestination = NewUiDestination.Dialer,
+    onMainDestinationChanged: (NewUiDestination) -> Unit = {}
+): NewUiNavigator = remember(startDestination) {
+    NewUiNavigator(startDestination, onMainDestinationChanged)
+}
 
 @Composable
 fun NewUiHost(
@@ -337,13 +374,31 @@ fun NewUiHost(
 @Composable
 fun NewUiAppShell(
     onCall: (String, String?) -> Unit,
+    launcherResetVersion: Int = 0,
 ) {
-    val navigator = rememberNewUiNavigator()
     val prefs: PreferenceManager = org.koin.compose.koinInject()
+    val startDestination = remember { prefs.lastMainDestination() }
+    val navigator = rememberNewUiNavigator(startDestination) { destination ->
+        prefs.setString(PreferenceManager.KEY_NEW_UI_LAST_MAIN_DESTINATION, destination.route)
+    }
+    LaunchedEffect(launcherResetVersion) {
+        if (launcherResetVersion > 0) {
+            navigator.restoreLastMainDestination(prefs.lastMainDestination())
+        }
+    }
     val predictiveBackEnabled = remember(prefs.settingsChanged.collectAsState().value) {
         prefs.getBoolean(PreferenceManager.KEY_PREDICTIVE_BACK_GESTURE, true)
     }
     var rawBackProgress by remember { mutableFloatStateOf(0f) }
+    val tabDestinations = remember {
+        listOf(
+            NewUiDestination.Favorites,
+            NewUiDestination.Recents,
+            NewUiDestination.Contacts,
+            NewUiDestination.Dialer
+        )
+    }
+    val swipeThresholdPx = with(LocalDensity.current) { 72.dp.toPx() }
     val backProgress by androidx.compose.animation.core.animateFloatAsState(
         targetValue = rawBackProgress,
         animationSpec = androidx.compose.animation.core.spring(
@@ -383,6 +438,32 @@ fun NewUiAppShell(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .pointerInput(navigator.currentDestination, navigator.settingsDestination) {
+                        if (navigator.settingsDestination != null) return@pointerInput
+                        val currentIndex = tabDestinations.indexOf(navigator.currentDestination)
+                        if (currentIndex < 0) return@pointerInput
+
+                        var horizontalDistance = 0f
+                        detectHorizontalDragGestures(
+                            onHorizontalDrag = { change, dragAmount ->
+                                change.consume()
+                                horizontalDistance += dragAmount
+                            },
+                            onDragEnd = {
+                                val distance = horizontalDistance
+                                horizontalDistance = 0f
+                                val destinationIndex = when {
+                                    distance <= -swipeThresholdPx ->
+                                        (currentIndex + 1).takeIf { it < tabDestinations.size }
+                                    distance >= swipeThresholdPx ->
+                                        (currentIndex - 1).takeIf { it >= 0 }
+                                    else -> null
+                                }
+                                destinationIndex?.let { navigator.navigate(tabDestinations[it]) }
+                            },
+                            onDragCancel = { horizontalDistance = 0f }
+                        )
+                    }
                     .graphicsLayer {
                         translationX = size.width * backProgress * 0.18f
                         scaleX = 1f - backProgress * 0.02f

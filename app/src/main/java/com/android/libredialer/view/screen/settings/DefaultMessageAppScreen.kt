@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -18,19 +19,26 @@ import androidx.compose.ui.unit.dp
 import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.view.components.RivoAnimatedSection
 import com.android.libredialer.view.components.RivoExpressiveCard
+import com.android.libredialer.view.components.providedMessageIcon
 import com.android.libredialer.view.theme.SettingsTransitionStyle
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import org.koin.compose.koinInject
 
-private data class MessageAppOption(val key: String, val label: String, val description: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val color: Color)
+private data class MessageAppOption(
+    val key: String,
+    val label: String,
+    val description: String,
+    val icon: @Composable () -> ImageVector,
+    val color: Color
+)
 
 private val messageAppOptions = listOf(
-    MessageAppOption("sms", "Messages / SMS", "Use the system's default messaging app", Icons.Outlined.Sms, Color(0xFF2196F3)),
-    MessageAppOption("whatsapp", "WhatsApp", "Open a WhatsApp chat with this number", Icons.Outlined.Chat, Color(0xFF25D366)),
-    MessageAppOption("telegram", "Telegram", "Open a Telegram chat with this number", Icons.Default.Send, Color(0xFF29B6F6)),
-    MessageAppOption("ask", "Always ask", "Show a popup to choose every time", Icons.Outlined.HelpOutline, Color(0xFF9C27B0))
+    MessageAppOption("sms", "Messages / SMS", "Use the system's default messaging app", { providedMessageIcon() }, Color(0xFF2196F3)),
+    MessageAppOption("whatsapp", "WhatsApp", "Open a WhatsApp chat with this number", { Icons.Outlined.Chat }, Color(0xFF25D366)),
+    MessageAppOption("telegram", "Telegram", "Open a Telegram chat with this number", { Icons.Default.Send }, Color(0xFF29B6F6)),
+    MessageAppOption("ask", "Always ask", "Show a popup to choose every time", { Icons.Outlined.HelpOutline }, Color(0xFF9C27B0))
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,7 +95,7 @@ fun DefaultMessageAppScreen(navigator: DestinationsNavigator) {
                                             modifier = Modifier.size(40.dp)
                                         ) {
                                             Box(contentAlignment = Alignment.Center) {
-                                                Icon(option.icon, null, tint = option.color, modifier = Modifier.size(20.dp))
+                                                Icon(option.icon(), null, tint = option.color, modifier = Modifier.size(20.dp))
                                             }
                                         }
                                         Spacer(Modifier.width(16.dp))

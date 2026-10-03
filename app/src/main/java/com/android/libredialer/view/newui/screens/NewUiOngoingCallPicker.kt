@@ -38,6 +38,7 @@ import com.android.libredialer.controller.CallSession
 import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.modal.`interface`.IContactsRepository
 import com.android.libredialer.modal.data.Contact
+import com.android.libredialer.view.components.providedCallIcon
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -180,7 +181,7 @@ fun NewUiOngoingCallPicker(
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Icon(
-                    Icons.Default.Call,
+                    providedCallIcon(),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(20.dp)

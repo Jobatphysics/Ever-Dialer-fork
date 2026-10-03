@@ -54,6 +54,8 @@ import com.android.libredialer.controller.util.makeCall
 import com.android.libredialer.controller.util.placeCallHonoringContactSim
 import com.android.libredialer.modal.data.Contact
 import com.android.libredialer.view.components.RivoAvatar
+import com.android.libredialer.view.components.providedMessageIcon
+import com.android.libredialer.view.components.providedCallIcon
 import com.android.libredialer.view.components.RivoDropdownMenu
 import com.android.libredialer.view.components.RivoDropdownMenuItem
 import com.android.libredialer.view.components.RivoScrollAnimatedItem
@@ -685,7 +687,7 @@ private fun FavoriteContactCard(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            imageVector = Icons.Default.Call,
+                            imageVector = providedCallIcon(),
                             contentDescription = "Call",
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.size(18.dp)
@@ -716,7 +718,7 @@ private fun FavoriteContactCard(
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        Icons.Default.Call,
+                                        providedCallIcon(),
                                         contentDescription = null,
                                         modifier = Modifier.size(12.dp),
                                         tint = MaterialTheme.colorScheme.onPrimaryContainer
@@ -815,7 +817,7 @@ private fun FavoriteContactCard(
 
                     RivoDropdownMenuItem(
                         text = "Call",
-                        icon = Icons.Default.Call,
+                        icon = providedCallIcon(),
                         iconTint = Color(0xFF4CAF50),
                         onClick = {
                             showMenu = false
@@ -870,7 +872,7 @@ private fun FavoriteContactCard(
                 }
                 "send_sms" -> RivoDropdownMenuItem(
                     text = "Send SMS",
-                    icon = Icons.Default.Message,
+                    icon = providedMessageIcon(),
                     iconTint = Color(0xFF009688),
                     onClick = {
                         showMenu = false

@@ -117,8 +117,8 @@ fun AppQuickActionsDialog(
                     if (onChat != null) {
                         AppQuickActionRow(icon = Icons.AutoMirrored.Filled.Chat, label = "Chat", onClick = onChat)
                     }
-                    AppQuickActionRow(icon = Icons.Default.Call, label = "Voice Call", onClick = onVoiceCall)
-                    AppQuickActionRow(icon = Icons.Default.Videocam, label = "Video Call", onClick = onVideoCall)
+                    AppQuickActionRow(icon = providedCallIcon(), label = "Voice Call", onClick = onVoiceCall)
+                    AppQuickActionRow(icon = providedVideoCallIcon(), label = "Video Call", onClick = onVideoCall)
                     Spacer(Modifier.height(8.dp))
                     TextButton(
                         onClick = onDismiss,
@@ -250,7 +250,7 @@ fun CallChatViaOverlay(
                 if (hasGoogleMeet) {
                     RivoDropdownMenuItem(
                         text = "Google Meet",
-                        icon = Icons.Default.VideoCall,
+                        icon = providedVideoCallIcon(),
                         iconBitmap = remember(context) { getGoogleMeetIcon(context) },
                         onClick = { onPickerDismiss(); chooseApp("googlemeet") }
                     )
@@ -272,7 +272,7 @@ fun CallChatViaOverlay(
                 }
                 RivoDropdownMenuItem(
                     text = "Send text",
-                    icon = Icons.AutoMirrored.Filled.Message,
+                    icon = providedMessageIcon(),
                     onClick = { onPickerDismiss(); chooseApp("send_text") }
                 )
             }

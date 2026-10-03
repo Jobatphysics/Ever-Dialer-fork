@@ -69,6 +69,7 @@ import com.android.libredialer.view.screen.CallActivity
 import com.android.libredialer.view.components.Android14WelcomeDialog
 import com.android.libredialer.view.components.FullScreenIntentDialog
 import com.android.libredialer.view.components.BottomBar
+import com.android.libredialer.view.components.providedCallIcon
 import com.android.libredialer.view.components.enterNotesTab
 import com.android.libredialer.view.theme.Rivo4Theme
 import com.android.libredialer.view.theme.TabTransitionStyle
@@ -166,6 +167,7 @@ class MainActivity : FragmentActivity() {
     // the LaunchedEffect below, since Compose has no way to observe a mutation of the Activity's
     // own `intent` field.
     private var pendingIntent by mutableStateOf<Intent?>(null)
+    private var launcherResetVersion by mutableIntStateOf(0)
     private var isAppUnlocked by mutableStateOf(true)
     private var callAuthRequired by mutableStateOf(false)
     private var pendingDirectCallAction: (() -> Unit)? = null
@@ -444,7 +446,7 @@ class MainActivity : FragmentActivity() {
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.Call,
+                                    providedCallIcon(),
                                     contentDescription = null,
                                     tint = Color.White,
                                     modifier = Modifier.size(18.dp)
@@ -463,6 +465,7 @@ class MainActivity : FragmentActivity() {
                     if (showNewUi) {
                         NewUiTheme {
                             NewUiAppShell(
+                                launcherResetVersion = launcherResetVersion,
                                 onCall = { number, contactKey -> placeDirectCall(number, contactKey) },
                             )
                         }
@@ -666,7 +669,7 @@ class MainActivity : FragmentActivity() {
                 } // end blurred Column
 
                     // ── Biometric overlay (above blur, inside Box) ─────────
-                    val showAuthOverlay = callAuthRequired || (!isAppUnlocked && !hasOngoingCall)
+                    val showAuthOverlay = callAuthRequired || !isAppUnlocked
                     if (showAuthOverlay) {
                         val activity = this@MainActivity
                         LaunchedEffect(biometricType, callAuthRequired) {
@@ -761,26 +764,6 @@ class MainActivity : FragmentActivity() {
                         )
                     }
 
-                    AnimatedVisibility(
-                        visible = showNewUi && hasOngoingCall,
-                        enter = slideInVertically { -it } + fadeIn(),
-                        exit = slideOutVertically { -it } + fadeOut()
-                    ) {
-                        callSession?.let { session ->
-                            NewUiTheme {
-                                com.android.libredialer.view.newui.screens.NewUiOngoingCallPicker(
-                                    session = session,
-                                    onReturnToCall = {
-                                        startActivity(
-                                            Intent(this@MainActivity, CallActivity::class.java).apply {
-                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-                                            }
-                                        )
-                                    }
-                                )
-                            }
-                        }
-                    }
                 } // end outer Box
 
                 if (showSimPicker && pendingSimPickerNumber != null) {
@@ -795,6 +778,9 @@ class MainActivity : FragmentActivity() {
 
                 LaunchedEffect(pendingIntent) {
                     pendingIntent?.let {
+                        if (it.action == Intent.ACTION_MAIN && it.hasCategory(Intent.CATEGORY_LAUNCHER)) {
+                            showNewUi = true
+                        }
                         val dataString = it.data?.toString().orEmpty()
                         if (
                             it.action == Intent.ACTION_INSERT ||
@@ -818,6 +804,9 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_LAUNCHER)) {
+            launcherResetVersion++
+        }
         pendingIntent = intent
     }
 

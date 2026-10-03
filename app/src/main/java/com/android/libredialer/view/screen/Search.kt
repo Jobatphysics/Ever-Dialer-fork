@@ -414,7 +414,7 @@ fun ContactSearchContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(Icons.Default.Call, null, tint = MaterialTheme.colorScheme.primary)
+                    Icon(providedCallIcon(), null, tint = MaterialTheme.colorScheme.primary)
                     Text(
                         text = "Call $query",
                         fontWeight = FontWeight.SemiBold,
@@ -624,7 +624,7 @@ fun ContactSearchContent(
                                                         IconButton(onClick = {
                                                             navigator.navigate(DialPadScreenDestination(initialNumber = entry.number))
                                                         }) {
-                                                            Icon(Icons.Default.Call, contentDescription = "Call", tint = MaterialTheme.colorScheme.primary)
+                                                            Icon(providedCallIcon(), contentDescription = "Call", tint = MaterialTheme.colorScheme.primary)
                                                         }
                                                     },
                                                     onClick = {

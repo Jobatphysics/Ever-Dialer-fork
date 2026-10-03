@@ -47,7 +47,7 @@ fun ShortcutActionDialog(
                         onClick = onOpenContactInfo
                     )
                     ShortcutActionRow(
-                        icon = Icons.Default.Call,
+                        icon = providedCallIcon(),
                         label = "Call directly",
                         subLabel = "Shortcut calls this contact right away",
                         onClick = onCallDirectly

@@ -3,14 +3,14 @@ package com.android.libredialer.view.newui.screens
 
 import com.android.libredialer.view.newui.components.LensSurfaceBox
 import com.android.libredialer.view.components.SettingsSearchHeaderAction
-import androidx.compose.foundation.isSystemInDarkTheme
-
+import com.android.libredialer.view.components.providedCallIcon
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -19,13 +19,12 @@ import com.android.libredialer.view.newui.components.rememberPhysicalListState
 import com.android.libredialer.view.newui.components.physicalListItem
 import com.android.libredialer.view.newui.components.physicalItemInput
 import com.android.libredialer.view.newui.components.PhysicalListState
-import com.android.libredialer.view.newui.components.lensSurface
-import com.android.libredialer.view.newui.motion.rememberLensInteractionSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Search
@@ -54,6 +53,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.ChevronRight
@@ -74,6 +74,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.RadioButton
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
@@ -158,6 +160,8 @@ fun NewDialerScreen(
     onAddContact: (String?) -> Unit = {}
 ) {
     var number by remember { mutableStateOf("") }
+    var pasteCandidate by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
 
     val contactsVM: com.android.libredialer.controller.ContactsViewModel =
         koinActivityViewModel()
@@ -294,19 +298,64 @@ fun NewDialerScreen(
             }
 
             // Number display immediately above keypad.
-            if (number.isNotEmpty()) {
-                Text(
-                    text = number,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    style = MaterialTheme.typography.headlineMedium.copy(fontSize = 40.sp),
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    softWrap = false,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .combinedClickable(
+                        onClick = {},
+                        onLongClickLabel = "Paste phone number",
+                        onLongClick = {
+                            val clipboard = context.getSystemService(ClipboardManager::class.java)
+                            val candidate = clipboard.primaryClip
+                                ?.takeIf { it.itemCount > 0 }
+                                ?.getItemAt(0)
+                                ?.coerceToText(context)
+                                ?.toString()
+                                ?.trim()
+                            val digitCount = candidate?.count(Char::isDigit) ?: 0
+                            pasteCandidate = candidate?.takeIf { value ->
+                                value.isNotEmpty() &&
+                                    digitCount in 3..20 &&
+                                    value.all { it.isDigit() || it in "+ ().-" } &&
+                                    (value.first().isDigit() ||
+                                        (value.first() == '+' && value.getOrNull(1)?.isDigit() == true)) &&
+                                    value.drop(1).none { it == '+' }
+                            }
+                        }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (number.isNotEmpty()) {
+                    Text(
+                        text = number,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        style = MaterialTheme.typography.headlineMedium.copy(fontSize = 40.sp),
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        softWrap = false,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = pasteCandidate != null,
+                    onDismissRequest = { pasteCandidate = null }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Paste") },
+                        leadingIcon = {
+                            Icon(Icons.Filled.ContentPaste, contentDescription = null)
+                        },
+                        onClick = {
+                            pasteCandidate?.let { number = it }
+                            pasteCandidate = null
+                        }
+                    )
+                }
             }
             // Five-row keypad.
             DialerKeypad(
@@ -347,7 +396,7 @@ data class NewUiCallLogItem(
     val typeIcon: ImageVector
 )
 
-private data class NewUiCallLogDateSection(
+internal data class NewUiCallLogDateSection(
     val key: Int,
     val title: String,
     val items: List<IndexedValue<NewUiCallLogItem>>
@@ -357,9 +406,15 @@ internal class NewRecentsProcessingCache : ViewModel() {
     private var sourceLogs: List<CallLogEntry>? = null
     private var sourceContacts: List<Contact>? = null
     private var cachedItems: List<NewUiCallLogItem>? = null
+    private var sourceSectionItems: List<NewUiCallLogItem>? = null
+    private var sectionDateRefresh: Int? = null
+    private var cachedSections: List<NewUiCallLogDateSection>? = null
 
     fun getItems(logs: List<CallLogEntry>, contacts: List<Contact>): List<NewUiCallLogItem>? =
-        cachedItems?.takeIf { sourceLogs === logs && sourceContacts === contacts }
+        cachedItems?.takeIf {
+            (sourceLogs === logs || sourceLogs == logs) &&
+                (sourceContacts === contacts || sourceContacts == contacts)
+        }
 
     fun storeItems(
         logs: List<CallLogEntry>,
@@ -369,6 +424,22 @@ internal class NewRecentsProcessingCache : ViewModel() {
         sourceLogs = logs
         sourceContacts = contacts
         cachedItems = items
+        sourceSectionItems = null
+        sectionDateRefresh = null
+        cachedSections = null
+    }
+
+    fun getDateSections(items: List<NewUiCallLogItem>, dateRefresh: Int): List<NewUiCallLogDateSection>? =
+        cachedSections?.takeIf { sourceSectionItems === items && sectionDateRefresh == dateRefresh }
+
+    fun storeDateSections(
+        items: List<NewUiCallLogItem>,
+        dateRefresh: Int,
+        sections: List<NewUiCallLogDateSection>
+    ) {
+        sourceSectionItems = items
+        sectionDateRefresh = dateRefresh
+        cachedSections = sections
     }
 }
 
@@ -386,6 +457,16 @@ fun NewRecentsScreen(
     val contacts by contactsViewModel.allContacts.collectAsState()
     val context = LocalContext.current
     val prefs: PreferenceManager = koinInject()
+    val themeSettingsVersion by prefs.settingsChanged.collectAsState()
+    val themeMode = remember(themeSettingsVersion) {
+        prefs.getString(PreferenceManager.KEY_THEME_MODE, "auto") ?: "auto"
+    }
+    val systemDarkTheme = isSystemInDarkTheme()
+    val isDarkTheme = when (themeMode) {
+        "light", "white" -> false
+        "dark", "black" -> true
+        else -> systemDarkTheme
+    }
     var contextualItem by remember { mutableStateOf<NewUiCallLogItem?>(null) }
     var showReminderPicker by remember { mutableStateOf<NewUiCallLogItem?>(null) }
 
@@ -426,9 +507,10 @@ fun NewRecentsScreen(
         processingCache.getItems(logs, contacts)?.let { cachedItems ->
             value = cachedItems
             callLogsProcessed = true
-            Log.d("NewRecentsTiming", "Reused ${cachedItems.size} cached call display models")
+            Log.d("RecentsColdStart", "Mapped display-model cache hit: ${cachedItems.size} calls")
             return@produceState
         }
+        Log.d("RecentsColdStart", "Mapped display-model cache miss: ${logs.size} calls, ${contacts.size} contacts")
         if (logs.isEmpty()) {
             value = emptyList()
             callLogsProcessed = true
@@ -436,6 +518,7 @@ fun NewRecentsScreen(
         }
         val processingStartedAt = SystemClock.elapsedRealtimeNanos()
         val mappedItems = withContext(Dispatchers.Default) {
+            val contactIndexStartedAt = SystemClock.elapsedRealtime()
             val contactById = HashMap<String, Contact>(contacts.size)
             val contactByNumber = HashMap<String, Contact>(contacts.size * 2)
             for (c in contacts) {
@@ -450,8 +533,18 @@ fun NewRecentsScreen(
                     }
                 }
             }
+            Log.d(
+                "RecentsColdStart",
+                "UI contact index build: ${contacts.size} contacts, ${contactById.size} IDs, ${contactByNumber.size} number keys, ${SystemClock.elapsedRealtime() - contactIndexStartedAt}ms"
+            )
 
+            val sortStartedAt = SystemClock.elapsedRealtime()
             val sortedLogs = logs.sortedByDescending { it.date }
+            Log.d(
+                "RecentsColdStart",
+                "UI call sort: ${sortedLogs.size} calls, ${SystemClock.elapsedRealtime() - sortStartedAt}ms"
+            )
+            val itemMappingStartedAt = SystemClock.elapsedRealtime()
             val items = ArrayList<NewUiCallLogItem>(sortedLogs.size)
             for (log in sortedLogs) {
                 val contact = if (!log.contactId.isNullOrBlank() && log.contactId != "null") {
@@ -497,22 +590,31 @@ fun NewRecentsScreen(
                     )
                 )
             }
+            Log.d(
+                "RecentsColdStart",
+                "UI contact matching and display formatting: ${items.size} calls, ${SystemClock.elapsedRealtime() - itemMappingStartedAt}ms"
+            )
             items
         }
         processingCache.storeItems(logs, contacts, mappedItems)
         value = mappedItems
         Log.d(
-            "NewRecentsTiming",
+            "RecentsColdStart",
             "Mapped ${mappedItems.size} calls in ${(SystemClock.elapsedRealtimeNanos() - processingStartedAt) / 1_000_000}ms"
         )
         callLogsProcessed = true
     }
 
     val dateSections by produceState<List<NewUiCallLogDateSection>>(
-        initialValue = emptyList(),
+        initialValue = processingCache.getDateSections(uiLogs, dateRefresh) ?: emptyList(),
         uiLogs,
         dateRefresh
     ) {
+        processingCache.getDateSections(uiLogs, dateRefresh)?.let { cachedSections ->
+            value = cachedSections
+            Log.d("RecentsColdStart", "Date-section cache hit: ${cachedSections.size} sections")
+            return@produceState
+        }
         if (uiLogs.isEmpty()) {
             value = emptyList()
             return@produceState
@@ -535,9 +637,10 @@ fun NewRecentsScreen(
                 )
             }
         }
+        processingCache.storeDateSections(uiLogs, dateRefresh, groupedSections)
         value = groupedSections
         Log.d(
-            "NewRecentsTiming",
+            "RecentsColdStart",
             "Grouped ${uiLogs.size} calls into ${groupedSections.size} dates in ${(SystemClock.elapsedRealtimeNanos() - groupingStartedAt) / 1_000_000}ms"
         )
     }
@@ -577,18 +680,23 @@ fun NewRecentsScreen(
                 Trace.beginSection("Recents.buildLazyListItems")
                 try {
                     dateSections.forEach { section ->
-                        item(key = "date_${section.key}") {
+                        item(
+                            key = "date_${section.key}",
+                            contentType = "date-header"
+                        ) {
                             com.android.libredialer.view.components.RivoSectionHeader(section.title)
                         }
                         items(
                             items = section.items,
-                            key = { indexedItem -> indexedItem.value.key }
+                            key = { indexedItem -> indexedItem.value.key },
+                            contentType = { "call-row" }
                         ) { indexedItem ->
                             val item = indexedItem.value
                             NewCallLogRow(
                                 item = item,
                                 index = indexedItem.index,
                                 physicalListState = physicalListState,
+                                isDarkTheme = isDarkTheme,
                                 onClick = { onCallLogClick(item.log) },
                                 onLongClick = { contextualItem = item },
                                 onCall = { onCall(item.log.number) }
@@ -598,7 +706,7 @@ fun NewRecentsScreen(
                 } finally {
                     Trace.endSection()
                     Log.d(
-                        "NewRecentsTiming",
+                        "RecentsColdStart",
                         "Declared ${uiLogs.size} list items across ${dateSections.size} dates in ${(SystemClock.elapsedRealtimeNanos() - listBuildStartedAt) / 1_000_000}ms"
                     )
                 }
@@ -611,11 +719,8 @@ fun NewRecentsScreen(
                     add(NewContextualAction("Message") {
                         context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:${Uri.encode(number)}")))
                     })
-                    add(NewContextualAction("Delete this call") {
+                    add(NewContextualAction("Delete") {
                         callLogViewModel.deleteCallLog(item.log)
-                    })
-                    add(NewContextualAction("Delete call history for this number") {
-                        callLogViewModel.deleteCallLogs(logs.filter { it.number == number })
                     })
                     add(NewContextualAction(if (blocked) "Unblock" else "Block") {
                         if (blocked) BlockedNumbersManager.unblock(context, prefs, number)
@@ -662,58 +767,33 @@ private fun NewCallLogRow(
     item: NewUiCallLogItem,
     index: Int,
     physicalListState: PhysicalListState,
+    isDarkTheme: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onCall: () -> Unit
 ) {
-    val interactionSource = rememberLensInteractionSource()
-
-    val baseSurfaceColor = MaterialTheme.colorScheme.surfaceContainerLow
-    val prefs: PreferenceManager = koinInject()
-    val themeMode = prefs.getString(PreferenceManager.KEY_THEME_MODE, "auto") ?: "auto"
-    val appDarkTheme = when (themeMode) {
-        "dark", "black" -> true
-        "light", "white" -> false
-        else -> isSystemInDarkTheme()
-    }
     val callTypeTint = when (item.log.type) {
         CallLog.Calls.MISSED_TYPE -> MaterialTheme.colorScheme.error
         CallLog.Calls.OUTGOING_TYPE -> MaterialTheme.colorScheme.secondary
         CallLog.Calls.INCOMING_TYPE -> MaterialTheme.colorScheme.primary
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
-    Box(
+    val rowBackground = when (item.log.type) {
+        CallLog.Calls.OUTGOING_TYPE ->
+            if (isDarkTheme) Color(0xFF3D4B36) else Color(0xFFD8E7CC)
+        CallLog.Calls.INCOMING_TYPE ->
+            if (isDarkTheme) Color(0xFF3D4758) else Color(0xFFD8E2F7)
+        CallLog.Calls.MISSED_TYPE ->
+            if (isDarkTheme) Color(0xFF5E4041) else Color(0xFFFFDADA)
+        else -> MaterialTheme.colorScheme.surfaceContainerLow
+    }
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .physicalListItem(physicalListState, index)
-            .lensSurface(
-                shape = MaterialTheme.shapes.medium,
-                tonalColor = when (item.log.type) {
-                    CallLog.Calls.OUTGOING_TYPE ->
-                        if (!appDarkTheme) {
-                            Color(0xFFDDEBDD)
-                        } else {
-                            Color(0xFF3E7548)
-                        }
-                    CallLog.Calls.INCOMING_TYPE ->
-                        if (!appDarkTheme) {
-                            Color(0xFFDDE8F2)
-                        } else {
-                            Color(0xFF3B6382)
-                        }
-                    CallLog.Calls.MISSED_TYPE ->
-                        if (!appDarkTheme) {
-                            Color(0xFFF1DDDE)
-                        } else {
-                            Color(0xFF7A454B)
-                        }
-                    else -> baseSurfaceColor
-                },
-                translucentAlpha = 1f,
-                specularAlpha = 0.28f,
-                elevation = 1.dp,
-                interactionSource = interactionSource
-            )
+            .physicalListItem(physicalListState, index),
+        shape = MaterialTheme.shapes.medium,
+        color = rowBackground,
+        tonalElevation = 0.dp
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -728,7 +808,7 @@ private fun NewCallLogRow(
                 NewContactAvatar(
                     photoUri = item.photoUri,
                     displayName = item.displayName,
-                    size = 52.dp
+                    size = 56.dp
                 )
                 Column(
                     modifier = Modifier
@@ -769,7 +849,7 @@ private fun NewCallLogRow(
                 enabled = item.log.number.isNotBlank()
             ) {
                     Icon(
-                        imageVector = Icons.Filled.Call,
+                        imageVector = providedCallIcon(),
                         contentDescription = "Call ${item.displayName}",
                         tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
                     )
@@ -789,9 +869,9 @@ private fun recentsDateHeader(timestamp: Long, today: Calendar, yesterday: Calen
         sameCalendarDate(callDate, yesterday) -> "Yesterday"
         else -> {
             val pattern = if (callDate.get(Calendar.YEAR) == today.get(Calendar.YEAR)) {
-                "d MMMM"
+                "EEEE, d MMMM"
             } else {
-                "d MMMM yyyy"
+                "EEEE, d MMMM yyyy"
             }
             SimpleDateFormat(pattern, Locale.getDefault()).format(Date(timestamp))
         }
@@ -1731,11 +1811,11 @@ private fun DialerKeypad(
             NewUiDialerButton(
                 onClick = onCall,
                 interactionSource = callInteractionSource,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                containerColor = Color(0xFF239E43),
+                contentColor = Color.White
             ) {
                     Icon(
-                        Icons.Filled.Call,
+                        providedCallIcon(),
                         contentDescription = "Call",
                         modifier = Modifier.size(52.dp)
                     )

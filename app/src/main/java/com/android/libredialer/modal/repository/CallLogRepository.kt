@@ -3,6 +3,8 @@ package com.android.libredialer.modal.repository
 import android.content.ContentResolver
 import android.content.Context
 import android.os.Build
+import android.os.SystemClock
+import android.util.Log
 import android.provider.CallLog
 import android.provider.ContactsContract
 import android.telephony.SubscriptionManager
@@ -136,6 +138,7 @@ class CallLogRepository(
     }
 
     private fun getCallLogsInternal(): List<CallLogEntry> {
+        val totalStartedAt = SystemClock.elapsedRealtime()
         ensureContactsObserver()
         val hasContactsPermission = androidx.core.content.ContextCompat.checkSelfPermission(
             context, android.Manifest.permission.READ_CONTACTS
@@ -149,9 +152,15 @@ class CallLogRepository(
             (!hasContactsPermission || existing.first.isNotEmpty())
 
         val (exactIndex, suffixIndex) = if (canUseExisting && existing != null) {
+            Log.d("RecentsColdStart", "Contact index reused: ${existing.first.size} exact keys")
             existing
         } else {
+            val indexStartedAt = SystemClock.elapsedRealtime()
             val built = buildContactIndex()
+            Log.d(
+                "RecentsColdStart",
+                "Contact index rebuilt: ${built.first.size} exact keys, ${built.second.size} suffix buckets, ${SystemClock.elapsedRealtime() - indexStartedAt}ms"
+            )
             if (hasContactsPermission) {
                 cachedContactIndex = built
                 contactIndexDirty = false
@@ -164,8 +173,14 @@ class CallLogRepository(
 
         pruneAutoDeletedUnknownCalls(exactIndex, suffixIndex)
 
+        val rawCallsStartedAt = SystemClock.elapsedRealtime()
         val rawCalls = readRawCallLogRows()
+        Log.d(
+            "RecentsColdStart",
+            "Call-log provider query: ${rawCalls.size} rows, ${SystemClock.elapsedRealtime() - rawCallsStartedAt}ms"
+        )
         val dedupedCalls = dedupeDuplicateProviderRows(rawCalls)
+        val mappingStartedAt = SystemClock.elapsedRealtime()
 
         val hiddenIds = ContactsHiderManager.getHiddenIds(prefs)
 
@@ -223,6 +238,10 @@ class CallLogRepository(
             }
         }
 
+        Log.d(
+            "RecentsColdStart",
+            "Contact resolution and call mapping: ${dedupedCalls.size} rows to ${callLogs.size} entries, ${SystemClock.elapsedRealtime() - mappingStartedAt}ms; repository total ${SystemClock.elapsedRealtime() - totalStartedAt}ms"
+        )
         return callLogs
     }
 

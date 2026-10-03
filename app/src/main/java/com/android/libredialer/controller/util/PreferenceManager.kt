@@ -30,6 +30,7 @@ class PreferenceManager(context: Context) {
         } catch (_: Exception) { 1 }
     }
 
+
     /** "Show SIM badges in call logs" should only default to on for dual-SIM (or more)
      *  devices — on a single-SIM device the badge is pure clutter since every entry
      *  would show the same "SIM 1" chip. */
@@ -395,6 +396,7 @@ class PreferenceManager(context: Context) {
         const val KEY_FONT_ROUNDNESS        = "font_roundness"
         const val KEY_CORNER_RADIUS         = "corner_radius"
         const val KEY_THEME_MODE            = "theme_mode"
+        const val KEY_NEW_UI_LAST_MAIN_DESTINATION = "new_ui_last_main_destination"
         const val KEY_SATURATED_COLORS      = "saturated_colors"
         const val KEY_SATURATED_MODES       = "saturated_modes"
         const val DEFAULT_SATURATED_MODES   = "light,dark,white,black"
@@ -710,5 +712,3 @@ class PreferenceManager(context: Context) {
         const val KEY_CONFIRM_PLACING_CALL         = "confirm_placing_call"
     }
 }
-
-

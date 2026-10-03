@@ -62,6 +62,8 @@ import com.android.libredialer.view.components.RivoExpressiveCard
 import com.android.libredialer.view.components.RivoListItem
 import com.android.libredialer.view.components.RivoSwitchListItem
 import com.android.libredialer.view.components.settingsSearchHighlight
+import com.android.libredialer.view.components.providedMessageIcon
+import com.android.libredialer.view.components.providedCallIcon
 import com.android.libredialer.view.theme.SettingsTransitionStyle
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
@@ -277,7 +279,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
 
     data class ContactInfoElementOption(val key: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
     val contactInfoElementOptions = listOf(
-        ContactInfoElementOption("quick_actions",         "Quick Actions",                                Icons.Default.Call),
+        ContactInfoElementOption("quick_actions",         "Quick Actions",                                providedCallIcon()),
         ContactInfoElementOption("contact_info",          "Contact Info",                                 Icons.Default.Info),
         ContactInfoElementOption("social",                "Social",                                       Icons.Default.Share),
         ContactInfoElementOption("description",           "Description (Synced Notes)",                   Icons.Default.Description),
@@ -339,8 +341,8 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
     val contextMenuItemsBySection = mapOf(
         "favorites" to listOf(
             ContextMenuItemOption("select",          "Select",                    Icons.Default.CheckBox),
-            ContextMenuItemOption("call",             "Call",                      Icons.Default.Call),
-            ContextMenuItemOption("send_sms",         "Send SMS",                  Icons.Default.Message),
+            ContextMenuItemOption("call",             "Call",                      providedCallIcon()),
+            ContextMenuItemOption("send_sms",         "Send SMS",                  providedMessageIcon()),
             ContextMenuItemOption("call_chat_via",    "Call/Chat Via",             Icons.AutoMirrored.Filled.Chat),
             ContextMenuItemOption("view_details",     "View Details",              Icons.Default.Info),
             ContextMenuItemOption("fake_call",        "Fake Call",                 Icons.Outlined.PhoneCallback),
@@ -348,14 +350,14 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
         ),
         "call_logs" to listOf(
             ContextMenuItemOption("select",           "Select",                    Icons.Default.CheckBox),
-            ContextMenuItemOption("call_back",         "Call back",                 Icons.Default.Call),
+            ContextMenuItemOption("call_back",         "Call back",                 providedCallIcon()),
             ContextMenuItemOption("view_contact",      "View contact",              Icons.Default.Person),
             ContextMenuItemOption("edit_contact",      "Edit contact",              Icons.Default.Edit),
             ContextMenuItemOption("copy_number",       "Copy number",               Icons.Default.ContentCopy),
             ContextMenuItemOption("add_to_contacts",   "Add contact",               Icons.Default.PersonAdd),
             ContextMenuItemOption("share",             "Share contact",             Icons.Default.Share),
             ContextMenuItemOption("call_chat_via",     "Call/Chat Via",             Icons.AutoMirrored.Filled.Chat),
-            ContextMenuItemOption("send_text",         "Send text",                 Icons.AutoMirrored.Filled.Message),
+            ContextMenuItemOption("send_text",         "Send text",                 providedMessageIcon()),
             ContextMenuItemOption("search_truecaller", "Search Truecaller",         Icons.Default.Search),
             ContextMenuItemOption("move_contact",      "Move contact",              Icons.Default.DriveFileMove),
             ContextMenuItemOption("toggle_favorite",   "Add/Remove Favourites",     Icons.Default.Favorite),
@@ -365,13 +367,13 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
         ),
         "contacts" to listOf(
             ContextMenuItemOption("select",           "Select",                    Icons.Default.CheckBox),
-            ContextMenuItemOption("call",             "Call",                      Icons.Default.Call),
+            ContextMenuItemOption("call",             "Call",                      providedCallIcon()),
             ContextMenuItemOption("view_contact",      "View contact",              Icons.Default.Person),
             ContextMenuItemOption("edit_contact",      "Edit contact",              Icons.Default.Edit),
             ContextMenuItemOption("copy_number",       "Copy number",               Icons.Default.ContentCopy),
             ContextMenuItemOption("share_contact",     "Share contact",             Icons.Default.Share),
             ContextMenuItemOption("call_chat_via",     "Call/Chat Via",             Icons.AutoMirrored.Filled.Chat),
-            ContextMenuItemOption("send_text",         "Send text",                 Icons.AutoMirrored.Filled.Message),
+            ContextMenuItemOption("send_text",         "Send text",                 providedMessageIcon()),
             ContextMenuItemOption("move_contact",      "Move contact",              Icons.Default.DriveFileMove),
             ContextMenuItemOption("toggle_favorite",   "Add/Remove Favourites",     Icons.Default.Favorite),
             ContextMenuItemOption("block_contact",     "Block/Unblock contact",     Icons.Default.Block),

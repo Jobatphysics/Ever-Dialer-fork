@@ -540,7 +540,7 @@ fun ContactListItem(
 
                         RivoDropdownMenuItem(
                             text     = "Call",
-                            icon     = Icons.Default.Call,
+                            icon     = providedCallIcon(),
                             iconTint = Color(0xFF4CAF50),
                             onClick  = {
                                 showMenu = false
@@ -637,7 +637,7 @@ fun ContactListItem(
                     )
                     "send_text" -> RivoDropdownMenuItem(
                         text     = "Send text",
-                        icon     = Icons.AutoMirrored.Filled.Message,
+                        icon     = providedMessageIcon(),
                         iconTint = Color(0xFF009688),
                         onClick  = {
                             showMenu = false

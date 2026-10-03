@@ -271,6 +271,8 @@ class CallService : InCallService() {
         private const val CHANNEL_ID = "call_channel"
         private const val CHANNEL_INCOMING_ID = "call_incoming_channel"
         private const val NOTIFICATION_ID = 101
+        private const val ACTION_RETURN_TO_CALL = "com.android.libredialer.action.RETURN_TO_CALL"
+        private const val ACTION_SHOW_INCOMING_CALL = "com.android.libredialer.action.SHOW_INCOMING_CALL"
 
         private val WHATSAPP_PACKAGES = setOf("com.whatsapp", "com.whatsapp.w4b")
 
@@ -985,8 +987,17 @@ class CallService : InCallService() {
             else -> contact?.name ?: number.ifEmpty { "Unknown Number" }
         }
 
-        val fsi = PendingIntent.getActivity(this, 0,
-            Intent(this, CallActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT) },
+        val returnToCallPi = PendingIntent.getActivity(this, 0,
+            Intent(this, CallActivity::class.java).apply {
+                action = ACTION_RETURN_TO_CALL
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val incomingFullScreenPi = PendingIntent.getActivity(this, 9,
+            Intent(this, CallActivity::class.java).apply {
+                action = ACTION_SHOW_INCOMING_CALL
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val answerPi = PendingIntent.getService(this, 1,
             Intent(this, CallService::class.java).apply { action = "ANSWER_CALL" },
@@ -1056,11 +1067,11 @@ class CallService : InCallService() {
             .setPriority(if (isFullScreenIncoming) NotificationCompat.PRIORITY_DEFAULT else NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .apply {
-                if (!isFullScreenIncoming) {
-                    setFullScreenIntent(fsi, true)
+                if (isRinging && !isFullScreenIncoming) {
+                    setFullScreenIntent(incomingFullScreenPi, true)
                 }
             }
-            .setContentIntent(fsi)
+            .setContentIntent(returnToCallPi)
             .setOngoing(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(false)

@@ -35,6 +35,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import com.android.libredialer.view.components.providedCallIcon
 import androidx.compose.material.icons.automirrored.filled.CallMissed
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CheckCircle
@@ -345,7 +346,7 @@ fun NewUiAppSettingsScreen(
                     NewUiSettingsSwitchRow(
                         "Direct Call on Tap",
                         "Tap a call log entry to call directly instead of viewing contact info",
-                        Icons.Filled.Call,
+                        providedCallIcon(),
                         directCallOnTap,
                         modifier = Modifier.settingsSearchHighlight("direct_call_on_tap", highlightedKey) { highlightedKey = null }
                     ) {

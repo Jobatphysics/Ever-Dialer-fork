@@ -36,7 +36,9 @@ import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.view.components.RivoAvatar
 import com.android.libredialer.view.components.RivoDropdownMenu
 import com.android.libredialer.view.components.RivoDropdownMenuItem
+import com.android.libredialer.view.components.providedMessageIcon
 import com.android.libredialer.view.components.performAppHaptic
+import com.android.libredialer.view.components.providedCallIcon
 import org.koin.compose.koinInject
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -232,7 +234,7 @@ fun SingleTile(
             }
             RivoDropdownMenuItem(
                 text     = "Call",
-                icon     = Icons.Default.Call,
+                icon     = providedCallIcon(),
                 iconTint = Color(0xFF4CAF50),
                 onClick  = {
                     showMenu = false
@@ -266,7 +268,7 @@ fun SingleTile(
                 )
                 RivoDropdownMenuItem(
                     text     = "Send SMS",
-                    icon     = Icons.Default.Message,
+                    icon     = providedMessageIcon(),
                     iconTint = Color(0xFF009688),
                     onClick  = {
                         showMenu = false

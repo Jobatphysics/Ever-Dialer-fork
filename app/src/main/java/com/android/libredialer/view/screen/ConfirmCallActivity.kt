@@ -36,6 +36,7 @@ import androidx.fragment.app.FragmentActivity
 import coil.compose.AsyncImage
 import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.controller.util.makeCall
+import com.android.libredialer.view.components.providedCallIcon
 import com.android.libredialer.view.theme.Rivo4Theme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -191,7 +192,7 @@ private fun ConfirmCallDialogUi(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Call,
+                            imageVector = providedCallIcon(),
                             contentDescription = null,
                             modifier = Modifier.size(14.dp),
                             tint = MaterialTheme.colorScheme.onSecondaryContainer
@@ -332,7 +333,7 @@ private fun ConfirmCallDialogUi(
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 4.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Call,
+                            imageVector = providedCallIcon(),
                             contentDescription = null,
                             modifier = Modifier.size(20.dp)
                         )

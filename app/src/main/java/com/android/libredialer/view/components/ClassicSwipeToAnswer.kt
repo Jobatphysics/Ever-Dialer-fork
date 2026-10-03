@@ -95,7 +95,7 @@ fun ClassicSwipeToAnswer(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.Default.ChatBubble, null, tint = labelColor, modifier = Modifier.size(18.dp))
+                    Icon(providedMessageIcon(), null, tint = labelColor, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Message", color = labelColor, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 }
@@ -265,7 +265,7 @@ fun ClassicSwipeToAnswer(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Call,
+                    imageVector = providedCallIcon(),
                     contentDescription = null,
                     tint = iconTint,
                     modifier = Modifier

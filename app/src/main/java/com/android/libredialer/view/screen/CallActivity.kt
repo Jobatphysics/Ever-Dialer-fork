@@ -83,6 +83,8 @@ import com.android.libredialer.modal.data.CallLogEntry
 import com.android.libredialer.modal.data.Contact
 import com.android.libredialer.view.components.RivoAvatar
 import com.android.libredialer.view.components.SimSlotBadge
+import com.android.libredialer.view.components.providedMessageIcon
+import com.android.libredialer.view.components.providedCallIcon
 import com.android.libredialer.view.newui.components.NewUiDialerButton
 import com.android.libredialer.view.newui.motion.NewUiMotion
 import com.android.libredialer.view.newui.screens.NewCallScreen
@@ -1328,27 +1330,20 @@ fun ExpressiveCallScreen(
         else -> isDark
     }
     val isSaturatedActive = remember(settingsVersion, isDark) { prefs?.isSaturatedForTheme(isDark) ?: false }
-    val solidIcons = remember(settingsVersion) { prefs?.getBoolean(PreferenceManager.KEY_SOLID_ICONS, false) ?: false }
-    val solidIconsDarkStyle = remember(settingsVersion, isDark) { prefs?.getSolidIconsStyle(isDark) ?: PreferenceManager.SOLID_ICONS_STYLE_DIM }
-    val isSaturatedSolidBrightDark = (isDark || isIncomingElementsDark) && isSaturatedActive && solidIcons && (solidIconsDarkStyle == PreferenceManager.SOLID_ICONS_STYLE_BRIGHT)
-
     val incomingElemBgColor = when {
         isSaturatedActive -> MaterialTheme.colorScheme.primary
         isIncomingElementsDark -> MaterialTheme.colorScheme.surfaceContainerHigh
         else -> colorLerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.primaryContainer, 0.55f)
     }
     val incomingElemFgColor = when {
-        isSaturatedSolidBrightDark -> Color.Black
         isSaturatedActive -> MaterialTheme.colorScheme.onPrimary
         isIncomingElementsDark -> MaterialTheme.colorScheme.onSurface
         else -> MaterialTheme.colorScheme.onPrimaryContainer
     }
 
     val effectiveOnBgColor = if (fontColorMode == "custom") Color(customFontColorInt)
-        else if (hasCustomBg) Color.White
         else MaterialTheme.colorScheme.onSurface
     val effectiveSubtleColor = if (fontColorMode == "custom") Color(customFontColorInt).copy(alpha = 0.85f)
-        else if (hasCustomBg) Color.White.copy(alpha = 0.85f)
         else MaterialTheme.colorScheme.onSurfaceVariant
     val textShadow = if (currentBgConfig.fontShadow) androidx.compose.ui.graphics.Shadow(
         color = Color.Black.copy(alpha = 0.80f),
@@ -1360,10 +1355,10 @@ fun ExpressiveCallScreen(
     val onBgColor = effectiveOnBgColor
     val subtleColor = effectiveSubtleColor
     val overlayColor = if (hasCustomBg) Color.Black.copy(0.35f) else (if (isDark) Color.White.copy(0.08f) else Color.Black.copy(0.06f))
-    val controlBtnColor = if (hasCustomBg) Color.Black.copy(0.45f) else (if (isDark) Color.White.copy(0.12f) else Color.Black.copy(0.08f))
-    val controlBtnActiveColor = if (isDark || hasCustomBg) Color.White else Color.Black
-    val controlBtnActiveFg = if (isDark || hasCustomBg) Color.Black else Color.White
-    val controlBtnFg = onBgColor
+    val controlBtnColor = MaterialTheme.colorScheme.surfaceContainerHigh
+    val controlBtnActiveColor = MaterialTheme.colorScheme.primaryContainer
+    val controlBtnActiveFg = MaterialTheme.colorScheme.onPrimaryContainer
+    val controlBtnFg = MaterialTheme.colorScheme.onSurface
 
     // ── Feature Buttons — renders one configurable ongoing-call button by id, honoring the
     // order/visibility chosen in Settings → Appearance → Caller UI → Feature Buttons ──
@@ -2387,7 +2382,7 @@ fun ExpressiveCallScreen(
                             Surface(shape = CircleShape, color = color.copy(alpha = 0.15f), modifier = Modifier.size(36.dp)) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        when (key) { "whatsapp" -> Icons.Default.Chat; "telegram" -> Icons.Default.Send; else -> Icons.Default.Sms },
+                                        when (key) { "whatsapp" -> Icons.Default.Chat; "telegram" -> Icons.Default.Send; else -> providedMessageIcon() },
                                         null, tint = color, modifier = Modifier.size(18.dp)
                                     )
                                 }
@@ -2695,7 +2690,7 @@ private fun AddPersonRow(
                     Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-            Icon(Icons.Default.Call, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            Icon(providedCallIcon(), null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
         }
     }
 }
@@ -2774,7 +2769,7 @@ private fun CompactDialPad(
                 modifier = Modifier.weight(2f).height(52.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Call, null, tint = if (number.isNotEmpty()) Color.White else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
+                    Icon(providedCallIcon(), null, tint = if (number.isNotEmpty()) Color.White else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
                 }
             }
         }
@@ -2851,7 +2846,7 @@ private fun IncomingCallActions(
         ) {
             IncomingCallAction(
                 label = "Message",
-                icon = Icons.Default.ChatBubble,
+                icon = providedMessageIcon(),
                 onClick = onMessage,
                 circleSize = 64.dp,
                 iconSize = 30.dp,
@@ -2880,7 +2875,7 @@ private fun IncomingCallActions(
                 onClick = onDecline,
                 circleSize = 84.dp,
                 iconSize = 40.dp,
-                circleColor = Color(0xFFD32F2F),
+                circleColor = Color(0xFFD62D13),
                 contentColor = Color.White
             )
             IncomingCallAction(
@@ -2889,7 +2884,7 @@ private fun IncomingCallActions(
                 onClick = onAccept,
                 circleSize = 84.dp,
                 iconSize = 40.dp,
-                circleColor = Color(0xFF2E7D32),
+                circleColor = Color(0xFF239E43),
                 contentColor = Color.White
             )
         }
@@ -2931,7 +2926,7 @@ private fun IncomingCallAction(
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = actionContentColor,
+            color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.Medium
         )
     }
@@ -3041,7 +3036,7 @@ fun NewSwipeToAnswer(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.Default.ChatBubble, null, tint = labelColor, modifier = Modifier.size(18.dp))
+                    Icon(providedMessageIcon(), null, tint = labelColor, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("Message", color = labelColor, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 }
@@ -3190,7 +3185,7 @@ fun NewSwipeToAnswer(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Call,
+                    imageVector = providedCallIcon(),
                     contentDescription = null,
                     tint = iconTint,
                     modifier = Modifier
@@ -3654,7 +3649,7 @@ fun CallWaitingCard(
 
                     // 3. Hold & Answer (Primary / Dynamic Green / Hero)
                     MaterialYouCallActionButton(
-                        icon = Icons.Default.Call,
+                        icon = providedCallIcon(),
                         label = "Hold & Answer",
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary,

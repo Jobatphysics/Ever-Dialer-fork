@@ -77,6 +77,9 @@ import com.android.libredialer.MainActivity
 import com.android.libredialer.controller.util.*
 import com.android.libredialer.view.components.RivoAvatar
 import com.android.libredialer.view.components.performAppHaptic
+import com.android.libredialer.view.components.providedCallIcon
+import com.android.libredialer.view.components.providedMessageIcon
+import com.android.libredialer.view.components.providedVideoCallIcon
 import com.android.libredialer.view.theme.Rivo4Theme
 import kotlinx.coroutines.*
 import java.text.SimpleDateFormat
@@ -1137,7 +1140,7 @@ class MissedCallPopupService : Service() {
                                 ) {
                                     // 1. Call Button (triggers real phone call honoring SIM settings)
                                     ActionButtonItem(
-                                        iconVector = Icons.Default.Call,
+                                        iconVector = providedCallIcon(),
                                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                                         label = "CALL",
                                         iconTint = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -1148,7 +1151,7 @@ class MissedCallPopupService : Service() {
 
                                     // 2. SMS Button
                                     ActionButtonItem(
-                                        iconVector = Icons.Outlined.Chat,
+                                        iconVector = providedMessageIcon(),
                                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                         label = "MESSAGE",
                                         iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -1200,7 +1203,7 @@ class MissedCallPopupService : Service() {
                                     if (meetInstalled) {
                                         ActionButtonItem(
                                             iconBitmap = meetIcon,
-                                            iconVector = Icons.Default.VideoCall,
+                                            iconVector = providedVideoCallIcon(),
                                             label = "Meet",
                                             onClick = {
                                                 performAppHaptic(context, "light")
@@ -1432,7 +1435,7 @@ class MissedCallPopupService : Service() {
                                 ) {
                                     // 1. Messages (SMS)
                                     ActionButtonItem(
-                                        iconVector = Icons.Outlined.Chat,
+                                        iconVector = providedMessageIcon(),
                                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                         label = "Messages",
                                         iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -1606,7 +1609,7 @@ class MissedCallPopupService : Service() {
                                     }
 
                                     SocialActionOptionRow(
-                                        icon = Icons.Default.Call,
+                                        icon = providedCallIcon(),
                                         title = "Voice Call",
                                         onClick = {
                                             performAppHaptic(context, "light")
@@ -1624,7 +1627,7 @@ class MissedCallPopupService : Service() {
                                     )
 
                                     SocialActionOptionRow(
-                                        icon = Icons.Default.Videocam,
+                                        icon = providedVideoCallIcon(),
                                         title = "Video Call",
                                         onClick = {
                                             performAppHaptic(context, "light")
