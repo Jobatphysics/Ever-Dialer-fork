@@ -97,10 +97,11 @@ import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.modal.`interface`.IContactsRepository
 import com.android.libredialer.modal.data.Contact
 import com.android.libredialer.view.components.RivoAvatar
-import com.android.libredialer.view.components.SettingsSearchEntryPoint
+import com.android.libredialer.view.components.SettingsSearchHeaderAction
 import com.android.libredialer.view.components.settingsSearchHighlight
 import com.android.libredialer.view.newui.components.NewUiScreenShell
 import com.android.libredialer.view.newui.components.newUiClickable
+import com.android.libredialer.view.newui.components.newUiSettingsHeaderContentTopPadding
 import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import com.android.libredialer.view.newui.navigation.NewUiDestination
 import com.android.libredialer.view.screen.settings.PasswordSetupDialog
@@ -134,13 +135,16 @@ fun NewUiSoundVibrationScreen(
     }
     var showToneStyleDialog by remember { mutableStateOf(false) }
 
-    NewUiScreenShell(NewUiDestination.Settings, titleOverride = "Sound & Vibration") {
+    NewUiScreenShell(
+        NewUiDestination.Settings,
+        titleOverride = "Sound & Vibration",
+        headerAction = { SettingsSearchHeaderAction(navigator) }
+    ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = newUiScrollContentPadding(PaddingValues(top = 72.dp, bottom = 16.dp)),
+            contentPadding = newUiScrollContentPadding(PaddingValues(top = newUiSettingsHeaderContentTopPadding(), bottom = 16.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item { SettingsSearchEntryPoint(navigator) }
             item {
                 NewUiGroup2Section("Dialpad") {
                     NewUiGroup2SwitchRow(
@@ -316,13 +320,16 @@ fun NewUiBiometricScreen(
         else -> "Not Set"
     }
 
-    NewUiScreenShell(NewUiDestination.Settings, titleOverride = "Authentication") {
+    NewUiScreenShell(
+        NewUiDestination.Settings,
+        titleOverride = "Authentication",
+        headerAction = { SettingsSearchHeaderAction(navigator) }
+    ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = newUiScrollContentPadding(PaddingValues(top = 72.dp, bottom = 16.dp)),
+            contentPadding = newUiScrollContentPadding(PaddingValues(top = newUiSettingsHeaderContentTopPadding(), bottom = 16.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item { SettingsSearchEntryPoint(navigator) }
             item {
                 NewUiGroup2Section("Authentication Method") {
                     NewUiGroup2ActionRow(
@@ -534,7 +541,7 @@ fun NewUiContactsHiderScreen() {
     NewUiScreenShell(NewUiDestination.Settings, titleOverride = "Contacts Hider") {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = newUiScrollContentPadding(PaddingValues(top = 72.dp, bottom = 16.dp)),
+            contentPadding = newUiScrollContentPadding(PaddingValues(top = newUiSettingsHeaderContentTopPadding(), bottom = 16.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {

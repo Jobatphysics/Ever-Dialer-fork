@@ -96,11 +96,12 @@ import com.android.libredialer.controller.RaiseToAnswerManager
 import com.android.libredialer.controller.util.MissedCallBadgeManager
 import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.view.components.ContactsToDisplaySheet
-import com.android.libredialer.view.components.SettingsSearchEntryPoint
+import com.android.libredialer.view.components.SettingsSearchHeaderAction
 import com.android.libredialer.view.components.SimColorsCustomizationDialog
 import com.android.libredialer.view.components.settingsSearchHighlight
 import com.android.libredialer.view.newui.components.NewUiScreenShell
 import com.android.libredialer.view.newui.components.newUiClickable
+import com.android.libredialer.view.newui.components.newUiSettingsHeaderContentTopPadding
 import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import com.android.libredialer.view.newui.navigation.NewUiDestination
 import com.android.libredialer.view.newui.navigation.NewUiSettingsDestination
@@ -231,13 +232,16 @@ fun NewUiAppSettingsScreen(
         )
     }
 
-    NewUiScreenShell(NewUiDestination.Settings, titleOverride = "App & Call Behavior") {
+    NewUiScreenShell(
+        NewUiDestination.Settings,
+        titleOverride = "App & Call Behavior",
+        headerAction = { SettingsSearchHeaderAction(navigator) }
+    ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = newUiScrollContentPadding(PaddingValues(top = 72.dp, bottom = 16.dp)),
+            contentPadding = newUiScrollContentPadding(PaddingValues(top = newUiSettingsHeaderContentTopPadding(), bottom = 16.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item { SettingsSearchEntryPoint(navigator) }
             item {
                 NewUiSettingsSection("Call Behavior") {
                     NewUiSettingsSwitchRow(
@@ -605,13 +609,16 @@ fun NewUiSimAndCallPlacementScreen(navigator: DestinationsNavigator) {
         SimColorsCustomizationDialog(onDismissRequest = { showSimColorDialog = false })
     }
 
-    NewUiScreenShell(NewUiDestination.Settings, titleOverride = "SIM & Call Placement") {
+    NewUiScreenShell(
+        NewUiDestination.Settings,
+        titleOverride = "SIM & Call Placement",
+        headerAction = { SettingsSearchHeaderAction(navigator) }
+    ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = newUiScrollContentPadding(PaddingValues(top = 72.dp, bottom = 16.dp)),
+            contentPadding = newUiScrollContentPadding(PaddingValues(top = newUiSettingsHeaderContentTopPadding(), bottom = 16.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item { SettingsSearchEntryPoint(navigator) }
             item {
                 NewUiSettingsSection("Accounts & Placement") {
                     NewUiSettingsActionRow(
@@ -734,7 +741,7 @@ fun NewUiCallAccountsScreen() {
     NewUiScreenShell(NewUiDestination.Settings, titleOverride = "Call Accounts") {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = newUiScrollContentPadding(PaddingValues(top = 72.dp, bottom = 16.dp))
+            contentPadding = newUiScrollContentPadding(PaddingValues(top = newUiSettingsHeaderContentTopPadding(), bottom = 16.dp))
         ) {
             item {
                 NewUiSettingsSection {

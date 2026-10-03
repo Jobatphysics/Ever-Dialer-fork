@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
+import android.os.SystemClock
+import android.util.Log
 import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.modal.data.Contact
 import com.android.libredialer.modal.data.CallLogEntry
@@ -77,10 +79,14 @@ class NewUiNavigator(initialDestination: NewUiDestination) {
         if (destination == currentDestination) {
             return
         }
+        if (destination == NewUiDestination.Recents) {
+            NewUiNavigationTiming.recentsNavigationStarted()
+        }
         if (settingsDestination != null) {
             settingsDestination = null
             settingsBackStack.clear()
         }
+
         contactDetails = null
         contactDetailsPhoneNumber = null
         contactToEdit = null
@@ -193,6 +199,24 @@ class NewUiNavigator(initialDestination: NewUiDestination) {
         NewUiDestination.Settings,
         NewUiDestination.Dialer
     )
+}
+
+internal object NewUiNavigationTiming {
+    private const val TAG = "NewUiNavigationTiming"
+    @Volatile private var recentsNavigationStartNanos = 0L
+
+    fun recentsNavigationStarted() {
+        recentsNavigationStartNanos = SystemClock.elapsedRealtimeNanos()
+        Log.d(TAG, "Recents navigation requested")
+    }
+
+    fun recentsFirstCompositionCommitted() {
+        val startedAt = recentsNavigationStartNanos
+        if (startedAt == 0L) return
+        recentsNavigationStartNanos = 0L
+        val elapsedMs = (SystemClock.elapsedRealtimeNanos() - startedAt) / 1_000_000
+        Log.d(TAG, "Recents first composition committed after ${elapsedMs}ms")
+    }
 }
 
 enum class NewUiSettingsDestination(val title: String) {

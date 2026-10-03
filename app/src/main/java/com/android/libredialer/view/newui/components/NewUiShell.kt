@@ -12,7 +12,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -41,8 +46,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
@@ -66,6 +73,15 @@ val LocalNewUiScrollClearance = compositionLocalOf { 0.dp }
 
 // Covers the 48 dp navigation item, capsule padding/margins, and an 8 dp scroll gap.
 val NewUiNavigationBarScrollClearance = 104.dp
+
+@Composable
+fun newUiSettingsHeaderContentTopPadding(): Dp {
+    val density = LocalDensity.current
+    val systemTopInset = with(density) {
+        WindowInsets.statusBars.union(WindowInsets.displayCutout).getTop(this).toDp()
+    }
+    return systemTopInset + 64.dp
+}
 
 @Composable
 fun newUiScrollContentPadding(existing: PaddingValues = PaddingValues()): PaddingValues {
@@ -125,40 +141,109 @@ fun NewUiScreenShell(
     showTitle: Boolean = true,
     titleOverride: String? = null,
     headerAction: (@Composable () -> Unit)? = null,
+    contentUnderStatusBar: Boolean = false,
     sectionSpacing: androidx.compose.ui.unit.Dp = NewUiDimensions.SectionSpacing,
     content: @Composable () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        val topSystemInset = with(LocalDensity.current) {
+            WindowInsets.statusBars.union(WindowInsets.displayCutout).getTop(this).toFloat()
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .then(
+                    if (contentUnderStatusBar || destination == NewUiDestination.Settings) {
+                        Modifier.drawWithContent {
+                            clipRect(top = topSystemInset) {
+                                this@drawWithContent.drawContent()
+                            }
+                        }
+                    } else {
+                        Modifier.statusBarsPadding()
+                    }
+                )
                 .padding(NewUiDimensions.PagePadding)
         ) {
             content()
         }
 
         if (showTitle || headerAction != null) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(NewUiDimensions.PagePadding),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (showTitle) {
-                    Text(
-                        titleOverride ?: destination.title,
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.weight(1f)
-                    )
-                } else {
-                    Spacer(Modifier.weight(1f))
+            if (destination == NewUiDestination.Contacts) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(NewUiDimensions.PagePadding)
+                ) {
+                    if (showTitle) {
+                        LensSurfaceBox(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .wrapContentWidth(),
+                            shape = MaterialTheme.shapes.extraLarge
+                        ) {
+                            Text(
+                                titleOverride ?: destination.title,
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.padding(
+                                    horizontal = 16.dp,
+                                    vertical = 8.dp
+                                )
+                            )
+                        }
+                    }
+
+                    headerAction?.let { action ->
+                        Box(
+                            modifier = Modifier.align(Alignment.CenterEnd)
+                        ) {
+                            action()
+                        }
+                    }
                 }
-                headerAction?.invoke()
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(NewUiDimensions.PagePadding),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (showTitle) {
+                        LensSurfaceBox(
+                            modifier = Modifier.wrapContentWidth(),
+                            shape = MaterialTheme.shapes.extraLarge
+                        ) {
+                            Text(
+                                titleOverride ?: destination.title,
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.padding(
+                                    horizontal = 16.dp,
+                                    vertical = 8.dp
+                                )
+                            )
+                        }
+                    } else {
+                        Spacer(Modifier.weight(1f))
+                    }
+
+                    if (showTitle) {
+                        Spacer(Modifier.weight(1f))
+                    }
+
+                    headerAction?.let { action ->
+                        LensSurfaceBox(
+                            modifier = Modifier.size(48.dp),
+                            shape = CircleShape,
+                            contentAlignment = Alignment.Center
+                        ) {
+                            action()
+                        }
+                    }
+                }
             }
         }
     }
@@ -233,13 +318,10 @@ fun NewUiNavigationBar(navigator: NewUiNavigator) {
             ),
         contentAlignment = Alignment.Center
     ) {
-        Surface(
+        LensSurfaceBox(
             modifier = Modifier
                 .wrapContentWidth(),
-            shape = MaterialTheme.shapes.extraLarge,
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            tonalElevation = 0.dp,
-            shadowElevation = 0.dp
+            shape = MaterialTheme.shapes.extraLarge
         ) {
             Row(
                 modifier = Modifier

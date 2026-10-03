@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -79,7 +80,8 @@ fun SettingsScreen(
     onBack: () -> Unit = {},
     onOpenWebView: (url: String, enableDownloads: Boolean, extraBottomDp: Int) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier,
-    bottomScrollClearance: androidx.compose.ui.unit.Dp = 0.dp
+    bottomScrollClearance: androidx.compose.ui.unit.Dp = 0.dp,
+    embeddedInNewUi: Boolean = false
 ) {
     val context = LocalContext.current
     val updateTrigger by viewModel.updateTrigger.collectAsState()
@@ -100,22 +102,25 @@ fun SettingsScreen(
     }
 
     BackHandler { onBack() }
-    SettingsContent(
-        preferences = viewModel.preferences,
-        updateTrigger = updateTrigger,
-        actions = viewModel,
-        contactPickerState = contactPickerState,
-        onStorageClick = { showStorageChoiceDialog = true },
-        onOpenContactsIncoming = { contactPickerViewModel.openContactPicker(ContactPickerType.INCOMING) },
-        onOpenContactsOutgoing = { contactPickerViewModel.openContactPicker(ContactPickerType.OUTGOING) },
-        onConfirmContacts = { numbers -> contactPickerViewModel.confirmContactPicker(numbers); viewModel.refresh() },
-        onDismissContacts = { contactPickerViewModel.dismissContactPicker() },
-        onExportLogs = { exportLogLauncher.launch("evercallrecorder_bug_report.log") },
-        onBack = onBack,
-        onOpenWebView = onOpenWebView,
-        modifier = modifier,
-        bottomScrollClearance = bottomScrollClearance
-    )
+    CompositionLocalProvider(LocalTextFirstSettingsRows provides embeddedInNewUi) {
+        SettingsContent(
+            preferences = viewModel.preferences,
+            updateTrigger = updateTrigger,
+            actions = viewModel,
+            contactPickerState = contactPickerState,
+            onStorageClick = { showStorageChoiceDialog = true },
+            onOpenContactsIncoming = { contactPickerViewModel.openContactPicker(ContactPickerType.INCOMING) },
+            onOpenContactsOutgoing = { contactPickerViewModel.openContactPicker(ContactPickerType.OUTGOING) },
+            onConfirmContacts = { numbers -> contactPickerViewModel.confirmContactPicker(numbers); viewModel.refresh() },
+            onDismissContacts = { contactPickerViewModel.dismissContactPicker() },
+            onExportLogs = { exportLogLauncher.launch("evercallrecorder_bug_report.log") },
+            onBack = onBack,
+            onOpenWebView = onOpenWebView,
+            modifier = modifier,
+            bottomScrollClearance = bottomScrollClearance,
+            embeddedInNewUi = embeddedInNewUi
+        )
+    }
 
     if (showStorageChoiceDialog) {
         StorageLocationDialog(
@@ -149,31 +154,42 @@ fun SettingsContent(
     onBack: () -> Unit = {},
     onOpenWebView: (url: String, enableDownloads: Boolean, extraBottomDp: Int) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier,
-    bottomScrollClearance: androidx.compose.ui.unit.Dp = 0.dp
+    bottomScrollClearance: androidx.compose.ui.unit.Dp = 0.dp,
+    embeddedInNewUi: Boolean = false
 ) {
     var showLicensesDialog by remember { mutableStateOf(false) }
+    val embeddedHeaderClearance = if (embeddedInNewUi) {
+        with(LocalDensity.current) {
+            WindowInsets.statusBars.union(WindowInsets.displayCutout).getTop(this).toDp() + 64.dp
+        }
+    } else {
+        0.dp
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        contentWindowInsets = if (embeddedInNewUi) WindowInsets(0) else ScaffoldDefaults.contentWindowInsets,
         topBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(start = 20.dp, end = 20.dp, top = 20.dp)
-                    .height(56.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Call Recording",
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "Back"
+            if (!embeddedInNewUi) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(start = 20.dp, end = 20.dp, top = 20.dp)
+                        .height(56.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Call Recording",
+                        style = MaterialTheme.typography.headlineMedium,
+                        modifier = Modifier.weight(1f)
                     )
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
                 }
             }
         },
@@ -184,11 +200,17 @@ fun SettingsContent(
         LazyColumn(
             state = settingsListState,
             modifier = Modifier.fillMaxSize().padding(innerPadding),
-            contentPadding = PaddingValues(bottom = 32.dp + bottomScrollClearance)
+            contentPadding = PaddingValues(
+                top = embeddedHeaderClearance,
+                bottom = (if (embeddedInNewUi) 16.dp else 32.dp) + bottomScrollClearance
+            )
         ) {
             item {
-                Column(modifier = Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Spacer(Modifier.height(16.dp))
+                Column(
+                    modifier = Modifier.padding(horizontal = if (embeddedInNewUi) 0.dp else 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    if (!embeddedInNewUi) Spacer(Modifier.height(16.dp))
                     // ORDER: Call Recording Switch → Notifications → Recording → Audio → Security → Languages → About → Debug
                     CallRecordingMasterSwitchSection(preferences, updateTrigger, actions)
                     AppearanceSection(preferences, updateTrigger, actions)
@@ -406,22 +428,24 @@ private fun RecordingSection(
 
     SettingsSection(title = stringResource(R.string.settings_section_recording), icon = Icons.Outlined.FiberManualRecord) {
         ListItem(
-            leadingContent = {
+            leadingContent = if (LocalTextFirstSettingsRows.current) null else ({
                 Icon(
                     imageVector = Icons.Outlined.PhoneCallback,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp)
                 )
-            },
-            headlineContent = { Text(stringResource(R.string.settings_record_on_answer), style = MaterialTheme.typography.bodyMedium) },
+            }),
+            headlineContent = { Text(stringResource(R.string.settings_record_on_answer), style = if (LocalTextFirstSettingsRows.current) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium) },
             supportingContent = { Text(stringResource(R.string.settings_record_on_answer_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) },
             trailingContent = {
                 Switch(checked = recordOnAnswer, onCheckedChange = { actions.setRecordOnAnswer(it) })
             },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
-        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+        if (!LocalTextFirstSettingsRows.current) {
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+        }
         ListItem(
             modifier = Modifier.clickable {
                 if (appLockEnabled) {
@@ -431,7 +455,7 @@ private fun RecordingSection(
                     showAppLockSetupDialog = true
                 }
             },
-            leadingContent = {
+            leadingContent = if (LocalTextFirstSettingsRows.current) null else ({
                 Crossfade(targetState = appLockEnabled, label = "appLockRowIcon") { enabled ->
                     Icon(
                         imageVector = if (enabled) Icons.Outlined.Lock else Icons.Outlined.LockOpen,
@@ -440,8 +464,8 @@ private fun RecordingSection(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-            },
-            headlineContent = { Text("App Lock", style = MaterialTheme.typography.bodyMedium) },
+            }),
+            headlineContent = { Text("App Lock", style = if (LocalTextFirstSettingsRows.current) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium) },
             supportingContent = {
                 Text(
                     text = if (appLockEnabled) "Protected with ${appLockMethodLabel(appLockMethod)}" else "Off · tap to set up",
@@ -465,7 +489,9 @@ private fun RecordingSection(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
 
-        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+        if (!LocalTextFirstSettingsRows.current) {
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+        }
         SectionListItem(icon = storageIcon, headline = stringResource(R.string.settings_recording_folder_label), supporting = storageSupportingText, supportingColor = MaterialTheme.colorScheme.primary, onClick = onStorageClick)
         SectionListItem(icon = Icons.Outlined.DriveFileRenameOutline, headline = stringResource(R.string.settings_file_name_template), supporting = fileNameFormat, supportingColor = MaterialTheme.colorScheme.primary, onClick = { showFileNameFormatDialog = true })
     }
@@ -473,12 +499,14 @@ private fun RecordingSection(
     // Call detection method
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)) {
-            Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-                Icon(imageVector = Icons.Outlined.SettingsPhone, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(14.dp))
+            if (!LocalTextFirstSettingsRows.current) {
+                Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                    Icon(imageVector = Icons.Outlined.SettingsPhone, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(14.dp))
+                }
             }
-            Text(text = stringResource(R.string.settings_call_detection_method), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+            Text(text = stringResource(R.string.settings_call_detection_method), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         }
-        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), elevation = CardDefaults.cardElevation(0.dp)) {
+        Card(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), elevation = CardDefaults.cardElevation(if (LocalTextFirstSettingsRows.current) 1.dp else 0.dp)) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 val detectionOptions = listOf(
                     OptionItem(AppPreferences.CallDetectionMode.PHONE_STATE.key, stringResource(R.string.settings_call_detection_phone_state), description = stringResource(R.string.settings_call_detection_phone_state_desc)),
@@ -505,12 +533,14 @@ private fun RecordingSection(
                                 }
                             }
                     ) {
-                        Icon(
-                            imageVector = if (hasManageOngoingCallsPermission) Icons.Outlined.CheckCircle else Icons.Outlined.Warning,
-                            contentDescription = null,
-                            tint = if (hasManageOngoingCallsPermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        if (!LocalTextFirstSettingsRows.current) {
+                            Icon(
+                                imageVector = if (hasManageOngoingCallsPermission) Icons.Outlined.CheckCircle else Icons.Outlined.Warning,
+                                contentDescription = null,
+                                tint = if (hasManageOngoingCallsPermission) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                         Text(
                             text = when {
                                 hasManageOngoingCallsPermission -> stringResource(R.string.settings_call_detection_permission_granted)
@@ -529,12 +559,14 @@ private fun RecordingSection(
     // Incoming
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)) {
-            Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-                Icon(imageVector = Icons.Rounded.CallReceived, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(14.dp))
+            if (!LocalTextFirstSettingsRows.current) {
+                Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                    Icon(imageVector = Icons.Rounded.CallReceived, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(14.dp))
+                }
             }
-            Text(text = stringResource(R.string.settings_auto_record_incoming), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+            Text(text = stringResource(R.string.settings_auto_record_incoming), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         }
-        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), elevation = CardDefaults.cardElevation(0.dp)) {
+        Card(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), elevation = CardDefaults.cardElevation(if (LocalTextFirstSettingsRows.current) 1.dp else 0.dp)) {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
                 ToggleListItem(label = stringResource(R.string.settings_auto_record_incoming), checked = autoRecordIncoming, onCheckedChange = { actions.setAutoRecordIncoming(it) })
                 AnimatedVisibility(visible = autoRecordIncoming, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
@@ -552,12 +584,14 @@ private fun RecordingSection(
     // Outgoing
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)) {
-            Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-                Icon(imageVector = Icons.Rounded.CallMade, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(14.dp))
+            if (!LocalTextFirstSettingsRows.current) {
+                Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                    Icon(imageVector = Icons.Rounded.CallMade, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(14.dp))
+                }
             }
-            Text(text = stringResource(R.string.settings_auto_record_outgoing), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+            Text(text = stringResource(R.string.settings_auto_record_outgoing), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
         }
-        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), elevation = CardDefaults.cardElevation(0.dp)) {
+        Card(modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.large, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), elevation = CardDefaults.cardElevation(if (LocalTextFirstSettingsRows.current) 1.dp else 0.dp)) {
             Column(modifier = Modifier.padding(vertical = 4.dp)) {
                 ToggleListItem(label = stringResource(R.string.settings_auto_record_outgoing), checked = autoRecordOutgoing, onCheckedChange = { actions.setAutoRecordOutgoing(it) })
                 AnimatedVisibility(visible = autoRecordOutgoing, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
@@ -624,11 +658,19 @@ private fun AutoDeleteSection(preferences: AppPreferences, updateTrigger: Int, a
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Box(
-                    modifier = Modifier.size(22.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
-                    contentAlignment = Alignment.Center
-                ) { Icon(Icons.Outlined.Timer, null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(13.dp)) }
-                Text("Auto Delete With Respect To Time", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                if (!LocalTextFirstSettingsRows.current) {
+                    Box(
+                        modifier = Modifier.size(22.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) { Icon(Icons.Outlined.Timer, null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(13.dp)) }
+                }
+                Text(
+                    "Auto Delete With Respect To Time",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (LocalTextFirstSettingsRows.current) FontWeight.Normal else FontWeight.SemiBold,
+                    color = if (LocalTextFirstSettingsRows.current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
                 Switch(
                     checked = timeEnabled,
                     onCheckedChange = { timeEnabled = it; actions.setAutoDeleteByTimeEnabled(it) },
@@ -689,11 +731,19 @@ private fun AutoDeleteSection(preferences: AppPreferences, updateTrigger: Int, a
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Box(
-                    modifier = Modifier.size(22.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
-                    contentAlignment = Alignment.Center
-                ) { Icon(Icons.Outlined.Storage, null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(13.dp)) }
-                Text("Auto Delete With Respect To Space", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                if (!LocalTextFirstSettingsRows.current) {
+                    Box(
+                        modifier = Modifier.size(22.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) { Icon(Icons.Outlined.Storage, null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(13.dp)) }
+                }
+                Text(
+                    "Auto Delete With Respect To Space",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (LocalTextFirstSettingsRows.current) FontWeight.Normal else FontWeight.SemiBold,
+                    color = if (LocalTextFirstSettingsRows.current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
                 Switch(
                     checked = spaceEnabled,
                     onCheckedChange = { spaceEnabled = it; actions.setAutoDeleteBySpaceEnabled(it) },
@@ -832,7 +882,9 @@ private fun DebugSection(preferences: AppPreferences, updateTrigger: Int, action
                 }
             }
         }
-        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), thickness = 0.5.dp)
+        if (!LocalTextFirstSettingsRows.current) {
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), thickness = 0.5.dp)
+        }
         ToggleListItem(label = stringResource(R.string.settings_debug_mode), checked = isDebugEnabled, onCheckedChange = { actions.setDebugEnabled(it) }, description = stringResource(R.string.settings_debug_mode_description))
         if (isDebugEnabled) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -858,15 +910,40 @@ private fun DebugSection(preferences: AppPreferences, updateTrigger: Int, action
 
 @Composable
 private fun SettingsSection(title: String, icon: ImageVector, content: @Composable ColumnScope.() -> Unit) {
+    val textFirst = LocalTextFirstSettingsRows.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)) {
-            Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-                Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(14.dp))
+        if (textFirst) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)) {
+                Box(modifier = Modifier.size(24.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                    Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(14.dp))
+                }
+                Text(text = title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
             }
-            Text(text = title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
         }
-        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), elevation = CardDefaults.cardElevation(0.dp)) {
-            Column(modifier = Modifier.animateContentSize(animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow)).padding(vertical = 4.dp)) { content() }
+        if (textFirst) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                tonalElevation = 1.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .animateContentSize(animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow))
+                        .padding(vertical = 4.dp),
+                    content = content
+                )
+            }
+        } else {
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow), elevation = CardDefaults.cardElevation(0.dp)) {
+                Column(modifier = Modifier.animateContentSize(animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow)).padding(vertical = 4.dp)) { content() }
+            }
         }
     }
 }
@@ -874,7 +951,27 @@ private fun SettingsSection(title: String, icon: ImageVector, content: @Composab
 @Composable
 private fun SectionListItem(icon: ImageVector, headline: String, supporting: String? = null, supportingColor: Color = MaterialTheme.colorScheme.onSurfaceVariant, onClick: (() -> Unit)? = null) {
     val mod = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
-    ListItem(modifier = mod, leadingContent = { Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp)) }, headlineContent = { Text(headline, style = MaterialTheme.typography.bodyMedium) }, supportingContent = supporting?.let { { Text(it, color = supportingColor, style = MaterialTheme.typography.bodySmall) } }, colors = ListItemDefaults.colors(containerColor = Color.Transparent))
+    if (LocalTextFirstSettingsRows.current) {
+        Row(
+            modifier = mod
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(headline, style = MaterialTheme.typography.titleMedium)
+                supporting?.let {
+                    Text(it, color = supportingColor, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        HorizontalDivider(
+            modifier = Modifier.padding(start = 16.dp),
+            color = MaterialTheme.colorScheme.outlineVariant
+        )
+    } else {
+        ListItem(modifier = mod, leadingContent = { Icon(imageVector = icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp)) }, headlineContent = { Text(headline, style = MaterialTheme.typography.bodyMedium) }, supportingContent = supporting?.let { { Text(it, color = supportingColor, style = MaterialTheme.typography.bodySmall) } }, colors = ListItemDefaults.colors(containerColor = Color.Transparent))
+    }
 }
 
 @Composable

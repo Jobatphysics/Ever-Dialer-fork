@@ -1,4 +1,8 @@
+
 package com.android.libredialer.view.newui.screens
+
+import com.android.libredialer.view.newui.components.LensSurfaceBox
+import com.android.libredialer.view.components.SettingsSearchHeaderAction
 import androidx.compose.foundation.isSystemInDarkTheme
 
 import androidx.compose.foundation.lazy.LazyColumn
@@ -6,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -38,6 +43,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
@@ -82,6 +91,9 @@ import android.content.ClipboardManager
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.os.SystemClock
+import android.os.Trace
+import android.util.Log
 import android.widget.TimePicker
 import android.app.TimePickerDialog
 import java.util.Calendar
@@ -103,6 +115,7 @@ import com.android.libredialer.view.newui.components.NewUiPlaceholderCard
 import com.android.libredialer.view.newui.components.NewUiScreenShell
 import com.android.libredialer.view.newui.components.NewUiDialerButton
 import com.android.libredialer.view.newui.components.newUiScrollContentPadding
+import com.android.libredialer.view.newui.components.newUiSettingsHeaderContentTopPadding
 import com.android.libredialer.view.newui.components.newUiClickable
 import com.android.libredialer.view.newui.motion.NewUiMotion
 import com.android.libredialer.view.newui.components.LocalNewUiSettingsStyle
@@ -111,6 +124,8 @@ import com.android.libredialer.view.newui.components.NewContextualAction
 import com.android.libredialer.view.newui.components.NewContextualActionsDialog
 import com.android.libredialer.view.newui.navigation.NewUiDestination
 import com.android.libredialer.view.newui.navigation.NewUiSettingsDestination
+import com.android.libredialer.view.newui.navigation.NewUiNavigationTiming
+import com.android.libredialer.view.newui.theme.NewUiDimensions
 import com.android.libredialer.controller.ContactsViewModel
 import com.android.libredialer.modal.data.Contact
 import com.android.libredialer.modal.data.CallLogEntry
@@ -133,6 +148,7 @@ import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavOptions
 import androidx.navigation.Navigator
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.ViewModel
 import android.provider.CallLog
 
 @Composable
@@ -194,9 +210,15 @@ fun NewDialerScreen(
                 .take(6)
         }
     }
+    val searchResultsTopInset = (
+        with(LocalDensity.current) {
+            WindowInsets.statusBars.union(WindowInsets.displayCutout).getTop(this).toDp()
+        } - NewUiDimensions.PagePadding
+    ).coerceAtLeast(0.dp)
     NewUiScreenShell(
         destination = NewUiDestination.Dialer,
         showTitle = number.isEmpty(),
+        contentUnderStatusBar = true,
         headerAction = if (number.isEmpty()) ({
             IconButton(onClick = onSettings) {
                 Icon(
@@ -224,7 +246,9 @@ fun NewDialerScreen(
             ) {
                 if (searchResults.isNotEmpty()) {
                     LazyColumn(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = searchResultsTopInset),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(
@@ -329,6 +353,25 @@ private data class NewUiCallLogDateSection(
     val items: List<IndexedValue<NewUiCallLogItem>>
 )
 
+internal class NewRecentsProcessingCache : ViewModel() {
+    private var sourceLogs: List<CallLogEntry>? = null
+    private var sourceContacts: List<Contact>? = null
+    private var cachedItems: List<NewUiCallLogItem>? = null
+
+    fun getItems(logs: List<CallLogEntry>, contacts: List<Contact>): List<NewUiCallLogItem>? =
+        cachedItems?.takeIf { sourceLogs === logs && sourceContacts === contacts }
+
+    fun storeItems(
+        logs: List<CallLogEntry>,
+        contacts: List<Contact>,
+        items: List<NewUiCallLogItem>
+    ) {
+        sourceLogs = logs
+        sourceContacts = contacts
+        cachedItems = items
+    }
+}
+
 @Composable
 fun NewRecentsScreen(
     onCallLogClick: (CallLogEntry) -> Unit,
@@ -338,6 +381,7 @@ fun NewRecentsScreen(
 ) {
     val callLogViewModel: CallLogViewModel = koinActivityViewModel()
     val contactsViewModel: ContactsViewModel = koinActivityViewModel()
+    val processingCache: NewRecentsProcessingCache = viewModel()
     val logs by callLogViewModel.allCallLogs.collectAsState()
     val contacts by contactsViewModel.allContacts.collectAsState()
     val context = LocalContext.current
@@ -346,6 +390,14 @@ fun NewRecentsScreen(
     var showReminderPicker by remember { mutableStateOf<NewUiCallLogItem?>(null) }
 
     val physicalListState = rememberPhysicalListState()
+    var recentsContentReady by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        androidx.compose.runtime.withFrameNanos { }
+        recentsContentReady = true
+    }
+    SideEffect {
+        NewUiNavigationTiming.recentsFirstCompositionCommitted()
+    }
     var dateRefresh by remember { mutableStateOf(0) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -363,12 +415,27 @@ fun NewRecentsScreen(
 
     // High-performance asynchronous mapping:
     // Builds O(1) indices and pre-formats all display text off the UI main thread
-    val uiLogs by produceState<List<NewUiCallLogItem>>(initialValue = emptyList(), logs, contacts) {
-        if (logs.isEmpty()) {
-            value = emptyList()
+    var callLogsProcessed by remember { mutableStateOf(false) }
+
+    val uiLogs by produceState(
+        initialValue = processingCache.getItems(logs, contacts) ?: emptyList(),
+        logs,
+        contacts
+    ) {
+        callLogsProcessed = false
+        processingCache.getItems(logs, contacts)?.let { cachedItems ->
+            value = cachedItems
+            callLogsProcessed = true
+            Log.d("NewRecentsTiming", "Reused ${cachedItems.size} cached call display models")
             return@produceState
         }
-        withContext(Dispatchers.Default) {
+        if (logs.isEmpty()) {
+            value = emptyList()
+            callLogsProcessed = true
+            return@produceState
+        }
+        val processingStartedAt = SystemClock.elapsedRealtimeNanos()
+        val mappedItems = withContext(Dispatchers.Default) {
             val contactById = HashMap<String, Contact>(contacts.size)
             val contactByNumber = HashMap<String, Contact>(contacts.size * 2)
             for (c in contacts) {
@@ -430,30 +497,54 @@ fun NewRecentsScreen(
                     )
                 )
             }
-            value = items
+            items
         }
+        processingCache.storeItems(logs, contacts, mappedItems)
+        value = mappedItems
+        Log.d(
+            "NewRecentsTiming",
+            "Mapped ${mappedItems.size} calls in ${(SystemClock.elapsedRealtimeNanos() - processingStartedAt) / 1_000_000}ms"
+        )
+        callLogsProcessed = true
     }
 
-    val dateSections = remember(uiLogs, dateRefresh) {
-        val today = Calendar.getInstance()
-        val yesterday = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -1) }
-        val grouped = LinkedHashMap<Int, MutableList<IndexedValue<NewUiCallLogItem>>>()
-        uiLogs.forEachIndexed { index, item ->
-            val callDate = Calendar.getInstance().apply { timeInMillis = item.log.date }
-            val dateKey = callDate.get(Calendar.YEAR) * 1000 + callDate.get(Calendar.DAY_OF_YEAR)
-            grouped.getOrPut(dateKey) { mutableListOf() }.add(IndexedValue(index, item))
+    val dateSections by produceState<List<NewUiCallLogDateSection>>(
+        initialValue = emptyList(),
+        uiLogs,
+        dateRefresh
+    ) {
+        if (uiLogs.isEmpty()) {
+            value = emptyList()
+            return@produceState
         }
-        grouped.map { (key, items) ->
-            NewUiCallLogDateSection(
-                key = key,
-                title = recentsDateHeader(items.first().value.log.date, today, yesterday),
-                items = items
-            )
+        val groupingStartedAt = SystemClock.elapsedRealtimeNanos()
+        val groupedSections = withContext(Dispatchers.Default) {
+            val today = Calendar.getInstance()
+            val yesterday = (today.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -1) }
+            val grouped = LinkedHashMap<Int, MutableList<IndexedValue<NewUiCallLogItem>>>()
+            uiLogs.forEachIndexed { index, item ->
+                val callDate = Calendar.getInstance().apply { timeInMillis = item.log.date }
+                val dateKey = callDate.get(Calendar.YEAR) * 1000 + callDate.get(Calendar.DAY_OF_YEAR)
+                grouped.getOrPut(dateKey) { mutableListOf() }.add(IndexedValue(index, item))
+            }
+            grouped.map { (key, items) ->
+                NewUiCallLogDateSection(
+                    key = key,
+                    title = recentsDateHeader(items.first().value.log.date, today, yesterday),
+                    items = items
+                )
+            }
         }
+        value = groupedSections
+        Log.d(
+            "NewRecentsTiming",
+            "Grouped ${uiLogs.size} calls into ${groupedSections.size} dates in ${(SystemClock.elapsedRealtimeNanos() - groupingStartedAt) / 1_000_000}ms"
+        )
     }
 
     NewUiScreenShell(
         destination = NewUiDestination.Recents,
+        contentUnderStatusBar = true,
         headerAction = {
             IconButton(onClick = onSettings) {
                 Icon(
@@ -465,37 +556,51 @@ fun NewRecentsScreen(
         }
     ) {
         if (uiLogs.isEmpty()) {
-            Text(
-                text = "No recent calls",
-                modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        } else {
+            if (callLogsProcessed) {
+                Text(
+                    text = "No recent calls",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 88.dp),
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else if (recentsContentReady) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = newUiScrollContentPadding(PaddingValues(top = 72.dp)),
+                contentPadding = newUiScrollContentPadding(PaddingValues(top = 112.dp)),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                dateSections.forEach { section ->
-                    item(key = "date_${section.key}") {
-                        com.android.libredialer.view.components.RivoSectionHeader(section.title)
+                val listBuildStartedAt = SystemClock.elapsedRealtimeNanos()
+                Trace.beginSection("Recents.buildLazyListItems")
+                try {
+                    dateSections.forEach { section ->
+                        item(key = "date_${section.key}") {
+                            com.android.libredialer.view.components.RivoSectionHeader(section.title)
+                        }
+                        items(
+                            items = section.items,
+                            key = { indexedItem -> indexedItem.value.key }
+                        ) { indexedItem ->
+                            val item = indexedItem.value
+                            NewCallLogRow(
+                                item = item,
+                                index = indexedItem.index,
+                                physicalListState = physicalListState,
+                                onClick = { onCallLogClick(item.log) },
+                                onLongClick = { contextualItem = item },
+                                onCall = { onCall(item.log.number) }
+                            )
+                        }
                     }
-                    items(
-                        items = section.items,
-                        key = { indexedItem -> indexedItem.value.key }
-                    ) { indexedItem ->
-                        val item = indexedItem.value
-                        NewCallLogRow(
-                            item = item,
-                            index = indexedItem.index,
-                            physicalListState = physicalListState,
-                            onClick = { onCallLogClick(item.log) },
-                            onLongClick = { contextualItem = item },
-                            onCall = { onCall(item.log.number) }
-                        )
-                    }
+                } finally {
+                    Trace.endSection()
+                    Log.d(
+                        "NewRecentsTiming",
+                        "Declared ${uiLogs.size} list items across ${dateSections.size} dates in ${(SystemClock.elapsedRealtimeNanos() - listBuildStartedAt) / 1_000_000}ms"
+                    )
                 }
             }
             contextualItem?.let { item ->
@@ -743,22 +848,63 @@ fun NewContactsScreen(
     val prefs: PreferenceManager = koinInject()
     val contactScrollClearance = LocalNewUiScrollClearance.current
     var contextualContact by remember { mutableStateOf<Contact?>(null) }
+    var searchExpanded by remember { mutableStateOf(false) }
 
     NewUiScreenShell(
         destination = NewUiDestination.Contacts,
+        contentUnderStatusBar = true,
         sectionSpacing = 8.dp,
         headerAction = {
-            IconButton(onClick = onSettings) {
-                Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onBackground)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                LensSurfaceBox(
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                    contentAlignment = Alignment.Center
+                ) {
+                    IconButton(onClick = { searchExpanded = !searchExpanded }) {
+                        Icon(
+                            Icons.Filled.Search,
+                            contentDescription = "Search contacts",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                }
+                LensSurfaceBox(
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                    contentAlignment = Alignment.Center
+                ) {
+                    IconButton(onClick = onCreateContact) {
+                        Icon(
+                            Icons.Filled.PersonAdd,
+                            contentDescription = "Add contact",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                }
+                LensSurfaceBox(
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                    contentAlignment = Alignment.Center
+                ) {
+                    IconButton(onClick = onSettings) {
+                        Icon(
+                            Icons.Filled.Settings,
+                            contentDescription = "Settings",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                }
             }
         }
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize()
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 136.dp),
+                contentPadding = PaddingValues(top = if (searchExpanded) 196.dp else 136.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 itemsIndexed(
@@ -780,35 +926,28 @@ fun NewContactsScreen(
                     }
                 }
             }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 48.dp)
-                    .zIndex(1f),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            if (searchExpanded) {
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    modifier = Modifier.weight(2f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 104.dp)
+                        .zIndex(1f),
                     singleLine = true,
                     label = { Text("Search contacts") },
                     leadingIcon = {
                         Icon(Icons.Filled.Search, contentDescription = null)
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            query = ""
+                            searchExpanded = false
+                        }) {
+                            Icon(Icons.Filled.Backspace, contentDescription = "Close search")
+                        }
                     }
                 )
-                androidx.compose.foundation.layout.Spacer(Modifier.width(8.dp))
-                IconButton(
-                    onClick = onCreateContact,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        Icons.Filled.PersonAdd,
-                        contentDescription = "Add contact",
-                        tint = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
             }
             contextualContact?.let { contact ->
                 val number = contact.phoneNumbers.firstOrNull().orEmpty()
@@ -973,7 +1112,7 @@ fun NewFavoritesScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = newUiScrollContentPadding(PaddingValues(top = 72.dp)),
+                contentPadding = newUiScrollContentPadding(PaddingValues(top = 112.dp)),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(
@@ -1218,10 +1357,16 @@ fun NewSettingsScreen(
         )
     }
 
-    NewUiScreenShell(destination = NewUiDestination.Settings) {
+    val settingsNavigator = remember(onBack, onNavigate) {
+        NewSettingsDestinationsNavigator({ onBack() }, onNavigate)
+    }
+    NewUiScreenShell(
+        destination = NewUiDestination.Settings,
+        headerAction = { SettingsSearchHeaderAction(settingsNavigator) }
+    ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = newUiScrollContentPadding(PaddingValues(top = 72.dp)),
+            contentPadding = newUiScrollContentPadding(PaddingValues(top = 112.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             rows.forEach { (section, sectionRows) ->
@@ -1288,11 +1433,18 @@ private fun NewSettingsDestinationScreen(
                 NewUiContactsHiderScreen()
             NewUiSettingsDestination.CallRecording -> {
                 val recorderViewModel: SettingsViewModel = viewModel()
-                RecorderSettingsScreen(
-                    viewModel = recorderViewModel,
-                    onBack = onBack,
-                    bottomScrollClearance = LocalNewUiScrollClearance.current
-                )
+                NewUiScreenShell(
+                    destination = NewUiDestination.Settings,
+                    titleOverride = "Call Recording",
+                    headerAction = { SettingsSearchHeaderAction(navigator) }
+                ) {
+                    RecorderSettingsScreen(
+                        viewModel = recorderViewModel,
+                        onBack = onBack,
+                        bottomScrollClearance = LocalNewUiScrollClearance.current,
+                        embeddedInNewUi = true
+                    )
+                }
             }
             NewUiSettingsDestination.RaiseToAnswer ->
                 NewUiRaiseToAnswerScreen(navigator = navigator)
@@ -1389,7 +1541,9 @@ private fun NewColorsAndThemeScreen() {
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = newUiScrollContentPadding(PaddingValues(top = 72.dp))
+                contentPadding = newUiScrollContentPadding(
+                    PaddingValues(top = newUiSettingsHeaderContentTopPadding())
+                )
             ) {
                 item {
                     Surface(

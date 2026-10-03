@@ -14,8 +14,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
@@ -63,6 +66,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -365,6 +369,54 @@ val globalSettingsSearchEntries: List<GlobalSettingsSearchEntry> by lazy {
 /** The full, flat list of every setting reachable from Settings, used by [SettingsSearchEntryPoint]
  *  so the same search box can be dropped onto any settings page. */
 fun buildGlobalSettingsSearchEntries(): List<GlobalSettingsSearchEntry> = globalSettingsSearchEntries
+
+@Composable
+fun SettingsSearchHeaderAction(navigator: DestinationsNavigator) {
+    var showSearch by rememberSaveable { mutableStateOf(false) }
+
+    IconButton(onClick = { showSearch = true }) {
+        Icon(
+            imageVector = Icons.Default.Search,
+            contentDescription = "Search settings",
+            tint = MaterialTheme.colorScheme.onBackground
+        )
+    }
+
+    if (showSearch) {
+        Dialog(onDismissRequest = { showSearch = false }) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .heightIn(max = 640.dp),
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.surfaceContainerLow
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Search settings",
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = { showSearch = false }) {
+                            Icon(Icons.Default.Close, contentDescription = "Close search")
+                        }
+                    }
+                    SettingsSearchEntryPoint(navigator)
+                }
+            }
+        }
+    }
+}
 
 /**
  * A "Search settings" box that can be dropped as the first item on any settings page (main

@@ -94,10 +94,11 @@ import com.android.libredialer.controller.RainModeManager
 import com.android.libredialer.controller.RaiseToAnswerManager
 import com.android.libredialer.controller.VolumeDndAccessibilityService
 import com.android.libredialer.controller.util.PreferenceManager
-import com.android.libredialer.view.components.SettingsSearchEntryPoint
+import com.android.libredialer.view.components.SettingsSearchHeaderAction
 import com.android.libredialer.view.components.settingsSearchHighlight
 import com.android.libredialer.view.newui.components.NewUiScreenShell
 import com.android.libredialer.view.newui.components.newUiClickable
+import com.android.libredialer.view.newui.components.newUiSettingsHeaderContentTopPadding
 import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import com.android.libredialer.view.newui.navigation.NewUiDestination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
@@ -133,13 +134,16 @@ fun NewUiRaiseToAnswerScreen(
         mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_RAISE_TO_ANSWER_VIBRATE, false))
     }
 
-    NewUiScreenShell(NewUiDestination.Settings, titleOverride = "Raise to Answer") {
+    NewUiScreenShell(
+        NewUiDestination.Settings,
+        titleOverride = "Raise to Answer",
+        headerAction = { SettingsSearchHeaderAction(navigator) }
+    ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = newUiScrollContentPadding(PaddingValues(top = 72.dp, bottom = 16.dp)),
+            contentPadding = newUiScrollContentPadding(PaddingValues(top = newUiSettingsHeaderContentTopPadding(), bottom = 16.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item { SettingsSearchEntryPoint(navigator) }
             if (!isSupported) {
                 item {
                     NewUiMotionSection {
@@ -314,13 +318,16 @@ fun NewUiRainModeScreen(
         }
     }
 
-    NewUiScreenShell(NewUiDestination.Settings, titleOverride = "Rain Mode") {
+    NewUiScreenShell(
+        NewUiDestination.Settings,
+        titleOverride = "Rain Mode",
+        headerAction = { SettingsSearchHeaderAction(navigator) }
+    ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = newUiScrollContentPadding(PaddingValues(top = 72.dp, bottom = 16.dp)),
+            contentPadding = newUiScrollContentPadding(PaddingValues(top = newUiSettingsHeaderContentTopPadding(), bottom = 16.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item { SettingsSearchEntryPoint(navigator) }
             if (!hasAccelerometer) {
                 item {
                     NewUiMotionSection {
@@ -603,13 +610,16 @@ fun NewUiVolumeDndScreen(
         )
     }
 
-    NewUiScreenShell(NewUiDestination.Settings, titleOverride = "Volume DND") {
+    NewUiScreenShell(
+        NewUiDestination.Settings,
+        titleOverride = "Volume DND",
+        headerAction = { SettingsSearchHeaderAction(navigator) }
+    ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = newUiScrollContentPadding(PaddingValues(top = 72.dp, bottom = 16.dp)),
+            contentPadding = newUiScrollContentPadding(PaddingValues(top = newUiSettingsHeaderContentTopPadding(), bottom = 16.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item { SettingsSearchEntryPoint(navigator) }
             item {
                 NewUiMotionSection("Volume DND") {
                     NewUiMotionSwitchRow(
