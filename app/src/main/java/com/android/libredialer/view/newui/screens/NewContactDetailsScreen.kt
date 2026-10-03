@@ -118,6 +118,7 @@ import com.android.libredialer.view.newui.components.NewUiChooseSimDialog
 import com.android.libredialer.view.newui.components.NewUiNumberPickerDialog
 import com.android.libredialer.view.newui.components.NewUiAppQuickActionsDialog
 import com.android.libredialer.view.newui.components.newUiClickable
+import com.android.libredialer.view.components.ContactEmojiAvatar
 
 internal val NewUiContactAvatarSize = 192.dp
 
@@ -125,8 +126,19 @@ internal val NewUiContactAvatarSize = 192.dp
 internal fun NewUiContactAvatar(
     photoUri: String?,
     displayName: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    stableContactId: String? = null
 ) {
+    if (stableContactId != null) {
+        ContactEmojiAvatar(
+            photoUri = photoUri,
+            displayName = displayName,
+            stableContactId = stableContactId,
+            modifier = modifier,
+            size = NewUiContactAvatarSize
+        )
+        return
+    }
     if (!photoUri.isNullOrBlank()) {
         AsyncImage(
             model = photoUri,
@@ -288,7 +300,11 @@ fun NewContactDetailsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        NewUiContactAvatar(currentContact.photoUri, currentContact.name)
+                        NewUiContactAvatar(
+                            currentContact.photoUri,
+                            currentContact.name,
+                            stableContactId = currentContact.id
+                        )
                         Spacer(Modifier.size(12.dp))
                         Text(
                             currentContact.name.ifBlank { numbers.firstOrNull() ?: "Contact" },

@@ -1030,43 +1030,47 @@ fun DialPadContent(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Search bar
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        // Once the hosting sheet starts closing, permanently refuse focus —
-                        // stronger than reactively clearing/hiding after the fact, since it
-                        // guarantees the keyboard can't be re-triggered by window refocus or
-                        // any other later event during the close animation/teardown.
-                        .focusProperties { canFocus = !closing },
-                    placeholder = { Text("Search contacts...") },
-                    leadingIcon = { Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Default.Close, null)
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(28.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                    ),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Text,
-                        imeAction = androidx.compose.ui.text.input.ImeAction.Search,
-                        showKeyboardOnFocus = false
-                    ),
-                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                        onSearch = {
-                            saveDialpadSearchQuery()
-                            keyboardController?.hide()
-                        }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    com.android.libredialer.view.components.SearchPillContainer(
+                        Modifier.weight(1f)
+                    ) {
+                        TextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                // Prevent focus from returning while the hosting sheet closes.
+                                .focusProperties { canFocus = !closing },
+                            placeholder = { Text("Search contacts...") },
+                            leadingIcon = { Icon(Icons.Default.Search, null) },
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Text,
+                                imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                                showKeyboardOnFocus = false
+                            ),
+                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                                onSearch = {
+                                    saveDialpadSearchQuery()
+                                    keyboardController?.hide()
+                                }
+                            )
+                        )
+                    }
+                    com.android.libredialer.view.components.SearchClearButton(
+                        onClick = { searchQuery = "" }
                     )
-                )
+                }
 
                 // Number display — below search bar
                 Row(
@@ -1417,47 +1421,49 @@ fun DialPadContent(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier
-                        .weight(1f)
-                        // Once the hosting sheet starts closing, permanently refuse focus — stronger
-                        // than reactively clearing/hiding after the fact, since it guarantees the
-                        // keyboard can't be re-triggered by window refocus or any other later event
-                        // during the close animation/teardown.
-                        .focusProperties { canFocus = !closing }
-                        .onFocusChanged { focusState -> searchFieldFocused = focusState.isFocused },
-                    placeholder = { Text("Search contacts...") },
-                    leadingIcon = { Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = {
-                                searchQuery = ""
-                                focusManager.clearFocus()
-                            }) {
-                                Icon(Icons.Default.Close, null)
+                com.android.libredialer.view.components.SearchPillContainer(
+                    Modifier.weight(1f)
+                ) {
+                    TextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            // Prevent focus from returning while the hosting sheet closes.
+                            .focusProperties { canFocus = !closing }
+                            .onFocusChanged { focusState -> searchFieldFocused = focusState.isFocused },
+                        placeholder = { Text("Search contacts...") },
+                        leadingIcon = { Icon(Icons.Default.Search, null) },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        ),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Text,
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                            showKeyboardOnFocus = false
+                        ),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            onSearch = {
+                                saveDialpadSearchQuery()
+                                keyboardController?.hide()
                             }
-                        }
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(28.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                    ),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Text,
-                        imeAction = androidx.compose.ui.text.input.ImeAction.Search,
-                        showKeyboardOnFocus = false
-                    ),
-                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                        onSearch = {
-                            saveDialpadSearchQuery()
-                            keyboardController?.hide()
+                        )
+                    )
+                }
+
+                if (searchQuery.isNotEmpty()) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    com.android.libredialer.view.components.SearchClearButton(
+                        onClick = {
+                            searchQuery = ""
+                            focusManager.clearFocus()
                         }
                     )
-                )
+                }
 
                 if (onDismiss != null) {
                     Spacer(modifier = Modifier.width(8.dp))

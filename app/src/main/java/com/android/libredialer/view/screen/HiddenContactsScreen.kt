@@ -180,7 +180,12 @@ private fun HiddenContactCard(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            RivoAvatar(name = contact.name, photoUri = contact.photoUri, modifier = Modifier.size(46.dp))
+            RivoAvatar(
+                name = contact.name,
+                photoUri = contact.photoUri,
+                emojiFallbackContactId = contact.id,
+                modifier = Modifier.size(46.dp)
+            )
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(contact.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)

@@ -134,7 +134,11 @@ fun NewCallDetailsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    NewUiContactAvatar(contact?.photoUri ?: entry.photoUri, displayName)
+                    NewUiContactAvatar(
+                        contact?.photoUri ?: entry.photoUri,
+                        displayName,
+                        stableContactId = contact?.id
+                    )
                     Spacer(Modifier.size(12.dp))
                     Text(
                         displayName,

@@ -21,7 +21,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextRange
@@ -339,64 +338,37 @@ fun ContactSearchContent(
             groupResults.size + contactNoteResults.size + recordingNoteResults.size + settingResults.size
     val hasAnyResults = totalResults > 0
 
-    val isDark = androidx.core.graphics.ColorUtils.calculateLuminance(MaterialTheme.colorScheme.surface.toArgb()) < 0.5
-    val isSaturatedActive = remember(settingsVer, isDark) { prefs.isSaturatedForTheme(isDark) }
-
-    val searchBarBg = if (isSaturatedActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh
-    val searchBarFg = if (isSaturatedActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-    val searchBarPlaceholder = if (isSaturatedActive) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant
-
     Column(modifier = Modifier.fillMaxSize().imePadding()) {
         // Search bar + filter button
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Surface(
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(28.dp),
-                color = searchBarBg,
-                shadowElevation = 0.dp
-            ) {
-                TextField(
-                    value = queryFieldValue,
-                    onValueChange = { queryFieldValue = it },
-                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-                    placeholder = { Text("Universal Search", color = searchBarPlaceholder) },
-                    leadingIcon = {
-                        IconButton(onClick = { navigator.navigateUp() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = searchBarFg)
-                        }
-                    },
-                    trailingIcon = {
-                        if (query.isNotEmpty()) {
-                            IconButton(onClick = { queryFieldValue = TextFieldValue("") }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = searchBarFg)
-                            }
-                        }
-                    },
-                    colors = TextFieldDefaults.colors(
-                        focusedTextColor = searchBarFg,
-                        unfocusedTextColor = searchBarFg,
-                        cursorColor = searchBarFg,
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    ),
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        imeAction = androidx.compose.ui.text.input.ImeAction.Search
-                    ),
-                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                        onSearch = {
-                            saveSearchQuery()
-                            keyboardController?.hide()
-                        }
-                    ),
-                    singleLine = true
+            SearchPillInput(
+                value = queryFieldValue,
+                onValueChange = { queryFieldValue = it },
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRequester(focusRequester),
+                placeholder = "Universal Search",
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Search
+                ),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                    onSearch = {
+                        saveSearchQuery()
+                        keyboardController?.hide()
+                    }
                 )
-            }
+            )
+            SearchClearButton(
+                onClick = {
+                    if (query.isNotEmpty()) queryFieldValue = TextFieldValue("")
+                    else navigator.navigateUp()
+                },
+                contentDescription = if (query.isNotEmpty()) "Clear search" else "Close search"
+            )
             SearchFilterButton()
         }
 

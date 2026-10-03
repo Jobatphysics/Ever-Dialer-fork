@@ -418,6 +418,7 @@ fun ContactListItem(
             RivoAvatar(
                 name = headline,
                 photoUri = contact.photoUri,
+                emojiFallbackContactId = contact.id,
                 size = 48.dp,
                 modifier = Modifier.size(48.dp)
             )

@@ -1065,7 +1065,14 @@ fun ContactDetailsScreen(
                         Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Box(modifier = Modifier.size(400.dp), contentAlignment = Alignment.Center) {
                                 Box(modifier = Modifier.size(330.dp).background(brush = Brush.radialGradient(colors = listOf(avatarGlowColor.copy(alpha = 0.45f), Color.Transparent))).blur(60.dp))
-                                RivoAvatar(name = displayName, photoUri = contact?.photoUri, forcePersonIcon = true, modifier = Modifier.size(240.dp), shape = CircleShape)
+                                RivoAvatar(
+                                    name = displayName,
+                                    photoUri = contact?.photoUri,
+                                    emojiFallbackContactId = contact?.id,
+                                    forcePersonIcon = true,
+                                    modifier = Modifier.size(240.dp),
+                                    shape = CircleShape
+                                )
                             }
                             Text(text = displayName, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
                         }

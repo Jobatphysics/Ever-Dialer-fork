@@ -44,12 +44,9 @@ import org.koin.compose.koinInject
 fun SearchBarPill(navigator: DestinationsNavigator, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val prefs = koinInject<PreferenceManager>()
-    val settingsVer by prefs.settingsChanged.collectAsState()
-    val isDark = androidx.core.graphics.ColorUtils.calculateLuminance(MaterialTheme.colorScheme.surface.toArgb()) < 0.5
-    val isSaturatedActive = remember(settingsVer, isDark) { prefs.isSaturatedForTheme(isDark) }
 
-    val searchBarBg = if (isSaturatedActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh
-    val searchBarFg = if (isSaturatedActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+    val searchBarBg = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.86f)
+    val searchBarFg = MaterialTheme.colorScheme.onSurfaceVariant
 
     val searchSource = remember { MutableInteractionSource() }
     val searchPressed by searchSource.collectIsPressedAsState()
@@ -65,7 +62,7 @@ fun SearchBarPill(navigator: DestinationsNavigator, modifier: Modifier = Modifie
             }
             navigator.navigate(SearchScreenDestination)
         },
-        modifier = modifier.height(52.dp).scale(searchScale),
+        modifier = modifier.height(56.dp).scale(searchScale),
         shape = CircleShape,
         color = searchBarBg,
         interactionSource = searchSource

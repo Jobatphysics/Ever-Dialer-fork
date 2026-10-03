@@ -934,20 +934,21 @@ private fun NewUiBiometricContactPicker(
                             }) { Text("Select All") }
                             IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, "Close") }
                         }
-                        OutlinedTextField(
-                            value = query,
-                            onValueChange = { query = it },
-                            placeholder = { Text("Search contacts") },
-                            leadingIcon = { Icon(Icons.Default.Search, null) },
-                            trailingIcon = {
-                                if (query.isNotEmpty()) IconButton(onClick = { query = "" }) {
-                                    Icon(Icons.Default.Close, "Clear")
-                                }
-                            },
-                            singleLine = true,
-                            shape = MaterialTheme.shapes.large,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            com.android.libredialer.view.components.SearchPillInput(
+                                value = query,
+                                onValueChange = { query = it },
+                                modifier = Modifier.weight(1f),
+                                placeholder = "Search contacts"
+                            )
+                            com.android.libredialer.view.components.SearchClearButton(
+                                onClick = { query = "" }
+                            )
+                        }
                     }
                 }
             ) { padding ->
@@ -980,6 +981,7 @@ private fun NewUiBiometricContactPicker(
                                     RivoAvatar(
                                         name = contact.name,
                                         photoUri = contact.photoUri,
+                                        emojiFallbackContactId = contact.id,
                                         modifier = Modifier.size(44.dp)
                                     )
                                     Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
@@ -1036,20 +1038,21 @@ private fun NewUiHiddenContactsPicker(
         title = { Text("Select contacts to hide") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = search,
-                    onValueChange = onSearchChange,
-                    placeholder = { Text("Search contacts") },
-                    leadingIcon = { Icon(Icons.Default.Search, null) },
-                    trailingIcon = {
-                        if (search.isNotEmpty()) IconButton(onClick = { onSearchChange("") }) {
-                            Icon(Icons.Default.Close, "Clear")
-                        }
-                    },
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.large,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    com.android.libredialer.view.components.SearchPillInput(
+                        value = search,
+                        onValueChange = onSearchChange,
+                        modifier = Modifier.weight(1f),
+                        placeholder = "Search contacts"
+                    )
+                    com.android.libredialer.view.components.SearchClearButton(
+                        onClick = { onSearchChange("") }
+                    )
+                }
                 if (visible.isEmpty()) {
                     Text(
                         "No contacts found",
@@ -1069,6 +1072,7 @@ private fun NewUiHiddenContactsPicker(
                                 RivoAvatar(
                                     name = contact.name,
                                     photoUri = contact.photoUri,
+                                    emojiFallbackContactId = contact.id,
                                     modifier = Modifier.size(40.dp)
                                 )
                                 Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
@@ -1099,6 +1103,7 @@ private fun NewUiHiddenContactRow(contact: Contact, onRemove: () -> Unit) {
         RivoAvatar(
             name = contact.name,
             photoUri = contact.photoUri,
+            emojiFallbackContactId = contact.id,
             modifier = Modifier.size(38.dp)
         )
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {

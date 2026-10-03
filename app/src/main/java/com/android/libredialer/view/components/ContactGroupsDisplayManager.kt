@@ -921,24 +921,19 @@ fun AddContactGroupDialog(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // Search Bar
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search contacts by name or number…") },
-                    leadingIcon = {
-                        Icon(Icons.Outlined.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear search")
-                            }
-                        }
-                    },
-                    shape = RoundedCornerShape(16.dp),
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SearchPillInput(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = "Search contacts by name or number"
+                    )
+                    SearchClearButton(onClick = { searchQuery = "" })
+                }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
@@ -1018,6 +1013,7 @@ fun AddContactGroupDialog(
                                 RivoAvatar(
                                     name = contact.name,
                                     photoUri = contact.photoUri,
+                                    emojiFallbackContactId = contact.id,
                                     modifier = Modifier.size(38.dp)
                                 )
 
@@ -1207,24 +1203,19 @@ fun EditContactGroupDialog(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // Search Bar
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search contacts by name or number…") },
-                    leadingIcon = {
-                        Icon(Icons.Outlined.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear search")
-                            }
-                        }
-                    },
-                    shape = RoundedCornerShape(16.dp),
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SearchPillInput(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = "Search contacts by name or number"
+                    )
+                    SearchClearButton(onClick = { searchQuery = "" })
+                }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
@@ -1304,6 +1295,7 @@ fun EditContactGroupDialog(
                                 RivoAvatar(
                                     name = contact.name,
                                     photoUri = contact.photoUri,
+                                    emojiFallbackContactId = contact.id,
                                     modifier = Modifier.size(38.dp)
                                 )
 
@@ -1796,4 +1788,3 @@ fun SelectGroupSaveTargetDialog(
         }
     }
 }
-

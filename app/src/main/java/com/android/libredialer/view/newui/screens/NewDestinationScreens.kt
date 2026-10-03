@@ -5,7 +5,11 @@ import com.android.libredialer.view.newui.components.LensSurfaceBox
 import com.android.libredialer.view.components.SettingsSearchHeaderAction
 import com.android.libredialer.view.components.providedCallIcon
 import com.android.libredialer.view.components.providedMessageIcon
+import com.android.libredialer.view.components.ContactEmojiAvatar
+import com.android.libredialer.view.components.SearchClearButton
+import com.android.libredialer.view.components.SearchPillInput
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.BasicTextField
@@ -58,6 +62,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.PaddingValues
@@ -78,6 +83,7 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.ChevronRight
@@ -133,7 +139,6 @@ import java.text.SimpleDateFormat
 
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
@@ -226,51 +231,8 @@ fun NewDialerScreen(
 
     val contacts by contactsVM.allContacts.collectAsState()
 
-    fun normalizeNumber(value: String): String =
-        value.filter { it.isDigit() }
-
-    fun t9(value: String): String {
-        val map = mapOf(
-            'a' to '2', 'b' to '2', 'c' to '2',
-            'd' to '3', 'e' to '3', 'f' to '3',
-            'g' to '4', 'h' to '4', 'i' to '4',
-            'j' to '5', 'k' to '5', 'l' to '5',
-            'm' to '6', 'n' to '6', 'o' to '6',
-            'p' to '7', 'q' to '7', 'r' to '7', 's' to '7',
-            't' to '8', 'u' to '8', 'v' to '8',
-            'w' to '9', 'x' to '9', 'y' to '9', 'z' to '9'
-        )
-
-        return value.lowercase()
-            .filter { it.isLetter() }
-            .mapNotNull { map[it] }
-            .joinToString("")
-    }
-
     val searchResults = remember(number, contacts) {
-        val query = normalizeNumber(number)
-
-        if (query.isBlank()) {
-            emptyList()
-        } else {
-            contacts
-                .mapNotNull { contact ->
-                    val matchingPhone = contact.phoneNumbers.firstOrNull { phone ->
-                        normalizeNumber(phone).contains(query)
-                    }
-                    val nameT9 = t9(contact.name)
-
-                    val nameMatches = nameT9.startsWith(query)
-
-                    if (matchingPhone != null || nameMatches) {
-                        contact to (matchingPhone ?: contact.phoneNumbers.firstOrNull())
-                    } else {
-                        null
-                    }
-                }
-                .filter { it.second != null }
-                .take(6)
-        }
+        searchDialerContacts(contacts, number)
     }
     val searchResultsTopInset = (
         with(LocalDensity.current) {
@@ -335,6 +297,13 @@ fun NewDialerScreen(
                                     ),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                ContactEmojiAvatar(
+                                    photoUri = contact.photoUri,
+                                    displayName = contact.name,
+                                    stableContactId = contact.id,
+                                    modifier = Modifier.padding(end = 12.dp),
+                                    size = 40.dp
+                                )
                                 Column(
                                     modifier = Modifier.weight(1f)
                                 ) {
@@ -566,12 +535,12 @@ fun NewRecentsScreen(
             val itemMappingStartedAt = SystemClock.elapsedRealtime()
             val items = ArrayList<NewUiCallLogItem>(sortedLogs.size)
             for (log in sortedLogs) {
-                val contact = if (!log.contactId.isNullOrBlank() && log.contactId != "null") {
-                    contactById[log.contactId]
-                } else {
-                    val digits = normalizeNumberDigits(log.number).filter { it.isDigit() }
-                    contactByNumber[digits] ?: if (digits.length >= 7) contactByNumber[digits.takeLast(7)] else null
-                }
+                val digits = normalizeNumberDigits(log.number).filter { it.isDigit() }
+                val contact = log.contactId
+                    ?.takeIf { it.isNotBlank() && it != "null" }
+                    ?.let(contactById::get)
+                    ?: contactByNumber[digits]
+                    ?: if (digits.length >= 7) contactByNumber[digits.takeLast(7)] else null
 
                 val displayName = contact?.name?.takeIf { it.isNotBlank() } ?: log.number
                 val photoUri = contact?.photoUri ?: log.photoUri
@@ -832,10 +801,12 @@ private fun NewCallLogRow(
                     .physicalItemInput(physicalListState, index, onClick, onLongClick),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                NewContactAvatar(
+                ContactEmojiAvatar(
                     photoUri = item.photoUri,
                     displayName = item.displayName,
-                    size = 56.dp
+                    stableContactId = item.contact?.id,
+                    size = 56.dp,
+                    fallbackEmoji = if (item.contact == null) "💀" else null
                 )
                 Column(
                     modifier = Modifier
@@ -956,6 +927,14 @@ fun NewContactsScreen(
     val contactScrollClearance = LocalNewUiScrollClearance.current
     var contextualContact by remember { mutableStateOf<Contact?>(null) }
     var searchExpanded by remember { mutableStateOf(false) }
+    var contactsBehindSearch by remember { mutableStateOf<List<Pair<Contact, Int>>?>(null) }
+    val displayedContacts = if (searchExpanded) contactsBehindSearch ?: filteredContacts else filteredContacts
+
+    fun dismissContactSearch() {
+        searchExpanded = false
+        contactsBehindSearch = null
+        query = ""
+    }
 
     NewUiScreenShell(
         destination = NewUiDestination.Contacts,
@@ -971,7 +950,10 @@ fun NewContactsScreen(
                     shape = CircleShape,
                     contentAlignment = Alignment.Center
                 ) {
-                    IconButton(onClick = { searchExpanded = !searchExpanded }) {
+                    IconButton(onClick = {
+                        contactsBehindSearch = filteredContacts
+                        searchExpanded = true
+                    }) {
                         Icon(
                             Icons.Filled.Search,
                             contentDescription = "Search contacts",
@@ -1011,11 +993,11 @@ fun NewContactsScreen(
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = if (searchExpanded) 196.dp else 136.dp),
+                contentPadding = PaddingValues(top = 136.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 itemsIndexed(
-                    items = filteredContacts,
+                    items = displayedContacts,
                     key = { _, item -> item.first.id }
                 ) { index, (contact, additionalContactCount) ->
                     NewContactRow(
@@ -1027,34 +1009,126 @@ fun NewContactsScreen(
                         onLongClick = { contextualContact = contact }
                     )
                 }
-                if (filteredContacts.isNotEmpty()) {
+                if (displayedContacts.isNotEmpty()) {
                     item(key = "contacts_scroll_clearance") {
                         Spacer(Modifier.height(contactScrollClearance))
                     }
                 }
             }
             if (searchExpanded) {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 104.dp)
-                        .zIndex(1f),
-                    singleLine = true,
-                    label = { Text("Search contacts") },
-                    leadingIcon = {
-                        Icon(Icons.Filled.Search, contentDescription = null)
-                    },
-                    trailingIcon = {
-                        IconButton(onClick = {
-                            query = ""
-                            searchExpanded = false
-                        }) {
-                            Icon(Icons.Filled.Backspace, contentDescription = "Close search")
+                androidx.compose.ui.window.Dialog(
+                    onDismissRequest = ::dismissContactSearch,
+                    properties = androidx.compose.ui.window.DialogProperties(
+                        usePlatformDefaultWidth = false
+                    )
+                ) {
+                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                        val searchCenterY = maxHeight * 0.25f
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .fillMaxWidth()
+                                .padding(horizontal = 28.dp)
+                                .offset(y = searchCenterY - 28.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                modifier = Modifier.size(width = 56.dp, height = 56.dp),
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.86f),
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Filled.AccountCircle,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(34.dp)
+                                    )
+                                }
+                            }
+                            SearchPillInput(
+                                value = query,
+                                onValueChange = { query = it },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .widthIn(min = 0.dp)
+                                    .height(56.dp),
+                                placeholder = "Search",
+                                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                    lineHeight = 24.sp,
+                                    platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                                        includeFontPadding = false
+                                    )
+                                ),
+                                placeholderTextAlign = TextAlign.Center,
+                                placeholderTextOffsetX = (-28).dp
+                            )
+                            SearchClearButton(
+                                onClick = {
+                                    if (query.isNotEmpty()) query = ""
+                                    else dismissContactSearch()
+                                },
+                                contentDescription = if (query.isNotEmpty()) {
+                                    "Clear contact search"
+                                } else {
+                                    "Close contact search"
+                                },
+                                buttonSize = 56.dp,
+                                iconSize = 34.dp
+                            )
+                        }
+                        if (query.isNotBlank()) {
+                            val resultsTop = searchCenterY + 36.dp
+                            val resultsMaxHeight =
+                                (maxHeight - resultsTop - 24.dp).coerceAtLeast(96.dp)
+                            Surface(
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 28.dp)
+                                    .offset(y = resultsTop)
+                                    .heightIn(max = resultsMaxHeight),
+                                shape = MaterialTheme.shapes.medium,
+                                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                tonalElevation = 4.dp
+                            ) {
+                                if (filteredContacts.isEmpty()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(20.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            "No contacts found",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                } else {
+                                    LazyColumn(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(max = resultsMaxHeight),
+                                        contentPadding = PaddingValues(4.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        itemsIndexed(
+                                            items = filteredContacts,
+                                            key = { _, item -> "search_${item.first.id}" }
+                                        ) { index, (contact, additionalContactCount) ->
+                                            ContactSearchResultRow(
+                                                contact = contact,
+                                                additionalContactCount = additionalContactCount,
+                                                onClick = { onContactClick(contact) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
-                )
+                }
             }
             contextualContact?.let { contact ->
                 val number = contact.phoneNumbers.firstOrNull().orEmpty()
@@ -1090,6 +1164,67 @@ fun NewContactsScreen(
 }
 
 @Composable
+private fun ContactSearchResultRow(
+    contact: Contact,
+    additionalContactCount: Int,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 1.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            NewContactAvatar(
+                photoUri = contact.photoUri,
+                displayName = contact.name,
+                stableContactId = contact.id,
+                size = 56.dp
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 12.dp)
+            ) {
+                Text(
+                    text = contact.name.ifBlank {
+                        contact.phoneNumbers.firstOrNull() ?: "Unknown contact"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                val phoneSummary = contact.phoneNumbers
+                    .filter(String::isNotBlank)
+                    .distinct()
+                    .joinToString(" · ")
+                if (phoneSummary.isNotBlank()) {
+                    Text(
+                        text = phoneSummary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (additionalContactCount > 0) {
+                    Text(
+                        text = "… more",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun NewContactRow(
     contact: Contact,
     additionalContactCount: Int,
@@ -1114,6 +1249,7 @@ private fun NewContactRow(
             NewContactAvatar(
                 photoUri = contact.photoUri,
                 displayName = contact.name,
+                stableContactId = contact.id,
                 size = 56.dp
             )
             Column(
@@ -1154,8 +1290,18 @@ private fun NewContactRow(
 private fun NewContactAvatar(
     photoUri: String?,
     displayName: String,
+    stableContactId: String? = null,
     size: androidx.compose.ui.unit.Dp
 ) {
+    if (stableContactId != null) {
+        ContactEmojiAvatar(
+            photoUri = photoUri,
+            displayName = displayName,
+            stableContactId = stableContactId,
+            size = size
+        )
+        return
+    }
     if (!photoUri.isNullOrBlank()) {
         val context = LocalContext.current
         val density = LocalDensity.current
@@ -1216,27 +1362,34 @@ fun NewFavoritesScreen(
         if (favorites.isEmpty()) {
             Text(
                 text = "No favorite contacts",
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 112.dp),
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = newUiScrollContentPadding(PaddingValues(top = 112.dp)),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(
-                    items = favorites,
-                    key = { it.id }
-                ) { contact ->
-                    NewFavoriteRow(
-                        contact = contact,
-                        onClick = { onContactClick(contact) },
-                        onRemove = { contactsViewModel.toggleFavorite(contact) },
-                        onLongClick = { contextualContact = contact }
-                    )
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val cardWidth = ((maxWidth - 24.dp) / 3).coerceAtLeast(96.dp)
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 112.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(
+                        items = favorites,
+                        key = { it.id }
+                    ) { contact ->
+                        NewFavoriteCard(
+                            contact = contact,
+                            width = cardWidth,
+                            onClick = { onContactClick(contact) },
+                            onLongClick = { contextualContact = contact }
+                        )
+                    }
                 }
             }
             contextualContact?.let { contact ->
@@ -1271,10 +1424,10 @@ fun NewFavoritesScreen(
 }
 
 @Composable
-private fun NewFavoriteRow(
+private fun NewFavoriteCard(
     contact: Contact,
+    width: androidx.compose.ui.unit.Dp,
     onClick: () -> Unit,
-    onRemove: () -> Unit,
     onLongClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -1286,79 +1439,60 @@ private fun NewFavoriteRow(
     )
     Surface(
         modifier = Modifier
-            .fillMaxWidth()
+            .width(width)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
             }
-            // Keep the existing pressed scale while adding the contextual long-press path.
-            // The trailing favorite button remains a separate normal tap target.
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
                 onLongClick = onLongClick
             ),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         tonalElevation = 1.dp
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (!contact.photoUri.isNullOrBlank()) {
-                AsyncImage(
-                    model = contact.photoUri,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Surface(
-                    modifier = Modifier.size(52.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = contact.name.trim().firstOrNull()?.uppercase() ?: "?",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
-            }
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 12.dp)
+            ContactEmojiAvatar(
+                photoUri = contact.photoUri,
+                displayName = contact.name,
+                stableContactId = contact.id,
+                size = width - 16.dp,
+                shape = RoundedCornerShape(20.dp)
+            )
+            Text(
+                text = contact.name.ifBlank {
+                    contact.phoneNumbers.firstOrNull() ?: "Unknown contact"
+                },
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.titleSmall,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = contact.name.ifBlank {
-                        contact.phoneNumbers.firstOrNull() ?: "Unknown contact"
-                    },
-                    style = MaterialTheme.typography.titleMedium
-                )
-                val phoneSummary = contact.phoneNumbers
-                    .filter(String::isNotBlank)
-                    .distinct()
-                    .joinToString(" · ")
-                if (phoneSummary.isNotBlank()) {
-                    Text(
-                        text = phoneSummary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            IconButton(onClick = onRemove) {
                 Icon(
-                    imageVector = Icons.Filled.Favorite,
-                    contentDescription = "Remove from favorites",
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)
+                    imageVector = Icons.Filled.Phone,
+                    contentDescription = "Call",
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = contact.phoneNumbers.firstOrNull { it.isNotBlank() } ?: "Call",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

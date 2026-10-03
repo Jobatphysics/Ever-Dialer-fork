@@ -576,50 +576,19 @@ fun SettingsScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
 
                         // Search Bar (for Recent / Contacts tabs)
                         if (blockedNumbersTab != 2) {
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                                modifier = Modifier.fillMaxWidth()
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                TextField(
+                                com.android.libredialer.view.components.SearchPillInput(
                                     value = searchQuery,
                                     onValueChange = { searchQuery = it },
-                                    placeholder = {
-                                        Text(
-                                            "Search name or number…",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.Outlined.Search,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(20.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    },
-                                    trailingIcon = {
-                                        AnimatedVisibility(
-                                            visible = searchQuery.isNotBlank(),
-                                            enter = fadeIn() + scaleIn(),
-                                            exit = fadeOut() + scaleOut()
-                                        ) {
-                                            IconButton(onClick = { searchQuery = "" }) {
-                                                Icon(Icons.Outlined.Close, contentDescription = "Clear", modifier = Modifier.size(18.dp))
-                                            }
-                                        }
-                                    },
-                                    singleLine = true,
-                                    shape = RoundedCornerShape(50),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = TextFieldDefaults.colors(
-                                        unfocusedContainerColor = Color.Transparent,
-                                        focusedContainerColor = Color.Transparent,
-                                        unfocusedIndicatorColor = Color.Transparent,
-                                        focusedIndicatorColor = Color.Transparent,
-                                        disabledIndicatorColor = Color.Transparent
-                                    )
+                                    modifier = Modifier.weight(1f),
+                                    placeholder = "Search name or number..."
+                                )
+                                com.android.libredialer.view.components.SearchClearButton(
+                                    onClick = { searchQuery = "" }
                                 )
                             }
                         }
@@ -1122,46 +1091,19 @@ fun SettingsScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
 
                         // Search when there are multiple blocked numbers
                         if (blockedContactsList.size > 3) {
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                                modifier = Modifier.fillMaxWidth()
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                TextField(
+                                com.android.libredialer.view.components.SearchPillInput(
                                     value = listSearchQuery,
                                     onValueChange = { listSearchQuery = it },
-                                    placeholder = {
-                                        Text(
-                                            "Search blocked list…",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.Outlined.Search,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    },
-                                    trailingIcon = {
-                                        if (listSearchQuery.isNotBlank()) {
-                                            IconButton(onClick = { listSearchQuery = "" }) {
-                                                Icon(Icons.Outlined.Close, contentDescription = "Clear", modifier = Modifier.size(16.dp))
-                                            }
-                                        }
-                                    },
-                                    singleLine = true,
-                                    shape = RoundedCornerShape(50),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = TextFieldDefaults.colors(
-                                        unfocusedContainerColor = Color.Transparent,
-                                        focusedContainerColor = Color.Transparent,
-                                        unfocusedIndicatorColor = Color.Transparent,
-                                        focusedIndicatorColor = Color.Transparent,
-                                        disabledIndicatorColor = Color.Transparent
-                                    )
+                                    modifier = Modifier.weight(1f),
+                                    placeholder = "Search blocked list..."
+                                )
+                                com.android.libredialer.view.components.SearchClearButton(
+                                    onClick = { listSearchQuery = "" }
                                 )
                             }
                         }
@@ -1541,43 +1483,45 @@ fun SettingsScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
                     }
 
                     // Main Search Box
-                    Surface(
-                        shape = RoundedCornerShape(28.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.50f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)),
-                        modifier = Modifier.fillMaxWidth()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        TextField(
-                            value = settingsSearchQuery,
-                            onValueChange = { settingsSearchQuery = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .onFocusChanged { isSearchFocused = it.isFocused },
-                            placeholder = { Text("Search settings") },
-                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                            trailingIcon = {
-                                AnimatedVisibility(visible = settingsSearchQuery.isNotEmpty(), enter = fadeIn() + scaleIn(), exit = fadeOut() + scaleOut()) {
-                                    IconButton(onClick = { settingsSearchQuery = "" }) {
-                                        Icon(Icons.Default.Close, contentDescription = "Clear")
+                        com.android.libredialer.view.components.SearchPillContainer(
+                            Modifier.weight(1f)
+                        ) {
+                            TextField(
+                                value = settingsSearchQuery,
+                                onValueChange = { settingsSearchQuery = it },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .onFocusChanged { isSearchFocused = it.isFocused },
+                                placeholder = { Text("Search settings") },
+                                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                                colors = TextFieldDefaults.colors(
+                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    cursorColor = MaterialTheme.colorScheme.primary,
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent
+                                ),
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                    imeAction = androidx.compose.ui.text.input.ImeAction.Search
+                                ),
+                                keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                                    onSearch = {
+                                        saveSettingsSearchQuery()
+                                        keyboardController?.hide()
                                     }
-                                }
-                            },
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
-                            ),
-                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                imeAction = androidx.compose.ui.text.input.ImeAction.Search
-                            ),
-                            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                                onSearch = {
-                                    saveSettingsSearchQuery()
-                                    keyboardController?.hide()
-                                }
-                            ),
-                            singleLine = true
+                                ),
+                                singleLine = true
+                            )
+                        }
+                        com.android.libredialer.view.components.SearchClearButton(
+                            onClick = { settingsSearchQuery = "" }
                         )
                     }
                 }

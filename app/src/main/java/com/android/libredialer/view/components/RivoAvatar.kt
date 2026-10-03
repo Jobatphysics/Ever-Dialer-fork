@@ -14,7 +14,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -105,6 +107,7 @@ val avatarColors = listOf(
 fun RivoAvatar(
     name: String,
     photoUri: String? = null,
+    emojiFallbackContactId: String? = null,
     icon: ImageVector? = null,
     /** Optional explicit tint colour for vector icon tiles. */
     iconContainerColor: Color? = null,
@@ -113,6 +116,9 @@ fun RivoAvatar(
     shape: Shape = CircleShape,
     size: androidx.compose.ui.unit.Dp? = null
 ) {
+    var photoLoadFailed by remember(photoUri, emojiFallbackContactId) {
+        mutableStateOf(false)
+    }
     val localConfig = LocalAvatarDisplayConfig.current
 
     val showPicture: Boolean
@@ -215,16 +221,24 @@ fun RivoAvatar(
             contentAlignment = Alignment.Center
         ) {
             when {
-                showPicture && !photoUri.isNullOrEmpty() -> {
+                showPicture && !photoUri.isNullOrEmpty() && !photoLoadFailed -> {
                     AsyncImage(
                         model = photoUri,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Crop,
+                        onError = { photoLoadFailed = true }
                     )
                 }
                 icon != null -> {
                     Icon(imageVector = icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(iconSize))
+                }
+                emojiFallbackContactId != null -> {
+                    Text(
+                        text = contactAvatarEmoji(emojiFallbackContactId),
+                        fontSize = letterFontSize,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
                 }
                 !forcePersonIcon && showFirstLetter && hasName -> {
                     Text(
@@ -251,16 +265,24 @@ fun RivoAvatar(
             val iconSize       = (maxWidth.value * 0.55f).coerceIn(16f, 130f).dp
 
             when {
-                showPicture && !photoUri.isNullOrEmpty() -> {
+                showPicture && !photoUri.isNullOrEmpty() && !photoLoadFailed -> {
                     AsyncImage(
                         model = photoUri,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Crop,
+                        onError = { photoLoadFailed = true }
                     )
                 }
                 icon != null -> {
                     Icon(imageVector = icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(iconSize))
+                }
+                emojiFallbackContactId != null -> {
+                    Text(
+                        text = contactAvatarEmoji(emojiFallbackContactId),
+                        fontSize = letterFontSize,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
                 }
                 !forcePersonIcon && showFirstLetter && hasName -> {
                     Text(

@@ -10,13 +10,19 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -37,6 +43,7 @@ import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Reviews
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.outlined.Badge
@@ -83,7 +90,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.android.libredialer.APP_VERSION
 import com.android.libredialer.view.screen.settings.CardDivider
 import androidx.compose.material.icons.outlined.WaterDrop
@@ -383,36 +392,196 @@ fun SettingsSearchHeaderAction(navigator: DestinationsNavigator) {
     }
 
     if (showSearch) {
-        Dialog(onDismissRequest = { showSearch = false }) {
+        Dialog(
+            onDismissRequest = { showSearch = false },
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false
+            )
+        ) {
+            SettingsSearchFloatingPopup(
+                navigator = navigator,
+                onClose = { showSearch = false }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsSearchFloatingPopup(
+    navigator: DestinationsNavigator,
+    onClose: () -> Unit
+) {
+    var query by rememberSaveable { mutableStateOf("") }
+    var isFocused by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val prefs: PreferenceManager = koinInject()
+    val settingsState by prefs.settingsChanged.collectAsState()
+    val history = remember(settingsState) {
+        SearchHistoryManager.getHistory(prefs, SearchHistoryManager.Type.SETTINGS)
+    }
+    val results = remember(query) {
+        val normalized = query.trim()
+        if (normalized.isBlank()) emptyList()
+        else globalSettingsSearchEntries.filter { entry ->
+            com.android.libredialer.controller.util.matchesFuzzySearch(entry.title, normalized) ||
+                com.android.libredialer.controller.util.matchesFuzzySearch(entry.subtitle, normalized)
+        }
+    }
+
+    fun saveQuery() {
+        if (query.isNotBlank()) {
+            SearchHistoryManager.addHistory(prefs, SearchHistoryManager.Type.SETTINGS, query)
+        }
+    }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val searchCenterY = maxHeight * 0.25f
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 28.dp)
+                .offset(y = searchCenterY - 28.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                modifier = Modifier.size(56.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.86f),
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Settings, contentDescription = null, modifier = Modifier.size(34.dp))
+                }
+            }
+            SearchPillInput(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier
+                    .weight(1f)
+                    .widthIn(min = 0.dp)
+                    .height(56.dp)
+                    .onFocusChanged { isFocused = it.isFocused },
+                placeholder = "Search",
+                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    lineHeight = 24.sp,
+                    platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                        includeFontPadding = false
+                    )
+                ),
+                placeholderTextAlign = TextAlign.Center,
+                placeholderTextOffsetX = (-28).dp,
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Search
+                ),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                    onSearch = {
+                        saveQuery()
+                        keyboardController?.hide()
+                    }
+                )
+            )
+            SearchClearButton(
+                onClick = onClose,
+                contentDescription = if (query.isNotEmpty()) "Clear search" else "Close search",
+                buttonSize = 56.dp,
+                iconSize = 34.dp
+            )
+        }
+
+        if (query.isNotBlank()) {
+            val resultsTop = searchCenterY + 36.dp
+            val resultsMaxHeight = (maxHeight - resultsTop - 24.dp).coerceAtLeast(96.dp)
             Surface(
                 modifier = Modifier
+                    .align(Alignment.TopCenter)
                     .fillMaxWidth()
-                    .padding(16.dp)
-                    .heightIn(max = 640.dp),
-                shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surfaceContainerLow
+                    .padding(horizontal = 28.dp)
+                    .offset(y = resultsTop)
+                    .heightIn(max = resultsMaxHeight),
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                tonalElevation = 4.dp
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                if (results.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(20.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "Search settings",
-                            style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.weight(1f)
-                        )
-                        IconButton(onClick = { showSearch = false }) {
-                            Icon(Icons.Default.Close, contentDescription = "Close search")
+                        Text("No settings found", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = resultsMaxHeight),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        itemsIndexed(
+                            items = results,
+                            key = { _, entry -> "floating_settings_${entry.key}" }
+                        ) { _, entry ->
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.medium,
+                                color = MaterialTheme.colorScheme.surfaceContainerLow
+                            ) {
+                                RivoListItem(
+                                    headline = entry.title,
+                                    supporting = entry.subtitle,
+                                    leadingIcon = entry.icon,
+                                    iconContainerColor = entry.iconContainerColor,
+                                    trailingIcon = Icons.Default.ChevronRight,
+                                    onClick = {
+                                        saveQuery()
+                                        keyboardController?.hide()
+                                        focusManager.clearFocus(force = true)
+                                        onClose()
+                                        if (entry.navigateTo != null) {
+                                            entry.navigateTo.invoke(navigator)
+                                        } else {
+                                            navigator.navigate(
+                                                SettingsScreenDestination(highlightKey = entry.key)
+                                            )
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
-                    SettingsSearchEntryPoint(navigator)
                 }
+            }
+        } else if (isFocused && history.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .padding(horizontal = 28.dp)
+                    .offset(y = searchCenterY + 36.dp)
+            ) {
+                SearchHistorySection(
+                    history = history,
+                    onItemClick = { item ->
+                        query = item
+                        saveQuery()
+                    },
+                    onRemoveItem = {
+                        SearchHistoryManager.removeHistoryItem(
+                            prefs,
+                            SearchHistoryManager.Type.SETTINGS,
+                            it
+                        )
+                    },
+                    onClearAll = {
+                        SearchHistoryManager.clearHistory(
+                            prefs,
+                            SearchHistoryManager.Type.SETTINGS
+                        )
+                    }
+                )
             }
         }
     }
@@ -425,7 +594,11 @@ fun SettingsSearchHeaderAction(navigator: DestinationsNavigator) {
  * to it (or back to the main Settings screen with that row highlighted, if it lives there).
  */
 @Composable
-fun SettingsSearchEntryPoint(navigator: DestinationsNavigator, modifier: Modifier = Modifier) {
+fun SettingsSearchEntryPoint(
+    navigator: DestinationsNavigator,
+    modifier: Modifier = Modifier,
+    onClose: (() -> Unit)? = null
+) {
     var query by rememberSaveable { mutableStateOf("") }
     val entries = globalSettingsSearchEntries
     val filtered = remember(query) {
@@ -452,42 +625,55 @@ fun SettingsSearchEntryPoint(navigator: DestinationsNavigator, modifier: Modifie
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            modifier = Modifier.fillMaxWidth()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            TextField(
-                value = query,
-                onValueChange = { query = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onFocusChanged { isFocused = it.isFocused },
-                placeholder = { Text("Search settings") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-                trailingIcon = {
-                    AnimatedVisibility(visible = query.isNotEmpty(), enter = fadeIn() + scaleIn(), exit = fadeOut() + scaleOut()) {
-                        IconButton(onClick = { query = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear")
+            SearchPillContainer(Modifier.weight(1f)) {
+                TextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { isFocused = it.isFocused },
+                    placeholder = {
+                        Text(
+                            "Search settings",
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Search
+                    ),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                        onSearch = {
+                            saveQuery()
+                            keyboardController?.hide()
                         }
-                    }
+                    ),
+                    colors = TextFieldDefaults.colors(
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    singleLine = true,
+                    maxLines = 1
+                )
+            }
+            SearchClearButton(
+                onClick = {
+                    if (query.isNotEmpty()) query = "" else onClose?.invoke()
                 },
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                    imeAction = androidx.compose.ui.text.input.ImeAction.Search
-                ),
-                keyboardActions = androidx.compose.foundation.text.KeyboardActions(
-                    onSearch = {
-                        saveQuery()
-                        keyboardController?.hide()
-                    }
-                ),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
-                singleLine = true
+                contentDescription = if (query.isNotEmpty()) "Clear search" else "Close search"
             )
         }
 

@@ -2563,19 +2563,21 @@ private fun AddPersonSheet(
             }
 
             if (selectedTab != 2) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
+                Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                    placeholder = { Text(if (selectedTab == 0) "Search call logs..." else "Search contacts...") },
-                    leadingIcon = { Icon(Icons.Default.Search, null) },
-                    shape = RoundedCornerShape(16.dp),
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    com.android.libredialer.view.components.SearchPillInput(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = if (selectedTab == 0) "Search call logs..." else "Search contacts..."
                     )
-                )
+                    com.android.libredialer.view.components.SearchClearButton(
+                        onClick = { searchQuery = "" }
+                    )
+                }
             }
 
             Row(

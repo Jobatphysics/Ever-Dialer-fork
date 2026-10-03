@@ -648,6 +648,7 @@ private fun FavoriteContactCard(
                     RivoAvatar(
                         name = contact.name,
                         photoUri = contact.photoUri,
+                        emojiFallbackContactId = contact.id,
                         modifier = Modifier.fillMaxSize(),
                         shape = CircleShape
                     )
@@ -702,6 +703,7 @@ private fun FavoriteContactCard(
                         RivoAvatar(
                             name = contact.name,
                             photoUri = contact.photoUri,
+                            emojiFallbackContactId = contact.id,
                             modifier = Modifier.fillMaxSize(),
                             shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
                         )

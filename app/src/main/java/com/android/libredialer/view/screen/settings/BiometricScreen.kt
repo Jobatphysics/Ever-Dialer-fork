@@ -435,32 +435,23 @@ private fun ContactPickerDialog(
                         )
 
                         // Search bar
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            placeholder = { Text("Search contacts…") },
-                            leadingIcon = {
-                                Icon(Icons.Default.Search, contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            },
-                            trailingIcon = {
-                                AnimatedVisibility(visible = searchQuery.isNotEmpty()) {
-                                    IconButton(onClick = { searchQuery = "" }) {
-                                        Icon(Icons.Default.Close, contentDescription = "Clear",
-                                            modifier = Modifier.size(18.dp))
-                                    }
-                                }
-                            },
-                            singleLine = true,
-                            shape = RoundedCornerShape(28.dp),
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            com.android.libredialer.view.components.SearchPillInput(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                modifier = Modifier.weight(1f),
+                                placeholder = "Search contacts"
                             )
-                        )
+                            com.android.libredialer.view.components.SearchClearButton(
+                                onClick = { searchQuery = "" }
+                            )
+                        }
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.surface

@@ -409,24 +409,21 @@ fun ContactsHiderScreen(navigator: DestinationsNavigator) {
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
-                    OutlinedTextField(
-                        value = contactSearch,
-                        onValueChange = { contactSearch = it },
-                        placeholder = { Text("Search contacts…") },
-                        leadingIcon = { Icon(Icons.Default.Search, null) },
-                        trailingIcon = {
-                            if (contactSearch.isNotEmpty()) {
-                                IconButton(onClick = { contactSearch = "" }) { Icon(Icons.Default.Close, null) }
-                            }
-                        },
-                        singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        com.android.libredialer.view.components.SearchPillInput(
+                            value = contactSearch,
+                            onValueChange = { contactSearch = it },
+                            modifier = Modifier.weight(1f),
+                            placeholder = "Search contacts"
                         )
-                    )
+                        com.android.libredialer.view.components.SearchClearButton(
+                            onClick = { contactSearch = "" }
+                        )
+                    }
                     Spacer(Modifier.height(8.dp))
                     val filtered = allContacts.filter { c ->
                         c.id !in hiddenIdsState && (contactSearch.isBlank() ||
@@ -445,7 +442,12 @@ fun ContactsHiderScreen(navigator: DestinationsNavigator) {
                                     .padding(vertical = 10.dp, horizontal = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                RivoAvatar(name = contact.name, photoUri = contact.photoUri, modifier = Modifier.size(40.dp))
+                                RivoAvatar(
+                                    name = contact.name,
+                                    photoUri = contact.photoUri,
+                                    emojiFallbackContactId = contact.id,
+                                    modifier = Modifier.size(40.dp)
+                                )
                                 Spacer(Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(contact.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
@@ -482,7 +484,12 @@ private fun HiddenContactRow(contact: Contact, onRemove: () -> Unit) {
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RivoAvatar(name = contact.name, photoUri = contact.photoUri, modifier = Modifier.size(38.dp))
+        RivoAvatar(
+            name = contact.name,
+            photoUri = contact.photoUri,
+            emojiFallbackContactId = contact.id,
+            modifier = Modifier.size(38.dp)
+        )
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(contact.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
