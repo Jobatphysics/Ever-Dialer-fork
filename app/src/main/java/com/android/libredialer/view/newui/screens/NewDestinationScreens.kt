@@ -4,14 +4,21 @@ package com.android.libredialer.view.newui.screens
 import com.android.libredialer.view.newui.components.LensSurfaceBox
 import com.android.libredialer.view.components.SettingsSearchHeaderAction
 import com.android.libredialer.view.components.providedCallIcon
+import com.android.libredialer.view.components.providedMessageIcon
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.platform.InterceptPlatformTextInput
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.android.libredialer.controller.util.normalizeNumberDigits
@@ -21,11 +28,14 @@ import com.android.libredialer.view.newui.components.physicalItemInput
 import com.android.libredialer.view.newui.components.PhysicalListState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.OutlinedTextField
@@ -36,6 +46,15 @@ import org.koin.compose.viewmodel.koinActivityViewModel
 import org.koin.compose.koinInject
 import androidx.compose.runtime.Composable
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,7 +72,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.ChevronRight
@@ -74,16 +98,20 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.RadioButton
+import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -109,6 +137,9 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -154,14 +185,41 @@ import androidx.lifecycle.ViewModel
 import android.provider.CallLog
 
 @Composable
+@OptIn(ExperimentalComposeUiApi::class)
 fun NewDialerScreen(
     onCall: (String) -> Unit,
     onSettings: () -> Unit,
     onAddContact: (String?) -> Unit = {}
 ) {
-    var number by remember { mutableStateOf("") }
-    var pasteCandidate by remember { mutableStateOf<String?>(null) }
+    val numberField = rememberTextFieldState()
+    val number = numberField.text.toString()
     val context = LocalContext.current
+
+    fun insertAtSelection(value: String) {
+        numberField.edit {
+            val start = selection.min
+            val end = selection.max
+            replace(start, end, value)
+            selection = TextRange(start + value.length)
+        }
+    }
+
+    fun deleteAtSelection() {
+        val currentNumber = numberField.text
+        val start = numberField.selection.min
+        val end = numberField.selection.max
+        if (start != end) {
+            numberField.edit {
+                replace(start, end, "")
+                selection = TextRange(start)
+            }
+        } else if (start > 0) {
+            numberField.edit {
+                replace(start - 1, start, "")
+                selection = TextRange(start - 1)
+            }
+        }
+    }
 
     val contactsVM: com.android.libredialer.controller.ContactsViewModel =
         koinActivityViewModel()
@@ -265,7 +323,10 @@ fun NewDialerScreen(
                                     .fillMaxWidth()
                                     .newUiClickable(androidx.compose.ui.graphics.RectangleShape) {
                                         matchedNumber?.let {
-                                            number = it
+                                            numberField.edit {
+                                                replace(0, length, it)
+                                                selection = TextRange(it.length)
+                                            }
                                         }
                                     }
                                     .padding(
@@ -298,78 +359,36 @@ fun NewDialerScreen(
             }
 
             // Number display immediately above keypad.
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp)
-                    .combinedClickable(
-                        onClick = {},
-                        onLongClickLabel = "Paste phone number",
-                        onLongClick = {
-                            val clipboard = context.getSystemService(ClipboardManager::class.java)
-                            val candidate = clipboard.primaryClip
-                                ?.takeIf { it.itemCount > 0 }
-                                ?.getItemAt(0)
-                                ?.coerceToText(context)
-                                ?.toString()
-                                ?.trim()
-                            val digitCount = candidate?.count(Char::isDigit) ?: 0
-                            pasteCandidate = candidate?.takeIf { value ->
-                                value.isNotEmpty() &&
-                                    digitCount in 3..20 &&
-                                    value.all { it.isDigit() || it in "+ ().-" } &&
-                                    (value.first().isDigit() ||
-                                        (value.first() == '+' && value.getOrNull(1)?.isDigit() == true)) &&
-                                    value.drop(1).none { it == '+' }
-                            }
-                        }
-                    ),
-                contentAlignment = Alignment.Center
+            InterceptPlatformTextInput(
+                interceptor = { _, _ -> awaitCancellation() }
             ) {
-                if (number.isNotEmpty()) {
-                    Text(
-                        text = number,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        style = MaterialTheme.typography.headlineMedium.copy(fontSize = 40.sp),
+                BasicTextField(
+                    state = numberField,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .padding(vertical = 4.dp),
+                    lineLimits = TextFieldLineLimits.SingleLine,
+                    textStyle = MaterialTheme.typography.headlineMedium.copy(
+                        fontSize = 45.sp,
                         textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        softWrap = false,
                         color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = pasteCandidate != null,
-                    onDismissRequest = { pasteCandidate = null }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Paste") },
-                        leadingIcon = {
-                            Icon(Icons.Filled.ContentPaste, contentDescription = null)
-                        },
-                        onClick = {
-                            pasteCandidate?.let { number = it }
-                            pasteCandidate = null
-                        }
-                    )
-                }
+                    ),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Phone,
+                        showKeyboardOnFocus = false
+                    ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
+                )
             }
             // Five-row keypad.
             DialerKeypad(
-                onDigit = { number += it },
-                onDelete = {
-                    if (number.isNotEmpty()) {
-                        number = number.dropLast(1)
-                    }
-                },
+                onDigit = { insertAtSelection(it) },
+                onDelete = ::deleteAtSelection,
                 onDeleteRepeat = {
-                    if (number.isNotEmpty()) {
-                        number = number.dropLast(1)
-                        true
-                    } else false
+                    val oldNumber = numberField.text
+                    deleteAtSelection()
+                    oldNumber != numberField.text
                 },
                 onCall = {
                     if (number.isNotBlank()) {
@@ -715,26 +734,34 @@ fun NewRecentsScreen(
                 val number = item.log.number
                 val blocked = BlockedNumbersManager.isBlocked(context, prefs, number)
                 val actions = buildList {
-                    add(NewContextualAction("Call") { onCall(number) })
-                    add(NewContextualAction("Message") {
+                    add(NewContextualAction("Call", providedCallIcon()) { onCall(number) })
+                    add(NewContextualAction("Message", providedMessageIcon()) {
                         context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:${Uri.encode(number)}")))
                     })
-                    add(NewContextualAction("Delete") {
+                    add(NewContextualAction("Delete", Icons.Filled.Delete) {
                         callLogViewModel.deleteCallLog(item.log)
                     })
-                    add(NewContextualAction(if (blocked) "Unblock" else "Block") {
+                    add(NewContextualAction(
+                        if (blocked) "Unblock" else "Block",
+                        Icons.Filled.Block
+                    ) {
                         if (blocked) BlockedNumbersManager.unblock(context, prefs, number)
                         else BlockedNumbersManager.block(context, prefs, number)
                     })
-                    if (item.contact == null) add(NewContextualAction("Add to Contacts") { onAddContact(number) })
-                    add(NewContextualAction("Copy number") {
+                    if (item.contact == null) add(
+                        NewContextualAction("Add to Contacts", Icons.Filled.PersonAdd) {
+                            onAddContact(number)
+                        }
+                    )
+                    add(NewContextualAction("Copy number", Icons.Filled.ContentCopy) {
                         val clipboard = context.getSystemService(ClipboardManager::class.java)
                         clipboard?.setPrimaryClip(ClipData.newPlainText("Phone number", number))
                     })
-                    add(NewContextualAction("Remind me") { showReminderPicker = item })
+                    add(NewContextualAction("Remind me", Icons.Filled.Alarm) {
+                        showReminderPicker = item
+                    })
                 }
                 NewContextualActionsDialog(
-                    title = item.displayName,
                     actions = actions,
                     onDismiss = { contextualItem = null }
                 )
@@ -1033,19 +1060,24 @@ fun NewContactsScreen(
                 val number = contact.phoneNumbers.firstOrNull().orEmpty()
                 val blocked = BlockedNumbersManager.isBlocked(context, prefs, number)
                 NewContextualActionsDialog(
-                    title = contact.name.ifBlank { number },
                     actions = listOf(
-                        NewContextualAction(if (contact.isFavorite) "Remove from Favorites" else "Add to Favorites") {
+                        NewContextualAction(
+                            if (contact.isFavorite) "Remove from Favorites" else "Add to Favorites",
+                            Icons.Filled.Favorite
+                        ) {
                             contactsViewModel.toggleFavorite(contact)
                         },
-                        NewContextualAction(if (blocked) "Unblock" else "Block") {
+                        NewContextualAction(
+                            if (blocked) "Unblock" else "Block",
+                            Icons.Filled.Block
+                        ) {
                             if (blocked) BlockedNumbersManager.unblock(context, prefs, number)
                             else BlockedNumbersManager.block(context, prefs, number)
                         },
-                        NewContextualAction("Delete Contact") {
+                        NewContextualAction("Delete Contact", Icons.Filled.Delete) {
                             contactsViewModel.deleteContact(contact.id)
                         },
-                        NewContextualAction("Copy number") {
+                        NewContextualAction("Copy number", Icons.Filled.ContentCopy) {
                             context.getSystemService(ClipboardManager::class.java)
                                 ?.setPrimaryClip(ClipData.newPlainText("Phone number", number))
                         }
@@ -1211,15 +1243,22 @@ fun NewFavoritesScreen(
                 val number = contact.phoneNumbers.firstOrNull().orEmpty()
                 val blocked = BlockedNumbersManager.isBlocked(context, prefs, number)
                 NewContextualActionsDialog(
-                    title = contact.name.ifBlank { number },
                     actions = listOf(
-                        NewContextualAction("Remove from Favorites") { contactsViewModel.toggleFavorite(contact) },
-                        NewContextualAction(if (blocked) "Unblock" else "Block") {
+                        NewContextualAction(
+                            "Remove from Favorites",
+                            Icons.Filled.Favorite
+                        ) { contactsViewModel.toggleFavorite(contact) },
+                        NewContextualAction(
+                            if (blocked) "Unblock" else "Block",
+                            Icons.Filled.Block
+                        ) {
                             if (blocked) BlockedNumbersManager.unblock(context, prefs, number)
                             else BlockedNumbersManager.block(context, prefs, number)
                         },
-                        NewContextualAction("Delete Contact") { contactsViewModel.deleteContact(contact.id) },
-                        NewContextualAction("Copy number") {
+                        NewContextualAction("Delete Contact", Icons.Filled.Delete) {
+                            contactsViewModel.deleteContact(contact.id)
+                        },
+                        NewContextualAction("Copy number", Icons.Filled.ContentCopy) {
                             context.getSystemService(ClipboardManager::class.java)
                                 ?.setPrimaryClip(ClipData.newPlainText("Phone number", number))
                         }
