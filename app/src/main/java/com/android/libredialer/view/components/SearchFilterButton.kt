@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.android.libredialer.controller.util.PreferenceManager
@@ -84,7 +83,7 @@ fun SearchFilterButton(modifier: Modifier = Modifier, size: androidx.compose.ui.
     val isDark = androidx.core.graphics.ColorUtils.calculateLuminance(MaterialTheme.colorScheme.surface.toArgb()) < 0.5
     val isSaturatedActive = remember(settingsVer, isDark) { prefs.isSaturatedForTheme(isDark) }
 
-    val haptic = LocalHapticFeedback.current
+    val haptic = rememberComposeAppHaptic()
     val density = LocalDensity.current
     val rowHeightDp = 48.dp
     val rowHeightPx = with(density) { rowHeightDp.toPx() }
@@ -227,7 +226,7 @@ fun SearchFilterButton(modifier: Modifier = Modifier, size: androidx.compose.ui.
                                                 onDragStart = {
                                                     draggedKey = key
                                                     dragOffsetY = 0f
-                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    haptic(HapticFeedbackType.LongPress)
                                                 },
                                                 onDragEnd = {
                                                     draggedKey = null
@@ -247,14 +246,14 @@ fun SearchFilterButton(modifier: Modifier = Modifier, size: androidx.compose.ui.
                                                         val item = filterOrder.removeAt(currentIdx)
                                                         filterOrder.add(currentIdx + 1, item)
                                                         dragOffsetY -= rowHeightPx
-                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                        haptic(HapticFeedbackType.TextHandleMove)
                                                     }
                                                     while (dragOffsetY < -threshold && filterOrder.indexOf(key) > 0) {
                                                         val currentIdx = filterOrder.indexOf(key)
                                                         val item = filterOrder.removeAt(currentIdx)
                                                         filterOrder.add(currentIdx - 1, item)
                                                         dragOffsetY += rowHeightPx
-                                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                        haptic(HapticFeedbackType.TextHandleMove)
                                                     }
                                                 }
                                             )

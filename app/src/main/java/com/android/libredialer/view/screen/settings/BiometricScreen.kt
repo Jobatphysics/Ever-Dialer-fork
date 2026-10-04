@@ -1,10 +1,6 @@
 package com.android.libredialer.view.screen.settings
 
 import android.content.Context
-import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.animation.*
@@ -41,6 +37,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.android.libredialer.controller.util.PreferenceManager
+import com.android.libredialer.view.components.AppHapticEvent
+import com.android.libredialer.view.components.rememberAppHapticFeedback
 import androidx.compose.ui.window.Dialog
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
@@ -746,6 +744,7 @@ fun PinDialogContent(
     var firstPin by remember { mutableStateOf("") }
     var shakeState by remember { mutableIntStateOf(0) }
     val context = LocalContext.current
+    val appHaptic = rememberAppHapticFeedback()
 
     val shake by animateDpAsState(
         targetValue = 0.dp,
@@ -758,29 +757,11 @@ fun PinDialogContent(
     )
 
     fun vibError() {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                vm.defaultVibrator.vibrate(VibrationEffect.createOneShot(80, 180))
-            } else {
-                @Suppress("DEPRECATION")
-                (context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator)
-                    .vibrate(VibrationEffect.createOneShot(80, 180))
-            }
-        } catch (_: Exception) {}
+        appHaptic(AppHapticEvent.LONG_PRESS, true)
     }
 
     fun vibSuccess() {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                vm.defaultVibrator.vibrate(VibrationEffect.createOneShot(40, 120))
-            } else {
-                @Suppress("DEPRECATION")
-                (context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator)
-                    .vibrate(VibrationEffect.createOneShot(40, 120))
-            }
-        } catch (_: Exception) {}
+        appHaptic(AppHapticEvent.CLICK, true)
     }
 
     fun onDigit(d: String) { if (pin.length < 12) pin += d }

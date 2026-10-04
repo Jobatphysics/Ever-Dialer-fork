@@ -8,6 +8,8 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import com.android.libredialer.controller.util.ContactsCache
 import com.android.libredialer.controller.util.ContactsHiderManager
+import com.android.libredialer.controller.util.CallingCardStore
+import com.android.libredialer.controller.util.findContactForCaller
 import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.modal.`interface`.IContactsRepository
 import androidx.lifecycle.AndroidViewModel
@@ -526,7 +528,8 @@ class ContactsViewModel(
         accountType: String? = null,
         accountName: String? = null,
         updateAllAccounts: Boolean = false,
-        originalContact: Contact? = null
+        originalContact: Contact? = null,
+        onSaved: ((Contact?) -> Unit)? = null
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             // Optimistically update memory and cache for instant UI feedback
@@ -538,7 +541,16 @@ class ContactsViewModel(
                 ContactsCache.write(getApplication(), updated)
             }
             contactsRepo.saveContact(contact, accountType, accountName, updateAllAccounts, originalContact)
+            val savedContact = if (contact.id.isNotBlank() && contact.id != "0" && contact.id != "null") {
+                contactsRepo.getContactById(contact.id)
+            } else {
+                val callerNumber = contact.phoneNumbers.firstOrNull().orEmpty()
+                findContactForCaller(callerNumber, contactsRepo.getContacts())
+            }
             fetchContacts()
+            onSaved?.let { callback ->
+                withContext(Dispatchers.Main) { callback(savedContact) }
+            }
         }
     }
 
@@ -586,9 +598,15 @@ class ContactsViewModel(
 
     fun getContactById(contactId: String): Contact? = contactsRepo.getContactById(contactId)
 
+    fun findContactByNumber(number: String): Contact? =
+        findContactForCaller(number, contactsRepo.getContacts())
+
     fun deleteContact(contactId: String, onComplete: () -> Unit = {}) {
         viewModelScope.launch(Dispatchers.IO) {
             contactsRepo.deleteContact(contactId)
+            if (!CallingCardStore.from(getApplication()).remove(contactId)) {
+                Log.w("CallingCardStore", "Unable to remove calling card for deleted contact $contactId")
+            }
             fetchContacts()
             withContext(Dispatchers.Main) {
                 onComplete()

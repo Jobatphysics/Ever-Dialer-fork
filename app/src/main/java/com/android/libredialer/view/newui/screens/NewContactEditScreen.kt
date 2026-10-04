@@ -1,12 +1,7 @@
 package com.android.libredialer.view.newui.screens
 
-import android.net.Uri
 import android.provider.ContactsContract
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,12 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.LocationOn
@@ -58,14 +50,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.android.libredialer.controller.ContactsViewModel
+import com.android.libredialer.controller.util.CallingCardStore
 import com.android.libredialer.modal.data.Contact
 import com.android.libredialer.modal.data.ContactAccountInfo
 import com.android.libredialer.modal.data.ContactPhone
@@ -73,7 +63,9 @@ import com.android.libredialer.modal.data.ContactSaveTarget
 import com.android.libredialer.modal.data.getPhoneTypeLabel
 import com.android.libredialer.view.newui.theme.NewUiDimensions
 import com.android.libredialer.view.newui.components.newUiScrollContentPadding
+import com.android.libredialer.view.components.ContactPicturesEditor
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.compose.viewmodel.koinActivityViewModel
 
@@ -100,6 +92,8 @@ fun NewContactEditScreen(
     var initialized by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf(contact?.name.orEmpty()) }
     var photoUri by remember { mutableStateOf(contact?.photoUri) }
+    var callingCardUri by remember(contact?.id) { mutableStateOf<String?>(null) }
+    var originalCallingCardUri by remember(contact?.id) { mutableStateOf<String?>(null) }
     var note by remember { mutableStateOf(contact?.note.orEmpty()) }
     val phones = remember { mutableStateListOf(NewEditablePhone(initialPhone.orEmpty())) }
     val emails = remember { mutableStateListOf("") }
@@ -124,6 +118,9 @@ fun NewContactEditScreen(
             }
             name = loaded.name
             photoUri = loaded.photoUri
+            val savedCardUri = CallingCardStore.from(context).get(loaded.id)?.toURI()?.toString()
+            callingCardUri = savedCardUri
+            originalCallingCardUri = savedCardUri
             note = loaded.note.orEmpty()
             phones.clear()
             phones += if (loaded.phones.isNotEmpty()) {
@@ -149,9 +146,37 @@ fun NewContactEditScreen(
         }
     }
 
-    val photoPicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri: Uri? -> if (uri != null) photoUri = uri.toString() }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+
+    fun persistCallingCard(savedContact: Contact?) {
+        val contactId = savedContact?.id?.takeIf { it.isNotBlank() && it != "0" && it != "null" }
+            ?: currentContact?.id?.takeIf { it.isNotBlank() && it != "0" && it != "null" }
+        if (contactId == null) {
+            if (callingCardUri != null) {
+                Toast.makeText(context, "Save the contact before adding a calling card.", Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
+        scope.launch(Dispatchers.IO) {
+            val succeeded = try {
+                CallingCardStore.updateFromUri(context, contactId, originalCallingCardUri, callingCardUri)
+            } catch (error: java.io.IOException) {
+                CallingCardStore.reportUpdateFailure(context, error)
+                false
+            } catch (error: SecurityException) {
+                CallingCardStore.reportUpdateFailure(context, error)
+                false
+            } catch (error: IllegalArgumentException) {
+                CallingCardStore.reportUpdateFailure(context, error)
+                false
+            }
+            if (!succeeded) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Couldn't save the calling card.", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     fun save(target: ContactSaveTarget?, allAccounts: Boolean) {
         if (saving) return
@@ -180,6 +205,35 @@ fun NewContactEditScreen(
                     if (success) "Saved to ${target.label}" else "Couldn't save to ${target.label}",
                     Toast.LENGTH_SHORT
                 ).show()
+                if (success && callingCardUri != null) {
+                    scope.launch(Dispatchers.IO) {
+                        val savedContact = contactsViewModel.findContactByNumber(validPhones.first())
+                        if (savedContact != null) {
+                            try {
+                                CallingCardStore.updateFromUri(context, savedContact.id, null, callingCardUri)
+                            } catch (error: java.io.IOException) {
+                                CallingCardStore.reportUpdateFailure(context, error)
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Couldn't save the calling card.", Toast.LENGTH_LONG).show()
+                                }
+                            } catch (error: SecurityException) {
+                                CallingCardStore.reportUpdateFailure(context, error)
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Couldn't save the calling card.", Toast.LENGTH_LONG).show()
+                                }
+                            } catch (error: IllegalArgumentException) {
+                                CallingCardStore.reportUpdateFailure(context, error)
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Couldn't save the calling card.", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        } else {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "Contact saved, but its calling card couldn't be linked.", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                }
             }
         } else {
             contactsViewModel.saveContact(
@@ -187,7 +241,8 @@ fun NewContactEditScreen(
                 accountType = target?.accountType,
                 accountName = target?.accountName,
                 updateAllAccounts = allAccounts,
-                originalContact = currentContact
+                originalContact = currentContact,
+                onSaved = ::persistCallingCard
             )
         }
         onSaved()
@@ -234,48 +289,15 @@ fun NewContactEditScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        if (!photoUri.isNullOrBlank()) {
-                            AsyncImage(
-                                model = photoUri,
-                                contentDescription = "$name photo",
-                                modifier = Modifier.size(104.dp).clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Surface(
-                                modifier = Modifier.size(104.dp),
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primaryContainer
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Spacer(Modifier.weight(1f))
-                                    Text(
-                                        name.firstOrNull()?.uppercase() ?: "?",
-                                        style = MaterialTheme.typography.displaySmall
-                                    )
-                                    Spacer(Modifier.weight(1f))
-                                }
-                            }
-                        }
-                        TextButton(onClick = {
-                            photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                        }) {
-                            Icon(Icons.Default.AddAPhoto, "Choose contact photo")
-                            Spacer(Modifier.size(6.dp))
-                            Text("Choose photo")
-                        }
-                        if (!photoUri.isNullOrBlank()) {
-                            TextButton(onClick = { photoUri = null }) {
-                                Icon(Icons.Default.Delete, "Remove contact photo")
-                                Spacer(Modifier.size(6.dp))
-                                Text("Remove photo")
-                            }
-                        }
-                    }
+                    ContactPicturesEditor(
+                        name = name,
+                        contactPhotoUri = photoUri,
+                        callingCardUri = callingCardUri,
+                        onContactPhotoSelected = { photoUri = it },
+                        onContactPhotoRemoved = { photoUri = null },
+                        onCallingCardSelected = { callingCardUri = it },
+                        onCallingCardRemoved = { callingCardUri = null }
+                    )
                 }
                 item {
                     EditCard("Identity") {

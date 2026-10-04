@@ -145,8 +145,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.libredialer.view.newui.components.NewUiPlaceholderCard
@@ -1202,23 +1207,7 @@ private fun ContactSearchResultRow(
                 val phoneSummary = contact.phoneNumbers
                     .filter(String::isNotBlank)
                     .distinct()
-                    .joinToString(" · ")
-                if (phoneSummary.isNotBlank()) {
-                    Text(
-                        text = phoneSummary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                if (additionalContactCount > 0) {
-                    Text(
-                        text = "… more",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                ContactPhoneSummary(phoneSummary, additionalContactCount > 0)
             }
         }
     }
@@ -1266,23 +1255,67 @@ private fun NewContactRow(
                 val phoneSummary = contact.phoneNumbers
                     .filter(String::isNotBlank)
                     .distinct()
-                    .joinToString(" · ")
-                if (phoneSummary.isNotBlank()) {
-                    Text(
-                        text = phoneSummary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                if (additionalContactCount > 0) {
-                    Text(
-                        text = "… more",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                ContactPhoneSummary(phoneSummary, additionalContactCount > 0)
             }
         }
+    }
+}
+
+@Composable
+private fun ContactPhoneSummary(phoneNumbers: List<String>, hasAdditionalContacts: Boolean) {
+    if (phoneNumbers.isEmpty() && !hasAdditionalContacts) return
+
+    val bodyStyle = MaterialTheme.typography.bodyMedium
+    val moreStyle = MaterialTheme.typography.labelSmall
+    val textColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val maxWidthPx = with(density) { maxWidth.roundToPx() }
+        val moreText = buildAnnotatedString {
+            pushStyle(moreStyle.toSpanStyle().copy(color = textColor))
+            append("… more")
+            pop()
+        }
+
+        fun summary(numberCount: Int, includeMore: Boolean): AnnotatedString = buildAnnotatedString {
+            append(phoneNumbers.take(numberCount).joinToString(" · "))
+            if (includeMore) {
+                if (numberCount > 0) append(" · ")
+                append(moreText)
+            }
+        }
+
+        fun fits(text: AnnotatedString): Boolean =
+            !textMeasurer.measure(
+                text = text,
+                style = bodyStyle.copy(color = textColor),
+                overflow = TextOverflow.Clip,
+                softWrap = false,
+                maxLines = 1,
+                constraints = Constraints(maxWidth = maxWidthPx)
+            ).didOverflowWidth
+
+        val completeSummary = summary(phoneNumbers.size, false)
+        val visibleSummary = if (!hasAdditionalContacts && fits(completeSummary)) {
+            completeSummary
+        } else {
+            (phoneNumbers.size downTo 0)
+                .firstNotNullOfOrNull { count ->
+                    val includeMore = hasAdditionalContacts || count < phoneNumbers.size
+                    if (includeMore) summary(count, true).takeIf(::fits) else null
+                } ?: moreText
+        }
+
+        Text(
+            text = visibleSummary,
+            style = bodyStyle,
+            color = textColor,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

@@ -57,7 +57,6 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
@@ -251,7 +250,7 @@ fun NewUiScreenShell(
 
 @Composable
 fun Modifier.newUiScrollHaptics(enabled: Boolean = true): Modifier {
-    val hapticFeedback = LocalHapticFeedback.current
+    val hapticFeedback = com.android.libredialer.view.components.rememberComposeAppHaptic()
     val prefs: PreferenceManager = koinInject()
     val settingsVersion by prefs.settingsChanged.collectAsState()
     val userEnabled = remember(settingsVersion) {
@@ -276,7 +275,7 @@ fun Modifier.newUiScrollHaptics(enabled: Boolean = true): Modifier {
                 accumulatedScroll += consumed.y
                 if (kotlin.math.abs(accumulatedScroll) >= milestonePx) {
                     accumulatedScroll %= milestonePx
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    hapticFeedback(HapticFeedbackType.TextHandleMove)
                 }
                 return Offset.Zero
             }

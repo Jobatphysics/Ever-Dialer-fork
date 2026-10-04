@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddIcCall
 import androidx.compose.material.icons.filled.Bluetooth
@@ -84,14 +85,17 @@ fun NewCallScreen(
     heldCall: Call?,
     audioState: CallAudioState?,
     contactsRepository: IContactsRepository,
+    callingCardUri: String? = null,
     simSlot: Int = -1,
     showSimBadge: Boolean = false,
     onMoveToBackground: () -> Unit
 ) {
     val context = LocalContext.current
-    val number = call.details?.handle?.schemeSpecificPart.orEmpty()
+    val displayCall = incomingCall?.takeIf { it.state == Call.STATE_RINGING } ?: call
+    val number = displayCall.details?.handle?.schemeSpecificPart.orEmpty()
     var contactName by remember(number) { mutableStateOf(number.ifBlank { "Unknown caller" }) }
     var photoUri by remember(number) { mutableStateOf<String?>(null) }
+    var callingCardLoadFailed by remember(callingCardUri) { mutableStateOf(false) }
     var showDialpad by remember { mutableStateOf(false) }
     var showAddCall by remember { mutableStateOf(false) }
     var showNote by remember { mutableStateOf(false) }
@@ -152,7 +156,17 @@ fun NewCallScreen(
             verticalArrangement = Arrangement.spacedBy(NewUiDimensions.ItemSpacing)
         ) {
             Spacer(Modifier.weight(1f))
-            if (photoUri != null) {
+            if (!callingCardUri.isNullOrBlank() && !callingCardLoadFailed) {
+                AsyncImage(
+                    model = callingCardUri,
+                    contentDescription = "$contactName calling card",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(width = 224.dp, height = 248.dp)
+                        .clip(RoundedCornerShape(24.dp)),
+                    onError = { callingCardLoadFailed = true }
+                )
+            } else if (photoUri != null) {
                 AsyncImage(
                     model = photoUri,
                     contentDescription = null,

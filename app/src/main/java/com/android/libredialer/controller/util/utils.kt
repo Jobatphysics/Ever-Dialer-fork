@@ -179,7 +179,7 @@ fun makeCall(context: Context, number: String, accountHandle: PhoneAccountHandle
         }
     }
 
-    val uri = Uri.fromParts("tel", sanitized, null)
+    val uri = Uri.parse(buildTelUriString(sanitized))
     val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
     if (telecomManager == null) {
         val intent = Intent(Intent.ACTION_DIAL, uri).apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
@@ -573,4 +573,3 @@ fun matchesFuzzySearch(target: String, query: String): Boolean {
 
     return false
 }
-

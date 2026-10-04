@@ -30,7 +30,6 @@ import androidx.compose.ui.zIndex
 import kotlin.math.abs
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
@@ -67,7 +66,7 @@ import java.util.*
 fun NotesScreen(navController: NavController, navigator: DestinationsNavigator, highlightQuery: String? = null) {
     val context = LocalContext.current
     val prefs = koinInject<PreferenceManager>()
-    val haptic = LocalHapticFeedback.current
+    val haptic = com.android.libredialer.view.components.rememberComposeAppHaptic()
     val isLandscape = androidx.compose.ui.platform.LocalConfiguration.current.orientation ==
         android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val contactsVM: ContactsViewModel = koinActivityViewModel()
@@ -304,7 +303,7 @@ fun NotesScreen(navController: NavController, navigator: DestinationsNavigator, 
                                 }
                             },
                             onLongClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                haptic(HapticFeedbackType.LongPress)
                                 selectedNote = note
                             }
                         )

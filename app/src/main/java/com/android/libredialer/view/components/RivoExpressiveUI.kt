@@ -1,11 +1,7 @@
 package com.android.libredialer.view.components
 
-import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
-import android.os.VibratorManager
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.indication
@@ -64,63 +60,6 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.graphicsLayer
-
-// ─── App Haptics Helper ────────────────────────────────────────────────────────
-
-/**
- * strength: "light" | "strong" | "custom"
- * customIntensity: 0f..1f, only used when strength == "custom"
- */
-fun performAppHaptic(
-    context: android.content.Context,
-    strength: String,
-    customIntensity: Float = 0.5f
-) {
-    try {
-        val durationMs: Long
-        val amplitude: Int
-        when (strength) {
-            "strong" -> { durationMs = 40; amplitude = VibrationEffect.DEFAULT_AMPLITUDE }
-            "custom" -> {
-                durationMs = (10 + customIntensity * 70).toLong().coerceIn(10, 80)
-                amplitude  = (40  + (customIntensity * 215)).toInt().coerceIn(40, 255)
-            }
-            else -> { durationMs = 20; amplitude = 80 } // light
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val vm = context.getSystemService(VibratorManager::class.java)
-            vm?.defaultVibrator?.vibrate(VibrationEffect.createOneShot(durationMs, amplitude))
-        } else {
-            val vibrator = context.getSystemService(Vibrator::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator?.vibrate(VibrationEffect.createOneShot(durationMs, amplitude))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator?.vibrate(durationMs)
-            }
-        }
-    } catch (_: Exception) {}
-}
-
-fun performScrollHaptic(context: android.content.Context, amplitude: Int = 60) {
-    try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val vm = context.getSystemService(VibratorManager::class.java)
-            val vibrator = vm?.defaultVibrator
-            val effect = VibrationEffect.createOneShot(10, amplitude.coerceIn(1, 255))
-            vibrator?.vibrate(effect)
-        } else {
-            val vibrator = context.getSystemService(Vibrator::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val effect = VibrationEffect.createOneShot(10, amplitude.coerceIn(1, 255))
-                vibrator?.vibrate(effect)
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator?.vibrate(10L)
-            }
-        }
-    } catch (_: Exception) {}
-}
 
 /**
  * A composable effect that triggers scroll haptics based on physical scroll distance.
@@ -343,6 +282,7 @@ fun RivoExpressiveButton(
     iconBitmap: androidx.compose.ui.graphics.ImageBitmap? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val appHaptic = rememberAppHapticFeedback()
     val isPressed by interactionSource.collectIsPressedAsState()
 
     val cornerRadius by animateDpAsState(
@@ -358,7 +298,10 @@ fun RivoExpressiveButton(
 
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
         Surface(
-            onClick = onClick,
+            onClick = {
+                appHaptic(AppHapticEvent.CLICK, true)
+                onClick()
+            },
             modifier = Modifier.size(size).scale(scale),
             shape = RoundedCornerShape(cornerRadius),
             color = if (iconBitmap != null) Color.Transparent else containerColor,
@@ -667,6 +610,7 @@ fun RivoListItem(
     val isNewUiSettings = LocalNewUiSettingsStyle.current
     val context = LocalContext.current
     val prefs = koinInject<PreferenceManager>()
+    val appHaptic = rememberAppHapticFeedback()
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -707,7 +651,12 @@ fun RivoListItem(
                         }
                         onClick()
                     },
-                    onLongClick = onLongClick
+                    onLongClick = onLongClick?.let { action ->
+                        {
+                            appHaptic(AppHapticEvent.LONG_PRESS, true)
+                            action()
+                        }
+                    }
                 )
                 .padding(
                     horizontal = if (isNewUiSettings) 16.dp else 12.dp,
@@ -727,7 +676,10 @@ fun RivoListItem(
                             if (onAvatarClick != null)
                                 Modifier
                                      .clip(CircleShape)
-                                     .combinedClickable(onClick = onAvatarClick)
+                                     .combinedClickable(onClick = {
+                                         appHaptic(AppHapticEvent.CLICK, true)
+                                         onAvatarClick()
+                                     })
                             else Modifier
                         )
                 )
@@ -1258,6 +1210,7 @@ fun RivoDropdownMenuItem(
     trailingContent: (@Composable () -> Unit)? = null
 ) {
     val prefs2 = koinInject<PreferenceManager>()
+    val appHaptic = rememberAppHapticFeedback()
     val settingsVer2 by prefs2.settingsChanged.collectAsState()
     val textColor  = when {
         isDestructive          -> MaterialTheme.colorScheme.error
@@ -1273,7 +1226,10 @@ fun RivoDropdownMenuItem(
     )
 
     Surface(
-        onClick = onClick,
+        onClick = {
+            appHaptic(AppHapticEvent.CLICK, true)
+            onClick()
+        },
         color = Color.Transparent,
         modifier = modifier
             .fillMaxWidth()

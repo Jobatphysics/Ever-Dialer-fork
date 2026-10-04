@@ -19,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.android.libredialer.view.components.AppHapticEvent
+import com.android.libredialer.view.components.rememberAppHapticFeedback
 import com.android.libredialer.view.newui.motion.NewUiMotion
 
 @Composable
@@ -35,6 +37,7 @@ fun NewUiDialerButton(
     content: @Composable BoxScope.() -> Unit
 ) {
     val source = interactionSource ?: remember { MutableInteractionSource() }
+    val appHaptic = rememberAppHapticFeedback()
     val pressed by source.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (pressed) pressedScale else 1f,
@@ -53,8 +56,16 @@ fun NewUiDialerButton(
                 interactionSource = source,
                 indication = null,
                 enabled = enabled,
-                onClick = onClick,
-                onLongClick = onLongClick
+                onClick = {
+                    appHaptic(AppHapticEvent.CLICK, true)
+                    onClick()
+                },
+                onLongClick = onLongClick?.let { action ->
+                    {
+                        appHaptic(AppHapticEvent.LONG_PRESS, true)
+                        action()
+                    }
+                }
             ),
         shape = CircleShape,
         color = containerColor,

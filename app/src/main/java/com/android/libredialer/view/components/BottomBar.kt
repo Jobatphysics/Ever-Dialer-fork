@@ -57,6 +57,8 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.android.libredialer.controller.util.PreferenceManager
+import com.android.libredialer.view.components.liquidglass.LiquidGlassNavigationSurface
+import com.android.libredialer.view.components.liquidglass.glassOverLightBackdrop
 import com.ramcosta.composedestinations.generated.destinations.ContactScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.DialPadScreenDestination
 import com.ramcosta.composedestinations.generated.destinations.FavoritesScreenDestination
@@ -68,7 +70,6 @@ import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 import androidx.compose.ui.platform.LocalConfiguration
 import android.content.res.Configuration
-import android.os.Build
 
 // Tab routes — only show the bar when one of these is active
 private val TAB_ROUTES = setOf(
@@ -190,8 +191,8 @@ fun BottomBar(navController: NavController) {
         label         = "pillFadeIn"
     )
 
-    fun doHaptic() {
-        if (prefs.getBoolean(PreferenceManager.KEY_APP_HAPTICS, true)) {
+    fun doHaptic(route: String) {
+        if (prefs.getBoolean(PreferenceManager.KEY_APP_HAPTICS, true) && !currentRoute.contains(route, ignoreCase = true)) {
             performAppHaptic(
                 context,
                 prefs.getString(PreferenceManager.KEY_APP_HAPTICS_STRENGTH, "light") ?: "light",
@@ -201,6 +202,7 @@ fun BottomBar(navController: NavController) {
     }
 
     fun navigate(route: String) {
+        doHaptic(route)
         TabNavigationHelper.navigateToTab(navController, route)
     }
 
@@ -214,44 +216,43 @@ fun BottomBar(navController: NavController) {
                     key = key, route = FavoritesScreenDestination.route, label = "Favourites",
                     selectedIcon = Icons.Filled.Favorite, unselectedIcon = Icons.Outlined.FavoriteBorder,
                     selected = isFavoritesSelected,
-                    onClick = { doHaptic(); navigate(FavoritesScreenDestination.route) }
+                    onClick = { navigate(FavoritesScreenDestination.route) }
                 ) else null
                 "calls" -> if (showCallsTab) TabSpec(
                     key = key, route = RecentScreenDestination.route, label = "Calls",
                     selectedIcon = Icons.Filled.History, unselectedIcon = Icons.Outlined.History,
                     selected = isRecentsSelected,
-                    onClick = { doHaptic(); navigate(RecentScreenDestination.route) }
+                    onClick = { navigate(RecentScreenDestination.route) }
                 ) else null
                 "contacts" -> if (showContactsTab) TabSpec(
                     key = key, route = ContactScreenDestination.route, label = "Contacts",
                     selectedIcon = Icons.Filled.Person, unselectedIcon = Icons.Outlined.Person,
                     selected = isContactsSelected,
-                    onClick = { doHaptic(); navigate(ContactScreenDestination.route) }
+                    onClick = { navigate(ContactScreenDestination.route) }
                 ) else null
                 "groups" -> if (showGroupsTab) TabSpec(
                     key = key, route = GroupsScreenDestination.route, label = "Groups",
                     selectedIcon = Icons.Filled.Group, unselectedIcon = Icons.Outlined.Group,
                     selected = isGroupsSelected,
-                    onClick = { doHaptic(); navigate(GroupsScreenDestination.route) }
+                    onClick = { navigate(GroupsScreenDestination.route) }
                 ) else null
                 "recordings" -> if (showRecordingsTab) TabSpec(
                     key = key, route = RecordingsScreenDestination.route, label = "Recordings",
                     selectedIcon = Icons.Filled.FiberManualRecord, unselectedIcon = Icons.Outlined.FiberManualRecord,
                     selected = isRecordingsSelected,
-                    onClick = { doHaptic(); navigate(RecordingsScreenDestination.route) }
+                    onClick = { navigate(RecordingsScreenDestination.route) }
                 ) else null
                 "notes" -> if (showNotesTab) TabSpec(
                     key = key, route = NotesScreenDestination.route, label = "Notes",
                     selectedIcon = Icons.Filled.Note, unselectedIcon = Icons.Outlined.Note,
                     selected = isNotesSelected,
-                    onClick = { doHaptic(); navigate(NotesScreenDestination.route) }
+                    onClick = { navigate(NotesScreenDestination.route) }
                 ) else null
                 "dialpad" -> if (showDialpadTab) TabSpec(
                     key = key, route = DialPadScreenDestination.route, label = "Dialpad",
                     selectedIcon = Icons.Filled.Dialpad, unselectedIcon = Icons.Outlined.Dialpad,
                     selected = isDialpadSelected,
                     onClick = {
-                        doHaptic()
                         navigate(DialPadScreenDestination().route)
                     }
                 ) else null
@@ -279,36 +280,24 @@ fun BottomBar(navController: NavController) {
                     .padding(bottom = 28.dp),
                 contentAlignment = Alignment.Center
             ) {
-                val pillShape = RoundedCornerShape(32.dp)
-
-                val pillContent: @Composable () -> Unit = {
-                    Row(
-                        modifier = Modifier
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment     = Alignment.CenterVertically
-                    ) {
-                        orderedTabs.forEach { tab ->
-                            key(tab.key) {
-                                PillNavItem(
-                                    selected       = tab.selected,
-                                    selectedIcon   = tab.selectedIcon,
-                                    unselectedIcon = tab.unselectedIcon,
-                                    label          = tab.label,
-                                    iconOnly       = iconOnly,
-                                    onClick        = tab.onClick
-                                )
-                            }
+                LiquidGlassNavigationSurface(
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    itemSpacing = 4.dp,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    orderedTabs.forEach { tab ->
+                        key(tab.key) {
+                            PillNavItem(
+                                selected       = tab.selected,
+                                selectedIcon   = tab.selectedIcon,
+                                unselectedIcon = tab.unselectedIcon,
+                                label          = tab.label,
+                                iconOnly       = iconOnly,
+                                onClick        = tab.onClick
+                            )
                         }
                     }
                 }
-
-                Surface(
-                    shape           = pillShape,
-                    color           = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shadowElevation = 8.dp,
-                    tonalElevation  = 4.dp,
-                ) { pillContent() }
             }
         }
     } else {
@@ -447,18 +436,23 @@ private fun PillNavItem(
     val isSaturatedActive = remember(settingsVer, isDark) { prefs.isSaturatedForTheme(isDark) }
     val activeNavBg = if (isSaturatedActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer
     val activeNavFg = if (isSaturatedActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
+    val backdropTextColor = when (glassOverLightBackdrop) {
+        true -> Color.Black
+        false -> Color.White
+        null -> null
+    }
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
     val bgAlpha by animateFloatAsState(
-        targetValue   = if (selected) 1f else 0f,
+        targetValue   = if (selected) 0.28f else 0f,
         animationSpec = tween(durationMillis = 420, easing = FastOutSlowInEasing),
         label         = "${label}BgAlpha"
     )
     val iconTint by animateColorAsState(
-        targetValue   = if (selected) activeNavFg
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
+        targetValue   = backdropTextColor
+            ?: if (selected) activeNavFg else MaterialTheme.colorScheme.onSurfaceVariant,
         animationSpec = tween(durationMillis = 420, easing = FastOutSlowInEasing),
         label         = "${label}IconTint"
     )
@@ -537,7 +531,7 @@ private fun PillNavItem(
                     Text(
                         text  = label,
                         style = MaterialTheme.typography.labelLarge,
-                        color = activeNavFg,
+                        color = backdropTextColor ?: activeNavFg,
                         maxLines = 1,
                         softWrap = false
                     )

@@ -88,7 +88,6 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.outlined.PhoneCallback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.ramcosta.composedestinations.generated.destinations.ContactDetailsScreenDestination
@@ -492,7 +491,7 @@ private fun FavoriteContactCard(
     var isPressed by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var isDraggingLocally by remember { mutableStateOf(false) }
-    val haptic = LocalHapticFeedback.current
+    val haptic = com.android.libredialer.view.components.rememberComposeAppHaptic()
 
     val prefs = koinInject<PreferenceManager>()
     val settingsVer by prefs.settingsChanged.collectAsState()
@@ -559,7 +558,7 @@ private fun FavoriteContactCard(
                             val longPressJob = cs.launch {
                                 delay(viewConfiguration.longPressTimeoutMillis)
                                 longPressTriggered = true
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                haptic(HapticFeedbackType.LongPress)
                                 isPressed = false
                                 if (selectionMode) onSelectToggle?.invoke() else showMenu = true
                             }

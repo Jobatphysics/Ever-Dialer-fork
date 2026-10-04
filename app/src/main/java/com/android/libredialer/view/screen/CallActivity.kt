@@ -72,6 +72,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.android.libredialer.controller.CallService
 import com.android.libredialer.controller.CallSession
+import com.android.libredialer.controller.util.CallingCardStore
 import com.android.libredialer.controller.util.CallButtonPrefs
 import com.android.libredialer.controller.util.NoteManager
 import com.android.libredialer.controller.util.makeCall
@@ -261,6 +262,13 @@ class CallActivity : FragmentActivity() {
                             } else null
                         )
                     }
+                    var callingCardUri by remember(number) {
+                        mutableStateOf(
+                            initialContact?.takeUnless { hideNames && it.id in hiddenIds }?.let {
+                                CallingCardStore.from(this@CallActivity).get(it.id)?.toURI()?.toString()
+                            }
+                        )
+                    }
                     var contactId by remember(number) { mutableStateOf(initialContact?.id) }
 
                     val heldCall = heldSession?.call
@@ -300,6 +308,13 @@ class CallActivity : FragmentActivity() {
                             } else null
                         )
                     }
+                    var incomingCallingCardUri by remember(incomingNumber) {
+                        mutableStateOf(
+                            initialIncomingContact?.takeUnless { hideNames && it.id in hiddenIds }?.let {
+                                CallingCardStore.from(this@CallActivity).get(it.id)?.toURI()?.toString()
+                            }
+                        )
+                    }
 
                     LaunchedEffect(number) {
                         if (number.isNotEmpty()) {
@@ -308,13 +323,17 @@ class CallActivity : FragmentActivity() {
                                 contactName = if (hideNames && contact.id in hiddenIds) number else contact.name
                                 photoUri = if (hideNames && contact.id in hiddenIds) null else contact.photoUri
                                 contactId = contact.id
+                                callingCardUri = if (hideNames && contact.id in hiddenIds) null
+                                    else CallingCardStore.from(this@CallActivity).get(contact.id)?.toURI()?.toString()
                             } else {
                                 contactName = number
                                 contactId = null
+                                callingCardUri = null
                             }
                         } else {
                             contactName = "Unknown"
                             contactId = null
+                            callingCardUri = null
                         }
                     }
 
@@ -333,6 +352,8 @@ class CallActivity : FragmentActivity() {
                             if (c != null) {
                                 incomingContactName = if (hideNames && c.id in hiddenIds) incomingNumber else c.name
                                 incomingPhotoUri = if (hideNames && c.id in hiddenIds) null else c.photoUri
+                                incomingCallingCardUri = if (hideNames && c.id in hiddenIds) null
+                                    else CallingCardStore.from(this@CallActivity).get(c.id)?.toURI()?.toString()
                             }
                         }
                     }
@@ -347,6 +368,7 @@ class CallActivity : FragmentActivity() {
                             contactId = contactId,
                             phoneNumber = number,
                             photoUri = photoUri,
+                            callingCardUri = callingCardUri,
                             audioState = audioState,
                             hasHeldCall = heldSession != null && heldSession?.state == Call.STATE_HOLDING,
                             heldCallName = heldContactName,
@@ -354,6 +376,7 @@ class CallActivity : FragmentActivity() {
                             incomingContactName = incomingContactName,
                             incomingPhoneNumber = incomingNumber,
                             incomingPhotoUri = incomingPhotoUri,
+                            incomingCallingCardUri = incomingCallingCardUri,
                             incomingSimSlot = incomingSimSlot,
                             contactsRepo = contactsRepo,
                             callLogRepo = callLogRepo,
@@ -372,6 +395,9 @@ class CallActivity : FragmentActivity() {
                                 heldCall = heldSession?.call,
                                 audioState = audioState,
                                 contactsRepository = contactsRepo,
+                                callingCardUri = if (incomingSession?.call?.state == Call.STATE_RINGING) {
+                                    incomingCallingCardUri
+                                } else callingCardUri,
                                 simSlot = simSlot,
                                 showSimBadge = isDualSim,
                                 onMoveToBackground = { moveTaskToBack(true) }
@@ -710,13 +736,37 @@ private fun CallAvatar(
 private fun CallBackgroundLayer(
     config: CallBackgroundConfig,
     photoUri: String?,
+    callingCardUri: String?,
     isDark: Boolean,
     driftX: Float,
     driftY: Float,
     modifier: Modifier = Modifier
 ) {
+    var callingCardLoadFailed by remember(callingCardUri) { mutableStateOf(false) }
+    val showCallingCard = !callingCardUri.isNullOrBlank() && !callingCardLoadFailed
     Box(modifier = modifier.fillMaxSize()) {
-        if (config.hasCustomBg && config.bgFile != null) {
+        if (showCallingCard) {
+            AsyncImage(
+                model = callingCardUri,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+                onError = { callingCardLoadFailed = true }
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Black.copy(alpha = 0.48f),
+                                Color.Black.copy(alpha = 0.32f),
+                                Color.Black.copy(alpha = 0.62f)
+                            )
+                        )
+                    )
+            )
+        } else if (config.hasCustomBg && config.bgFile != null) {
             Box(modifier = Modifier.fillMaxSize()) {
                 if (config.bgType == "video") {
                     com.android.libredialer.view.components.LoopingVideoPlayer(
@@ -813,6 +863,7 @@ fun ExpressiveCallScreen(
     contactId: String? = null,
     phoneNumber: String = "",
     photoUri: String?,
+    callingCardUri: String? = null,
     audioState: CallAudioState?,
     hasHeldCall: Boolean = false,
     heldCallName: String = "",
@@ -820,6 +871,7 @@ fun ExpressiveCallScreen(
     incomingContactName: String = "",
     incomingPhoneNumber: String = "",
     incomingPhotoUri: String? = null,
+    incomingCallingCardUri: String? = null,
     incomingSimSlot: Int = -1,
     contactsRepo: IContactsRepository? = null,
     callLogRepo: ICallLogRepository? = null,
@@ -1341,11 +1393,11 @@ fun ExpressiveCallScreen(
         else -> MaterialTheme.colorScheme.onPrimaryContainer
     }
 
-    val effectiveOnBgColor = if (fontColorMode == "custom") Color(customFontColorInt)
+    val effectiveOnBgColor = if (!callingCardUri.isNullOrBlank()) Color.White else if (fontColorMode == "custom") Color(customFontColorInt)
         else MaterialTheme.colorScheme.onSurface
-    val effectiveSubtleColor = if (fontColorMode == "custom") Color(customFontColorInt).copy(alpha = 0.85f)
+    val effectiveSubtleColor = if (!callingCardUri.isNullOrBlank()) Color.White.copy(alpha = 0.9f) else if (fontColorMode == "custom") Color(customFontColorInt).copy(alpha = 0.85f)
         else MaterialTheme.colorScheme.onSurfaceVariant
-    val textShadow = if (currentBgConfig.fontShadow) androidx.compose.ui.graphics.Shadow(
+    val textShadow = if (!callingCardUri.isNullOrBlank() || currentBgConfig.fontShadow) androidx.compose.ui.graphics.Shadow(
         color = Color.Black.copy(alpha = 0.80f),
         blurRadius = 8f,
         offset = androidx.compose.ui.geometry.Offset(0f, 2f)
@@ -1354,7 +1406,7 @@ fun ExpressiveCallScreen(
     val bgColor = colorLerp(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.primary, 0.035f)
     val onBgColor = effectiveOnBgColor
     val subtleColor = effectiveSubtleColor
-    val overlayColor = if (hasCustomBg) Color.Black.copy(0.35f) else (if (isDark) Color.White.copy(0.08f) else Color.Black.copy(0.06f))
+    val overlayColor = if (!callingCardUri.isNullOrBlank()) Color.Black.copy(0.28f) else if (hasCustomBg) Color.Black.copy(0.35f) else (if (isDark) Color.White.copy(0.08f) else Color.Black.copy(0.06f))
     val controlBtnColor = MaterialTheme.colorScheme.surfaceContainerHigh
     val controlBtnActiveColor = MaterialTheme.colorScheme.primaryContainer
     val controlBtnActiveFg = MaterialTheme.colorScheme.onPrimaryContainer
@@ -1605,6 +1657,7 @@ fun ExpressiveCallScreen(
                 CallBackgroundLayer(
                     config = currentBgConfig,
                     photoUri = photoUri,
+                    callingCardUri = callingCardUri,
                     isDark = isDark,
                     driftX = driftX,
                     driftY = driftY,
@@ -1615,6 +1668,7 @@ fun ExpressiveCallScreen(
                     CallBackgroundLayer(
                         config = incomingBgConfig,
                         photoUri = photoUri,
+                        callingCardUri = callingCardUri,
                         isDark = isDark,
                         driftX = driftX,
                         driftY = driftY,
@@ -1627,6 +1681,7 @@ fun ExpressiveCallScreen(
                     CallBackgroundLayer(
                         config = ongoingBgConfig,
                         photoUri = photoUri,
+                        callingCardUri = callingCardUri,
                         isDark = isDark,
                         driftX = driftX,
                         driftY = driftY,
@@ -2339,6 +2394,7 @@ fun ExpressiveCallScreen(
                 incomingContactName = incomingContactName,
                 incomingPhoneNumber = incomingPhoneNumber,
                 incomingPhotoUri = incomingPhotoUri,
+                incomingCallingCardUri = incomingCallingCardUri,
                 incomingSimSlot = incomingSimSlot,
                 showSimBadge = showSimBadge,
                 onDecline = { CallService.declineCall() },
@@ -3490,6 +3546,7 @@ fun CallWaitingCard(
     incomingContactName: String,
     incomingPhoneNumber: String,
     incomingPhotoUri: String?,
+    incomingCallingCardUri: String? = null,
     incomingSimSlot: Int,
     showSimBadge: Boolean,
     onDecline: () -> Unit,
@@ -3497,6 +3554,7 @@ fun CallWaitingCard(
     onEndAndAnswer: () -> Unit
 ) {
     val context = LocalContext.current
+    var callingCardLoadFailed by remember(incomingCallingCardUri) { mutableStateOf(false) }
     val infiniteTransition = rememberInfiniteTransition(label = "callWaitingPulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -3578,11 +3636,21 @@ fun CallWaitingCard(
                         modifier = Modifier.padding(4.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        RivoAvatar(
-                            name = incomingContactName,
-                            photoUri = incomingPhotoUri,
-                            modifier = Modifier.size(80.dp)
-                        )
+                        if (!incomingCallingCardUri.isNullOrBlank() && !callingCardLoadFailed) {
+                            AsyncImage(
+                                model = incomingCallingCardUri,
+                                contentDescription = "$incomingContactName calling card",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.size(width = 104.dp, height = 128.dp).clip(RoundedCornerShape(16.dp)),
+                                onError = { callingCardLoadFailed = true }
+                            )
+                        } else {
+                            RivoAvatar(
+                                name = incomingContactName,
+                                photoUri = incomingPhotoUri,
+                                modifier = Modifier.size(80.dp)
+                            )
+                        }
                     }
                 }
 

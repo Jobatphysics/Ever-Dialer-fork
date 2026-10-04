@@ -56,7 +56,6 @@ import kotlin.math.roundToInt
 import com.android.libredialer.controller.util.PreferenceManager
 import android.os.Build
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import com.android.libredialer.view.components.RivoAnimatedSection
 import com.android.libredialer.view.components.RivoExpressiveCard
 import com.android.libredialer.view.components.RivoListItem
@@ -463,7 +462,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
     // ── Call UI Dialog ────────────────────────────────────────────────────────
     if (showCallUIDialog) {
         val density = LocalDensity.current
-        val haptic = LocalHapticFeedback.current
+        val haptic = com.android.libredialer.view.components.rememberComposeAppHaptic()
         val rowHeightDp = 52.dp
         val rowHeightPx = with(density) { rowHeightDp.toPx() }
         var draggedKey by remember { mutableStateOf<String?>(null) }
@@ -579,12 +578,12 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                                                     val item = callUIOrder.removeAt(currentIdx)
                                                                     callUIOrder.add(currentIdx + 1, item)
                                                                     dragOffsetY -= rowHeightPx
-                                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                    haptic(HapticFeedbackType.TextHandleMove)
                                                                 } else if (dragOffsetY < -threshold && currentIdx > 0) {
                                                                     val item = callUIOrder.removeAt(currentIdx)
                                                                     callUIOrder.add(currentIdx - 1, item)
                                                                     dragOffsetY += rowHeightPx
-                                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                    haptic(HapticFeedbackType.TextHandleMove)
                                                                 }
                                                             }
                                                         }
@@ -679,7 +678,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
     // ── Tab Sections Dialog ──────────────────────────────────────────────────
     if (showTabSectionsDialog) {
         val density = LocalDensity.current
-        val haptic = LocalHapticFeedback.current
+        val haptic = com.android.libredialer.view.components.rememberComposeAppHaptic()
         val rowHeightDp = 52.dp
         val rowHeightPx = with(density) { rowHeightDp.toPx() }
         var draggedKey by remember { mutableStateOf<String?>(null) }
@@ -797,12 +796,12 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                                                 val item = tabOrder.removeAt(currentIdx)
                                                                 tabOrder.add(currentIdx + 1, item)
                                                                 dragOffsetY -= rowHeightPx
-                                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                haptic(HapticFeedbackType.TextHandleMove)
                                                             } else if (dragOffsetY < -threshold && currentIdx > 0) {
                                                                 val item = tabOrder.removeAt(currentIdx)
                                                                 tabOrder.add(currentIdx - 1, item)
                                                                 dragOffsetY += rowHeightPx
-                                                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                haptic(HapticFeedbackType.TextHandleMove)
                                                             }
                                                         }
                                                     }
@@ -828,7 +827,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
     // ── Contact Info Elements Dialog ──────────────────────────────────────────
     if (showContactInfoElementsDialog) {
         val density = LocalDensity.current
-        val haptic = LocalHapticFeedback.current
+        val haptic = com.android.libredialer.view.components.rememberComposeAppHaptic()
         val rowHeightDp = 52.dp
         val rowHeightPx = with(density) { rowHeightDp.toPx() }
         var draggedKey by remember { mutableStateOf<String?>(null) }
@@ -953,12 +952,12 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                                                     val item = contactInfoElementOrder.removeAt(currentIdx)
                                                                     contactInfoElementOrder.add(currentIdx + 1, item)
                                                                     dragOffsetY -= rowHeightPx
-                                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                    haptic(HapticFeedbackType.TextHandleMove)
                                                                 } else if (dragOffsetY < -threshold && currentIdx > 0) {
                                                                     val item = contactInfoElementOrder.removeAt(currentIdx)
                                                                     contactInfoElementOrder.add(currentIdx - 1, item)
                                                                     dragOffsetY += rowHeightPx
-                                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                    haptic(HapticFeedbackType.TextHandleMove)
                                                                 }
                                                             }
                                                         }
@@ -1048,7 +1047,7 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
 
         if (section != null && sectionOrder != null) {
             val density = LocalDensity.current
-            val haptic = LocalHapticFeedback.current
+            val haptic = com.android.libredialer.view.components.rememberComposeAppHaptic()
             val rowHeightDp = 52.dp
             val rowHeightPx = with(density) { rowHeightDp.toPx() }
             var draggedKey by remember(sectionKey) { mutableStateOf<String?>(null) }
@@ -1149,12 +1148,12 @@ fun InterfaceScreen(navigator: DestinationsNavigator, highlightKey: String? = nu
                                                                     val item = sectionOrder.removeAt(currentIdx)
                                                                     sectionOrder.add(currentIdx + 1, item)
                                                                     dragOffsetY -= rowHeightPx
-                                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                    haptic(HapticFeedbackType.TextHandleMove)
                                                                 } else if (dragOffsetY < -threshold && currentIdx > 0) {
                                                                     val item = sectionOrder.removeAt(currentIdx)
                                                                     sectionOrder.add(currentIdx - 1, item)
                                                                     dragOffsetY += rowHeightPx
-                                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                                    haptic(HapticFeedbackType.TextHandleMove)
                                                                 }
                                                             }
                                                         }

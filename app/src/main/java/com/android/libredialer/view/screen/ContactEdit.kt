@@ -1,10 +1,6 @@
 package com.android.libredialer.view.screen
 
-import android.net.Uri
 import android.provider.ContactsContract
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,18 +25,21 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.android.libredialer.controller.ContactsViewModel
+import com.android.libredialer.controller.util.CallingCardStore
 import com.android.libredialer.modal.data.Contact
 import com.android.libredialer.modal.data.ContactAccountInfo
 import com.android.libredialer.modal.data.ContactPhone
 import com.android.libredialer.modal.data.ContactSaveTarget
 import com.android.libredialer.modal.data.getPhoneTypeLabel
-import com.android.libredialer.view.components.RivoAvatar
+import com.android.libredialer.view.components.ContactPicturesEditor
 import com.android.libredialer.view.components.RivoExpressiveCard
 import com.android.libredialer.view.components.RivoSectionHeader
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootGraph
 import com.android.libredialer.view.theme.SettingsTransitionStyle
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.koin.compose.viewmodel.koinActivityViewModel
 
 private data class EditableField(val id: Long, val value: String)
@@ -69,6 +68,8 @@ fun ContactEditScreen(
 
     var name by remember { mutableStateOf(initialName ?: "") }
     var photoUri by remember { mutableStateOf<String?>(null) }
+    var callingCardUri by remember(contactId) { mutableStateOf<String?>(null) }
+    var originalCallingCardUri by remember(contactId) { mutableStateOf<String?>(null) }
     val phoneFields = remember { 
         mutableStateListOf<EditablePhoneField>().apply { 
             add(EditablePhoneField(1L, initialPhone ?: "")) 
@@ -103,6 +104,9 @@ fun ContactEditScreen(
                 resolvedContact = contact
                 name = contact.name
                 photoUri = contact.photoUri
+                val savedCardUri = CallingCardStore.from(context).get(contact.id)?.toURI()?.toString()
+                callingCardUri = savedCardUri
+                originalCallingCardUri = savedCardUri
                 
                 phoneFields.clear()
                 if (contact.phones.isNotEmpty()) {
@@ -159,10 +163,37 @@ fun ContactEditScreen(
         }
     }
 
-    val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri -> if (uri != null) photoUri = uri.toString() }
-    )
+    val scope = rememberCoroutineScope()
+
+    fun persistCallingCard(savedContact: Contact?) {
+        val id = savedContact?.id?.takeIf { it.isNotBlank() && it != "0" && it != "null" }
+            ?: resolvedContact?.id?.takeIf { it.isNotBlank() && it != "0" && it != "null" }
+        if (id == null) {
+            if (callingCardUri != null) {
+                Toast.makeText(context, "Save the contact before adding a calling card.", Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val succeeded = try {
+                CallingCardStore.updateFromUri(context, id, originalCallingCardUri, callingCardUri)
+            } catch (error: java.io.IOException) {
+                CallingCardStore.reportUpdateFailure(context, error)
+                false
+            } catch (error: SecurityException) {
+                CallingCardStore.reportUpdateFailure(context, error)
+                false
+            } catch (error: IllegalArgumentException) {
+                CallingCardStore.reportUpdateFailure(context, error)
+                false
+            }
+            if (!succeeded) {
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    Toast.makeText(context, "Couldn't save the calling card.", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     var phoneTypePickerIndex by remember { mutableStateOf<Int?>(null) }
     var showCustomPhoneLabelDialog by remember { mutableStateOf(false) }
@@ -199,12 +230,42 @@ fun ContactEditScreen(
                         if (success) "Saved to ${finalTarget.label}" else "Couldn't save to ${finalTarget.label}",
                         Toast.LENGTH_SHORT
                     ).show()
+                    if (success && callingCardUri != null) {
+                        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            val savedContact = contactsVM.findContactByNumber(validPhones.first())
+                            if (savedContact != null) {
+                                try {
+                                    CallingCardStore.updateFromUri(context, savedContact.id, null, callingCardUri)
+                                } catch (error: java.io.IOException) {
+                                    CallingCardStore.reportUpdateFailure(context, error)
+                                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                        Toast.makeText(context, "Couldn't save the calling card.", Toast.LENGTH_LONG).show()
+                                    }
+                                } catch (error: SecurityException) {
+                                    CallingCardStore.reportUpdateFailure(context, error)
+                                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                        Toast.makeText(context, "Couldn't save the calling card.", Toast.LENGTH_LONG).show()
+                                    }
+                                } catch (error: IllegalArgumentException) {
+                                    CallingCardStore.reportUpdateFailure(context, error)
+                                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                        Toast.makeText(context, "Couldn't save the calling card.", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            } else {
+                                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    Toast.makeText(context, "Contact saved, but its calling card couldn't be linked.", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        }
+                    }
                 }
             } else {
                 contactsVM.saveContact(
                     contact = contactToSave,
                     accountType = finalTarget?.accountType,
-                    accountName = finalTarget?.accountName
+                    accountName = finalTarget?.accountName,
+                    onSaved = ::persistCallingCard
                 )
             }
         } else {
@@ -213,7 +274,8 @@ fun ContactEditScreen(
                 accountType = target?.accountType,
                 accountName = target?.accountName,
                 updateAllAccounts = allAccounts,
-                originalContact = resolvedContact
+                originalContact = resolvedContact,
+                onSaved = ::persistCallingCard
             )
         }
         navigator.navigateUp()
@@ -278,48 +340,15 @@ fun ContactEditScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             item {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(contentAlignment = Alignment.BottomEnd) {
-                        RivoAvatar(
-                            name = name,
-                            photoUri = photoUri,
-                            modifier = Modifier.size(120.dp),
-                            shape = CircleShape
-                        )
-                        
-                        Row {
-                            if (photoUri != null) {
-                                SmallFloatingActionButton(
-                                    onClick = { photoUri = null },
-                                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                                    shape = CircleShape,
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Icon(Icons.Default.Delete, null, modifier = Modifier.size(20.dp))
-                                }
-                                Spacer(Modifier.width(8.dp))
-                            }
-                            
-                            SmallFloatingActionButton(
-                                onClick = { 
-                                    photoPickerLauncher.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                    )
-                                },
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                shape = CircleShape,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(Icons.Default.AddAPhoto, null, modifier = Modifier.size(20.dp))
-                            }
-                        }
-                    }
-                }
+                ContactPicturesEditor(
+                    name = name,
+                    contactPhotoUri = photoUri,
+                    callingCardUri = callingCardUri,
+                    onContactPhotoSelected = { photoUri = it },
+                    onContactPhotoRemoved = { photoUri = null },
+                    onCallingCardSelected = { callingCardUri = it },
+                    onCallingCardRemoved = { callingCardUri = null }
+                )
             }
 
             

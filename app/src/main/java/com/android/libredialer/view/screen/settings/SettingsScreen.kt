@@ -6,10 +6,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -76,6 +72,9 @@ import com.android.libredialer.view.components.RivoExpressiveCard
 import com.android.libredialer.view.components.RivoListItem
 import com.android.libredialer.view.components.RivoSwitchListItem
 import com.android.libredialer.view.components.ScrollHapticsEffect
+import com.android.libredialer.view.components.AppHapticEvent
+import com.android.libredialer.view.components.hapticEventForStrength
+import com.android.libredialer.view.components.previewSystemHaptic
 import com.android.libredialer.view.components.settingsSearchHighlight
 import com.android.libredialer.view.components.globalSettingsSearchEntries
 import com.ramcosta.composedestinations.annotation.Destination
@@ -257,18 +256,10 @@ fun SettingsScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
     // ── Haptics Dialog ────────────────────────────────────────────────────────
     if (showHapticsDialog) {
         fun triggerPreviewVibration(strength: String) {
-            val duration = if (strength == "strong") 80L else 40L
-            val amplitude = if (strength == "strong") 255 else 80
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                    vm.defaultVibrator.vibrate(VibrationEffect.createOneShot(duration, amplitude))
-                } else {
-                    @Suppress("DEPRECATION")
-                    val v = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                    v.vibrate(VibrationEffect.createOneShot(duration, amplitude))
-                }
-            } catch (_: Exception) {}
+            previewSystemHaptic(
+                context,
+                hapticEventForStrength(strength, prefs.getFloat(PreferenceManager.KEY_HAPTICS_CUSTOM_INTENSITY, 0.5f))
+            )
         }
 
         // Custom intensity: 0f..1f stored in prefs
@@ -317,21 +308,7 @@ fun SettingsScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
                                         hapticsStrength = key
                                         prefs.setString(PreferenceManager.KEY_HAPTICS_STRENGTH, key)
                                         if (key != "custom") triggerPreviewVibration(key)
-                                        else {
-                                            // preview with current custom intensity
-                                            val dur = (10 + customIntensity * 70).toLong().coerceIn(10, 80)
-                                            val amp = (40  + (customIntensity * 215)).toInt().coerceIn(40, 255)
-                                            try {
-                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                                    val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                                                    vm.defaultVibrator.vibrate(VibrationEffect.createOneShot(dur, amp))
-                                                } else {
-                                                    @Suppress("DEPRECATION")
-                                                    val v = context.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
-                                                    v.vibrate(VibrationEffect.createOneShot(dur, amp))
-                                                }
-                                            } catch (_: Exception) {}
-                                        }
+                                        else triggerPreviewVibration("custom")
                                     },
                                     shape = RoundedCornerShape(50),
                                     color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
@@ -368,43 +345,14 @@ fun SettingsScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
                                     onValueChange = { v ->
                                         customIntensity = v
                                         prefs.setFloat(PreferenceManager.KEY_HAPTICS_CUSTOM_INTENSITY, v)
-                                        // Vibrate every ~6% of range change for continuous multi-level feedback
-                                        val segment = (v * 16).toInt()
+                                        val segment = (v * 4).toInt()
                                         if (segment != lastVibratedSegment) {
                                             lastVibratedSegment = segment
-                                            val dur = (8 + v * 55).toLong().coerceIn(8, 63)
-                                            val amp = (30 + (v * 180)).toInt().coerceIn(30, 210)
-                                            try {
-                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                                    val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                                                    vm.defaultVibrator.vibrate(VibrationEffect.createOneShot(dur, amp))
-                                                } else {
-                                                    @Suppress("DEPRECATION")
-                                                    val v2 = context.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
-                                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                                        v2.vibrate(VibrationEffect.createOneShot(dur, amp))
-                                                    } else {
-                                                        @Suppress("DEPRECATION")
-                                                        v2.vibrate(dur)
-                                                    }
-                                                }
-                                            } catch (_: Exception) {}
+                                            previewSystemHaptic(context, AppHapticEvent.THRESHOLD)
                                         }
                                     },
                                     onValueChangeFinished = {
-                                        // Final vibration at full saved intensity
-                                        val dur = (10 + customIntensity * 70).toLong().coerceIn(10, 80)
-                                        val amp = (40  + (customIntensity * 215)).toInt().coerceIn(40, 255)
-                                        try {
-                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                                val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                                                vm.defaultVibrator.vibrate(VibrationEffect.createOneShot(dur, amp))
-                                            } else {
-                                                @Suppress("DEPRECATION")
-                                                val v2 = context.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
-                                                v2.vibrate(VibrationEffect.createOneShot(dur, amp))
-                                            }
-                                        } catch (_: Exception) {}
+                                        triggerPreviewVibration("custom")
                                         lastVibratedSegment = -1
                                     },
                                     valueRange = 0f..1f,
@@ -424,18 +372,7 @@ fun SettingsScreen(navigator: DestinationsNavigator, highlightKey: String? = nul
                         Button(
                             onClick = {
                                 if (hapticsStrength == "custom") {
-                                    val dur = (10 + customIntensity * 70).toLong().coerceIn(10, 80)
-                                    val amp = (40  + (customIntensity * 215)).toInt().coerceIn(40, 255)
-                                    try {
-                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                            val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                                            vm.defaultVibrator.vibrate(VibrationEffect.createOneShot(dur, amp))
-                                        } else {
-                                            @Suppress("DEPRECATION")
-                                            val v = context.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
-                                            v.vibrate(VibrationEffect.createOneShot(dur, amp))
-                                        }
-                                    } catch (_: Exception) {}
+                                    triggerPreviewVibration("custom")
                                 } else {
                                     triggerPreviewVibration(hapticsStrength)
                                 }

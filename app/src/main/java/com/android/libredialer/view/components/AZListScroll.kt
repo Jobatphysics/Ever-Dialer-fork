@@ -45,7 +45,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import com.android.libredialer.controller.util.WHATSAPP_PACKAGES
 import com.android.libredialer.controller.util.isAnyPackageInstalled
@@ -300,7 +299,7 @@ fun ContactListItem(
     onSelectToggle: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val haptic = LocalHapticFeedback.current
+    val haptic = rememberComposeAppHaptic()
     val prefs = koinInject<PreferenceManager>()
     val contactsVM: ContactsViewModel = koinActivityViewModel()
     var showMenu by remember { mutableStateOf(false) }
@@ -393,7 +392,7 @@ fun ContactListItem(
                         }
                     },
                     onLongClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        haptic(HapticFeedbackType.LongPress)
                         showMenu = true
                     }
                 )

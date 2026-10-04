@@ -132,10 +132,14 @@ fun AppQuickActionsDialog(
 
 @Composable
 private fun AppQuickActionRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    val appHaptic = rememberAppHapticFeedback()
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable {
+                appHaptic(AppHapticEvent.CLICK, true)
+                onClick()
+            }
             .padding(horizontal = 24.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

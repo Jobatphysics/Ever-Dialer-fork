@@ -25,17 +25,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.android.libredialer.controller.util.PreferenceManager
+import com.android.libredialer.view.components.AppHapticEvent
 import com.android.libredialer.view.components.RivoAvatar
 import com.android.libredialer.view.components.RivoDropdownMenu
 import com.android.libredialer.view.components.RivoDropdownMenuItem
+import com.android.libredialer.view.components.rememberAppHapticFeedback
 import com.android.libredialer.view.components.providedMessageIcon
 import com.android.libredialer.view.components.performAppHaptic
 import com.android.libredialer.view.components.providedCallIcon
@@ -64,7 +64,7 @@ fun SingleTile(
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
-    val haptic  = LocalHapticFeedback.current
+    val appHaptic = rememberAppHapticFeedback()
     val prefs   = koinInject<PreferenceManager>()
     val settingsVer by prefs.settingsChanged.collectAsState()
     val circleIcons = remember(settingsVer) { prefs.getBoolean(PreferenceManager.KEY_CIRCLE_ICONS, false) }
@@ -99,16 +99,15 @@ fun SingleTile(
                     interactionSource = remember { MutableInteractionSource() },
                     indication        = null,
                     onClick           = {
-                        if (prefs.getBoolean(PreferenceManager.KEY_APP_HAPTICS, true)) {
-                            performAppHaptic(
-                                context,
-                                prefs.getString(PreferenceManager.KEY_APP_HAPTICS_STRENGTH, "light") ?: "light",
-                                prefs.getFloat(PreferenceManager.KEY_HAPTICS_CUSTOM_INTENSITY, 0.5f)
-                            )
-                        }
+                        appHaptic(AppHapticEvent.CLICK, true)
                         onClick()
                     },
-                    onLongClick       = onLongClick
+                    onLongClick       = onLongClick?.let { action ->
+                        {
+                            appHaptic(AppHapticEvent.LONG_PRESS, true)
+                            action()
+                        }
+                    }
                 )
                 .pointerInput(Unit) {
                     awaitEachGesture {
@@ -126,13 +125,7 @@ fun SingleTile(
                             }
                         } while (event.changes.any { it.pressed })
                         if (horizontalDragDetected && onSelectMode != null) {
-                            if (prefs.getBoolean(PreferenceManager.KEY_APP_HAPTICS, true)) {
-                                performAppHaptic(
-                                    context,
-                                    prefs.getString(PreferenceManager.KEY_APP_HAPTICS_STRENGTH, "light") ?: "light",
-                                    prefs.getFloat(PreferenceManager.KEY_HAPTICS_CUSTOM_INTENSITY, 0.5f)
-                                )
-                            }
+                            appHaptic(AppHapticEvent.SELECTION, true)
                             onSelectMode()
                         }
                         isPressed = false

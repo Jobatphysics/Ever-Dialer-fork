@@ -54,10 +54,18 @@ import androidx.core.view.WindowCompat
 import androidx.navigation.compose.rememberNavController
 import com.android.libredialer.controller.CallService
 import com.android.libredialer.controller.util.DefaultDialerManager
+import com.android.libredialer.controller.util.DialerCodeType
+import com.android.libredialer.controller.util.classifyDialerCode
+import com.android.libredialer.controller.util.carrierCodeNeedsSimSelection
+import com.android.libredialer.controller.util.configuredCarrierCodeAccount
+import com.android.libredialer.controller.util.dialerCodeNeedsCallPhonePermission
+import com.android.libredialer.controller.util.dispatchCarrierDialerCode
+import com.android.libredialer.controller.util.handleLocalDialerCode
 import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.controller.util.placeCallHonoringContactSim
 import com.android.libredialer.controller.util.makeCall
 import com.android.libredialer.controller.util.numbersLikelyMatch
+import com.android.libredialer.controller.util.shouldRequestPhoneStateForDeviceIdentifier
 import com.android.libredialer.modal.`interface`.IContactsRepository
 import com.android.libredialer.view.components.SimPickerDialog
 import com.android.libredialer.controller.util.enqueueApkDownload
@@ -139,8 +147,10 @@ class MainActivity : FragmentActivity() {
     // granted; only fall back to ACTION_DIAL if the user actually denies it.
     private var pendingExternalCallNumber: String? = null
     private var pendingExternalCallContactKey: String? = null
+    private var pendingDeviceIdentifierCode: String? = null
     private var showSimPicker by mutableStateOf(false)
     private var pendingSimPickerNumber by mutableStateOf<String?>(null)
+    private var pendingSimPickerDialerCode by mutableStateOf<String?>(null)
 
     private val requestCallPhonePermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -152,11 +162,26 @@ class MainActivity : FragmentActivity() {
         if (number != null) {
             if (granted) {
                 placeDirectCall(number, contactKey)
+            } else if (dialerCodeNeedsCallPhonePermission(number)) {
+                android.widget.Toast.makeText(
+                    this,
+                    "Phone permission is required to run this dialer code",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
             } else {
                 val intent = Intent(Intent.ACTION_DIAL, android.net.Uri.fromParts("tel", number, null))
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 startActivity(intent)
             }
+        }
+    }
+
+    private val requestDeviceIdentifierPhoneStateLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        pendingDeviceIdentifierCode?.let { code ->
+            pendingDeviceIdentifierCode = null
+            handleLocalDialerCode(this, code)
         }
     }
 
@@ -646,6 +671,7 @@ class MainActivity : FragmentActivity() {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surface)
                                         .padding(scaffoldPadding)
                                         .then(
                                             if (hasOngoingCall)
@@ -768,9 +794,20 @@ class MainActivity : FragmentActivity() {
 
                 if (showSimPicker && pendingSimPickerNumber != null) {
                     SimPickerDialog(
-                        onDismissRequest = { showSimPicker = false },
+                        onDismissRequest = {
+                            showSimPicker = false
+                            pendingSimPickerDialerCode = null
+                            pendingSimPickerNumber = null
+                        },
                         onSimSelected = { handle ->
-                            makeCall(this@MainActivity, pendingSimPickerNumber!!, handle)
+                            val dialerCode = pendingSimPickerDialerCode
+                            if (dialerCode != null) {
+                                dispatchCarrierDialerCode(this@MainActivity, dialerCode, handle)
+                                pendingSimPickerDialerCode = null
+                                pendingSimPickerNumber = null
+                            } else {
+                                makeCall(this@MainActivity, pendingSimPickerNumber!!, handle)
+                            }
                             showSimPicker = false
                         }
                     )
@@ -991,6 +1028,17 @@ class MainActivity : FragmentActivity() {
     private fun placeDirectCall(targetNumber: String, contactKey: String? = null) {
         val cleanNumber = targetNumber.trim()
         if (cleanNumber.isBlank()) return
+        when (classifyDialerCode(cleanNumber)) {
+            DialerCodeType.LOCAL, DialerCodeType.SECRET -> {
+                dispatchLocalDialerCode(cleanNumber)
+                return
+            }
+            DialerCodeType.USSD, DialerCodeType.MMI -> {
+                placeCarrierDialerCode(cleanNumber)
+                return
+            }
+            DialerCodeType.NONE -> Unit
+        }
 
         val prefs = GlobalContext.get().get<PreferenceManager>()
         val biometricType = prefs.getString(PreferenceManager.KEY_BIOMETRICS_TYPE, "") ?: ""
@@ -1009,6 +1057,40 @@ class MainActivity : FragmentActivity() {
         }
 
         executeDirectCall(cleanNumber, contactKey)
+    }
+
+    private fun dispatchLocalDialerCode(code: String) {
+        val hasPhoneStatePermission =
+            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) ==
+                PackageManager.PERMISSION_GRANTED
+        if (shouldRequestPhoneStateForDeviceIdentifier(code, Build.VERSION.SDK_INT, hasPhoneStatePermission)) {
+            pendingDeviceIdentifierCode = code
+            requestDeviceIdentifierPhoneStateLauncher.launch(Manifest.permission.READ_PHONE_STATE)
+            return
+        }
+        handleLocalDialerCode(this, code)
+    }
+
+    private fun placeCarrierDialerCode(
+        code: String,
+        selectedAccount: android.telecom.PhoneAccountHandle? = null
+    ) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+            pendingExternalCallNumber = code
+            pendingExternalCallContactKey = null
+            requestCallPhonePermissionLauncher.launch(Manifest.permission.CALL_PHONE)
+            return
+        }
+
+        val prefs = GlobalContext.get().get<PreferenceManager>()
+        if (selectedAccount == null && carrierCodeNeedsSimSelection(this, prefs)) {
+            pendingSimPickerDialerCode = code
+            pendingSimPickerNumber = code
+            showSimPicker = true
+            return
+        }
+        val account = selectedAccount ?: configuredCarrierCodeAccount(this, prefs)
+        dispatchCarrierDialerCode(this, code, account)
     }
 
     private fun executeDirectCall(cleanNumber: String, contactKey: String?) {
