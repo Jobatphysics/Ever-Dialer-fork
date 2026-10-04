@@ -522,7 +522,7 @@ private fun SettingsSearchFloatingPopup(
                     ) {
                         itemsIndexed(
                             items = results,
-                            key = { _, entry -> "floating_settings_${entry.key}" }
+                            key = { index, entry -> "floating_settings_${entry.key}_$index" }
                         ) { _, entry ->
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),

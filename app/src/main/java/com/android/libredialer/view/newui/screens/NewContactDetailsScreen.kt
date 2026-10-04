@@ -92,9 +92,9 @@ import com.android.libredialer.controller.util.isWhatsAppInstalled
 import com.android.libredialer.controller.util.isWhatsAppBusinessInstalled
 import com.android.libredialer.controller.util.isTelegramInstalled
 import com.android.libredialer.controller.util.isGoogleMeetInstalled
-import com.android.libredialer.controller.util.openWhatsAppChat
-import com.android.libredialer.controller.util.openWhatsAppBusinessChat
-import com.android.libredialer.controller.util.openTelegramChat
+import com.android.libredialer.controller.util.SocialChatLaunchResult
+import com.android.libredialer.controller.util.SocialMessagingApp
+import com.android.libredialer.controller.util.openSocialAppChat
 import com.android.libredialer.controller.util.startWhatsAppVoiceCall
 import com.android.libredialer.controller.util.startWhatsAppBusinessVoiceCall
 import com.android.libredialer.controller.util.startWhatsAppVideoCall
@@ -206,6 +206,34 @@ fun NewContactDetailsScreen(
     var showSocialActions by remember { mutableStateOf<String?>(null) }
     var socialNumber by remember { mutableStateOf<String?>(null) }
     var blockState by remember { mutableStateOf(false) }
+    fun openSocialChat(app: SocialMessagingApp, label: String) {
+        val number = numbers.firstOrNull()
+        if (number == null) {
+            android.widget.Toast.makeText(
+                context,
+                "This contact doesn't have a phone number.",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+        when (openSocialAppChat(context, app, number)) {
+            SocialChatLaunchResult.OPENED -> Unit
+            SocialChatLaunchResult.INVALID_PHONE_NUMBER ->
+                android.widget.Toast.makeText(
+                    context,
+                    "This contact doesn't have a valid phone number.",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+            SocialChatLaunchResult.APP_UNAVAILABLE -> {
+                val message = if (app == SocialMessagingApp.TELEGRAM) {
+                    "Couldn't open a Telegram chat for this number. It may not be registered with Telegram."
+                } else {
+                    "$label isn't installed or couldn't open this number."
+                }
+                android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
     val socialApps = remember(context) {
         listOf(
             "whatsapp" to isWhatsAppInstalled(context),
@@ -409,20 +437,17 @@ fun NewContactDetailsScreen(
                             val appTiles = buildList {
                                 if (socialApps.first { it.first == "whatsapp" }.second) {
                                     add(ContactActionTile(Icons.Default.Message, "WhatsApp", "WhatsApp", {
-                                        socialNumber = numbers.firstOrNull()
-                                        showSocialActions = "whatsapp"
+                                        openSocialChat(SocialMessagingApp.WHATSAPP, "WhatsApp")
                                     }))
                                 }
                                 if (socialApps.first { it.first == "whatsapp_business" }.second) {
                                     add(ContactActionTile(Icons.Default.Message, "WA Business", "WhatsApp Business", {
-                                        socialNumber = numbers.firstOrNull()
-                                        showSocialActions = "whatsapp_business"
+                                        openSocialChat(SocialMessagingApp.WHATSAPP_BUSINESS, "WA Business")
                                     }))
                                 }
                                 if (socialApps.first { it.first == "telegram" }.second) {
                                     add(ContactActionTile(Icons.Default.Send, "Telegram", "Telegram", {
-                                        socialNumber = numbers.firstOrNull()
-                                        showSocialActions = "telegram"
+                                        openSocialChat(SocialMessagingApp.TELEGRAM, "Telegram")
                                     }))
                                 }
                                 if (socialApps.first { it.first == "googlemeet" }.second) {
@@ -643,9 +668,9 @@ fun NewContactDetailsScreen(
                         {
                             showSocialActions = null
                             val opened = when (app) {
-                                "whatsapp" -> openWhatsAppChat(context, number)
-                                "whatsapp_business" -> openWhatsAppBusinessChat(context, number)
-                                else -> openTelegramChat(context, number)
+                                "whatsapp" -> openSocialAppChat(context, SocialMessagingApp.WHATSAPP, number) == SocialChatLaunchResult.OPENED
+                                "whatsapp_business" -> openSocialAppChat(context, SocialMessagingApp.WHATSAPP_BUSINESS, number) == SocialChatLaunchResult.OPENED
+                                else -> openSocialAppChat(context, SocialMessagingApp.TELEGRAM, number) == SocialChatLaunchResult.OPENED
                             }
                             if (!opened) android.widget.Toast.makeText(context, "$label isn't installed", android.widget.Toast.LENGTH_SHORT).show()
                         }

@@ -1,6 +1,7 @@
 package com.android.libredialer.controller.util
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
@@ -142,6 +143,7 @@ private fun toInternationalNumber(context: Context, phoneNumber: String): String
 
     val digitsOnly = trimmed.filter { it.isDigit() }
     if (digitsOnly.isEmpty()) return digitsOnly
+    if (digitsOnly.startsWith("00")) return digitsOnly.drop(2)
 
     val countryIso = getDeviceCountryIso(context)
     if (countryIso != null) {
@@ -151,79 +153,133 @@ private fun toInternationalNumber(context: Context, phoneNumber: String): String
     return digitsOnly
 }
 
+enum class SocialMessagingApp {
+    WHATSAPP,
+    WHATSAPP_BUSINESS,
+    TELEGRAM
+}
+
+enum class SocialChatLaunchResult {
+    OPENED,
+    INVALID_PHONE_NUMBER,
+    APP_UNAVAILABLE
+}
+
+private fun toChatAppPhoneDigits(context: Context, phoneNumber: String): String? {
+    val digits = toInternationalNumber(context, phoneNumber).filter(Char::isDigit)
+    return digits.takeIf { it.length in 5..15 && it.any { digit -> digit != '0' } }
+}
+
+private fun launchChatIntent(context: Context, intent: Intent): Boolean {
+    if (intent.resolveActivity(context.packageManager) == null) return false
+    return try {
+        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        true
+    } catch (_: ActivityNotFoundException) {
+        false
+    } catch (_: SecurityException) {
+        false
+    }
+}
+
+private fun telegramPackageForIntent(context: Context, intent: Intent): String? {
+    val packages = try {
+        context.packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+    } catch (_: Exception) {
+        emptyList()
+    }.mapNotNull { it.activityInfo?.packageName }
+        .filterNot {
+            it == "android" || it.startsWith("com.android.internal") || it == context.packageName
+        }
+        .filter { isPackageInstalled(context, it) }
+        .distinct()
+
+    return packages.firstOrNull { it == OFFICIAL_TELEGRAM_PACKAGE } ?: packages.firstOrNull()
+}
+
+/** Opens a phone-number chat in the selected messaging app, returning why launch failed. */
+fun openSocialAppChat(
+    context: Context,
+    app: SocialMessagingApp,
+    phoneNumber: String
+): SocialChatLaunchResult {
+    val digits = toChatAppPhoneDigits(context, phoneNumber)
+        ?: return SocialChatLaunchResult.INVALID_PHONE_NUMBER
+
+    val intent = when (app) {
+        SocialMessagingApp.WHATSAPP -> {
+            if (!isWhatsAppInstalled(context)) return SocialChatLaunchResult.APP_UNAVAILABLE
+            Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$digits"))
+                .setPackage(WHATSAPP_PACKAGE)
+        }
+        SocialMessagingApp.WHATSAPP_BUSINESS -> {
+            if (!isWhatsAppBusinessInstalled(context)) return SocialChatLaunchResult.APP_UNAVAILABLE
+            Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$digits"))
+                .setPackage(WHATSAPP_BUSINESS_PACKAGE)
+        }
+        SocialMessagingApp.TELEGRAM -> {
+            val telegramUri = Uri.Builder()
+                .scheme("tg")
+                .authority("resolve")
+                .appendQueryParameter("phone", digits)
+                .build()
+            val telegramIntent = Intent(Intent.ACTION_VIEW, telegramUri)
+            val packageName = telegramPackageForIntent(context, telegramIntent)
+                ?: return SocialChatLaunchResult.APP_UNAVAILABLE
+            telegramIntent.setPackage(packageName)
+        }
+    }
+
+    return if (launchChatIntent(context, intent)) {
+        SocialChatLaunchResult.OPENED
+    } else {
+        SocialChatLaunchResult.APP_UNAVAILABLE
+    }
+}
+
 /** Opens a WhatsApp chat with [phoneNumber]. If [message] is provided, pre-fills the message. Targets standard WhatsApp specifically. */
 fun openWhatsAppChat(context: Context, phoneNumber: String, message: String? = null): Boolean {
-    if (!isWhatsAppInstalled(context) && !isAnyPackageInstalled(context, WHATSAPP_PACKAGES)) return false
-    val clean = toInternationalNumber(context, phoneNumber)
-    if (clean.isEmpty()) return false
-    val uriStr = if (!message.isNullOrBlank()) {
-        "https://wa.me/$clean?text=${Uri.encode(message)}"
-    } else {
-        "https://wa.me/$clean"
+    if (message.isNullOrBlank()) {
+        return openSocialAppChat(context, SocialMessagingApp.WHATSAPP, phoneNumber) ==
+            SocialChatLaunchResult.OPENED
     }
+    if (!isWhatsAppInstalled(context)) return false
+    val clean = toChatAppPhoneDigits(context, phoneNumber) ?: return false
+    val uriStr = "https://wa.me/$clean?text=${Uri.encode(message)}"
     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriStr)).apply {
-        if (isWhatsAppInstalled(context)) {
-            setPackage(WHATSAPP_PACKAGE)
-        }
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        setPackage(WHATSAPP_PACKAGE)
     }
-    return try {
-        context.startActivity(intent)
-        true
-    } catch (_: Exception) {
-        try {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uriStr)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            true
-        } catch (_: Exception) { false }
-    }
+    return launchChatIntent(context, intent)
 }
 
 /** Opens a WhatsApp Business chat with [phoneNumber]. If [message] is provided, pre-fills the message. Targets WhatsApp Business specifically. */
 fun openWhatsAppBusinessChat(context: Context, phoneNumber: String, message: String? = null): Boolean {
-    if (!isWhatsAppBusinessInstalled(context)) return false
-    val clean = toInternationalNumber(context, phoneNumber)
-    if (clean.isEmpty()) return false
-    val uriStr = if (!message.isNullOrBlank()) {
-        "https://wa.me/$clean?text=${Uri.encode(message)}"
-    } else {
-        "https://wa.me/$clean"
+    if (message.isNullOrBlank()) {
+        return openSocialAppChat(context, SocialMessagingApp.WHATSAPP_BUSINESS, phoneNumber) ==
+            SocialChatLaunchResult.OPENED
     }
+    if (!isWhatsAppBusinessInstalled(context)) return false
+    val clean = toChatAppPhoneDigits(context, phoneNumber) ?: return false
+    val uriStr = "https://wa.me/$clean?text=${Uri.encode(message)}"
     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriStr)).apply {
         setPackage(WHATSAPP_BUSINESS_PACKAGE)
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
-    return try {
-        context.startActivity(intent)
-        true
-    } catch (_: Exception) {
-        try {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uriStr)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            true
-        } catch (_: Exception) { false }
-    }
+    return launchChatIntent(context, intent)
 }
 
-/** Opens a Telegram chat with [phoneNumber] via Android's own app chooser. If [message] is provided, pre-fills the message. Returns false if no Telegram-capable app is installed. */
+/** Opens a Telegram chat with [phoneNumber] in an installed Telegram-capable app. If [message] is provided, pre-fills a message. */
 fun openTelegramChat(context: Context, phoneNumber: String, message: String? = null): Boolean {
-    val clean = phoneNumber.filter { it.isDigit() || it == '+' }
-    val uriStr = if (!message.isNullOrBlank()) {
-        "tg://msg?text=${Uri.encode(message)}"
-    } else {
-        "tg://resolve?phone=$clean"
+    if (message.isNullOrBlank()) {
+        return openSocialAppChat(context, SocialMessagingApp.TELEGRAM, phoneNumber) ==
+            SocialChatLaunchResult.OPENED
     }
-    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uriStr))
-    val handlers = try { context.packageManager.queryIntentActivities(intent, 0) } catch (_: Exception) { emptyList() }
-    if (handlers.isEmpty()) {
-        val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse("tg://resolve?phone=$clean"))
-        return try {
-            context.startActivity(Intent.createChooser(fallbackIntent, "Open with").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            true
-        } catch (_: Exception) { false }
-    }
-    return try {
-        context.startActivity(Intent.createChooser(intent, "Open with").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        true
-    } catch (_: Exception) { false }
+    val messageIntent = Intent(
+        Intent.ACTION_VIEW,
+        Uri.parse("tg://msg?text=${Uri.encode(message)}")
+    )
+    val packageName = telegramPackageForIntent(context, messageIntent) ?: return false
+    messageIntent.setPackage(packageName)
+    return launchChatIntent(context, messageIntent)
 }
 
 /** Opens the Google Meet app without targeting any particular contact. Returns false if it isn't installed. */

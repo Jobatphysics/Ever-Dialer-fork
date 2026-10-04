@@ -9,6 +9,12 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/LibreGlass" />
+            <option value="$PROJECT_DIR$/LibreGlassReference1Test" />
+            <option value="$PROJECT_DIR$/LibreGlassReference2Test" />
+            <option value="$PROJECT_DIR$/LibreGlassReference2Test/reference/liquidglass-compose" />
+            <option value="$PROJECT_DIR$/LibreGlassReference2Test/reference/liquidglass-core" />
+            <option value="$PROJECT_DIR$/LibreGlassShowcase" />
             <option value="$PROJECT_DIR$/app" />
             <option value="$PROJECT_DIR$/hiddenapi" />
             <option value="$PROJECT_DIR$/networkswitch" />
