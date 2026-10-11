@@ -36,6 +36,7 @@ import com.coolappstore.evercallrecorder.by.svhp.ui.screens.WelcomeDialog
 import com.coolappstore.evercallrecorder.by.svhp.ui.theme.ShizucallrecorderTheme
 import com.coolappstore.evercallrecorder.by.svhp.ui.viewmodels.AppLockViewModel
 import com.coolappstore.evercallrecorder.by.svhp.ui.viewmodels.AppNavigationViewModel
+import com.coolappstore.evercallrecorder.by.svhp.ui.viewmodels.HomeViewModel
 import com.coolappstore.evercallrecorder.by.svhp.ui.viewmodels.RecordingItem
 import com.coolappstore.evercallrecorder.by.svhp.ui.viewmodels.SettingsViewModel
 import android.app.Activity
@@ -86,11 +87,16 @@ private fun popExitTransition() =
     fadeOut(tween(DURATION_OUT - 40, easing = NavEasing))
 
 @Composable
-fun AppNavigationScreen(openSettingsDirectly: Boolean = false) {
+fun AppNavigationScreen(
+    openSettingsDirectly: Boolean = false,
+    openedRecordingUri: String? = null
+) {
     val activityContext = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val appNavViewModel: AppNavigationViewModel = viewModel()
     val settingsViewModel: SettingsViewModel = viewModel()
+    val homeViewModel: HomeViewModel = viewModel()
+    val recordings by homeViewModel.allRecordings.collectAsState()
     val appLockViewModel: AppLockViewModel = viewModel()
     val onboardingStatus by appNavViewModel.onboardingStatus.collectAsState()
     val settingsUpdateTrigger by settingsViewModel.updateTrigger.collectAsState()
@@ -103,6 +109,15 @@ fun AppNavigationScreen(openSettingsDirectly: Boolean = false) {
     var webViewUrl by remember { mutableStateOf("") }
     var webViewEnableDownloads by remember { mutableStateOf(false) }
     var webViewBottomPadding by remember { mutableStateOf(24) } // dp value
+
+    LaunchedEffect(openedRecordingUri, recordings) {
+        if (!openSettingsDirectly && selectedRecording == null && !openedRecordingUri.isNullOrBlank()) {
+            recordings.firstOrNull { it.uri.toString() == openedRecordingUri }?.let { recording ->
+                selectedRecording = recording
+                subScreen = SubScreen.Playback
+            }
+        }
+    }
 
     val goBack: () -> Unit = {
         // When this Activity was launched to jump straight to Settings (Ever Dialer's

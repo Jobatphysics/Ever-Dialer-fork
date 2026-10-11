@@ -104,9 +104,9 @@ import com.android.libredialer.view.newui.components.newUiClickable
 import com.android.libredialer.view.newui.components.newUiSettingsHeaderContentTopPadding
 import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import com.android.libredialer.view.newui.navigation.NewUiDestination
-import com.android.libredialer.view.screen.settings.PasswordSetupDialog
-import com.android.libredialer.view.screen.settings.PinSetupDialog
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import com.android.libredialer.view.newui.navigation.NewUiSettingsNavigation
+import com.android.libredialer.view.components.security.PasswordSetupDialog
+import com.android.libredialer.view.components.security.PinSetupDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.koin.compose.koinInject
@@ -114,7 +114,7 @@ import org.koin.compose.viewmodel.koinActivityViewModel
 
 @Composable
 fun NewUiSoundVibrationScreen(
-    navigator: DestinationsNavigator,
+    onNavigateSettings: NewUiSettingsNavigation,
     highlightKey: String? = null
 ) {
     val prefs: PreferenceManager = koinInject()
@@ -138,7 +138,7 @@ fun NewUiSoundVibrationScreen(
     NewUiScreenShell(
         NewUiDestination.Settings,
         titleOverride = "Sound & Vibration",
-        headerAction = { SettingsSearchHeaderAction(navigator) }
+        headerAction = { SettingsSearchHeaderAction(onNavigateSettings) }
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -263,7 +263,7 @@ fun NewUiSoundVibrationScreen(
 
 @Composable
 fun NewUiBiometricScreen(
-    navigator: DestinationsNavigator,
+    onNavigateSettings: NewUiSettingsNavigation,
     highlightKey: String? = null
 ) {
     val prefs: PreferenceManager = koinInject()
@@ -323,7 +323,7 @@ fun NewUiBiometricScreen(
     NewUiScreenShell(
         NewUiDestination.Settings,
         titleOverride = "Authentication",
-        headerAction = { SettingsSearchHeaderAction(navigator) }
+        headerAction = { SettingsSearchHeaderAction(onNavigateSettings) }
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -349,7 +349,7 @@ fun NewUiBiometricScreen(
                     NewUiGroup2Section("Authentication") {
                         NewUiGroup2SwitchRow(
                             "Lock App on Open",
-                            "Require authentication when opening Phone",
+                            "Require authentication when opening LibreDialer",
                             Icons.Default.LockOpen,
                             appLockEnabled,
                             modifier = Modifier.settingsSearchHighlight("lock_app_open", highlightedKey) {

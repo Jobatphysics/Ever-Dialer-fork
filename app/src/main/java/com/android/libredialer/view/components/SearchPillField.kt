@@ -89,20 +89,30 @@ fun SearchPillInput(
     modifier: Modifier = Modifier,
     placeholder: String = "Search",
     leadingAction: (@Composable () -> Unit)? = null,
+    textStyle: TextStyle = androidx.compose.material3.LocalTextStyle.current,
+    placeholderTextAlign: TextAlign = TextAlign.Start,
+    placeholderTextOffsetX: Dp = 0.dp,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default
 ) {
+    val placeholderOffsetXPx = with(LocalDensity.current) { placeholderTextOffsetX.roundToPx() }
     SearchPillContent(modifier) {
         TextField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
+            textStyle = textStyle,
             placeholder = {
                 Text(
                     placeholder,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .offset { IntOffset(placeholderOffsetXPx, 0) },
+                    style = textStyle,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = placeholderTextAlign
                 )
             },
             leadingIcon = leadingAction ?: {

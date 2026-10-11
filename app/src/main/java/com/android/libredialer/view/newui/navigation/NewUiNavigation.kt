@@ -1,5 +1,7 @@
 package com.android.libredialer.view.newui.navigation
 
+import android.content.Intent
+import android.provider.ContactsContract
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -16,6 +18,8 @@ import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -29,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.MaterialTheme
 import android.os.SystemClock
 import android.util.Log
 import com.android.libredialer.controller.util.PreferenceManager
@@ -39,29 +44,36 @@ import com.android.libredialer.view.newui.screens.NewContactDetailsScreen
 import com.android.libredialer.view.newui.screens.NewContactEditScreen
 import com.android.libredialer.view.newui.screens.NewCallDetailsScreen
 import com.android.libredialer.view.newui.screens.NewDialerScreen
-import com.android.libredialer.view.newui.screens.NewFavoritesScreen
 import com.android.libredialer.view.newui.screens.NewRecentsScreen
 import com.android.libredialer.view.newui.screens.NewSettingsScreen
+import com.android.libredialer.view.newui.screens.NewUniversalSearchScreen
 import com.android.libredialer.view.newui.components.LocalNewUiScrollClearance
 import com.android.libredialer.view.newui.components.NewUiNavigationBarScrollClearance
 import com.android.libredialer.view.newui.components.newUiScrollHaptics
+import com.android.libredialer.controller.CallLogViewModel
+import com.android.libredialer.controller.ContactsViewModel
+import com.android.libredialer.controller.util.numbersLikelyMatch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.withContext
+import org.koin.compose.viewmodel.koinActivityViewModel
 
 @Immutable
 enum class NewUiDestination(val route: String, val title: String) {
-    Favorites("new/favorites", "Favorites"),
-    Recents("new/recents", "Recents"),
+    Recents("new/recents", "Calls"),
     Contacts("new/contacts", "Contacts"),
     Dialer("new/dialer", "Dialer"),
     Settings("new/settings", "Settings"),
     ContactDetails("new/contact-details", "Contact details"),
     ContactEdit("new/contact-edit", "Edit contact"),
     CallDetails("new/call-details", "Call details"),
-    UnknownNumberDetails("new/unknown-number-details", "Number details")
+    UnknownNumberDetails("new/unknown-number-details", "Number details"),
+    UniversalSearch("new/universal-search", "Search")
 }
 
 private fun NewUiDestination.isMainDestination(): Boolean = this in setOf(
     NewUiDestination.Recents,
-    NewUiDestination.Favorites,
     NewUiDestination.Contacts,
     NewUiDestination.Settings,
     NewUiDestination.Dialer
@@ -69,6 +81,7 @@ private fun NewUiDestination.isMainDestination(): Boolean = this in setOf(
 
 private fun PreferenceManager.lastMainDestination(): NewUiDestination {
     val savedRoute = getString(PreferenceManager.KEY_NEW_UI_LAST_MAIN_DESTINATION, null)
+    if (savedRoute == "new/favorites") return NewUiDestination.Recents
     return NewUiDestination.entries.firstOrNull {
         it.route == savedRoute && it.isMainDestination()
     } ?: NewUiDestination.Dialer
@@ -83,6 +96,8 @@ class NewUiNavigator(
         private set
     var settingsDestination by mutableStateOf<NewUiSettingsDestination?>(null)
         private set
+    var settingsHighlightKey by mutableStateOf<String?>(null)
+        private set
     var contactDetails by mutableStateOf<Contact?>(null)
         private set
     var contactDetailsPhoneNumber by mutableStateOf<String?>(null)
@@ -91,12 +106,16 @@ class NewUiNavigator(
         private set
     var contactEditInitialPhone by mutableStateOf<String?>(null)
         private set
+    var contactEditInitialName by mutableStateOf<String?>(null)
+        private set
+    var dialerInitialNumber by mutableStateOf<String?>(null)
+        private set
     var unknownNumber by mutableStateOf<String?>(null)
         private set
     var callDetails by mutableStateOf<CallLogEntry?>(null)
         private set
     private val backStack = mutableListOf<NewUiDestination>()
-    private val settingsBackStack = mutableListOf<NewUiSettingsDestination>()
+    private val settingsBackStack = mutableListOf<Pair<NewUiSettingsDestination, String?>>()
 
     fun navigate(destination: NewUiDestination) {
         if (destination == currentDestination) {
@@ -107,6 +126,7 @@ class NewUiNavigator(
         }
         if (settingsDestination != null) {
             settingsDestination = null
+            settingsHighlightKey = null
             settingsBackStack.clear()
         }
 
@@ -114,6 +134,7 @@ class NewUiNavigator(
         contactDetailsPhoneNumber = null
         contactToEdit = null
         contactEditInitialPhone = null
+        contactEditInitialName = null
         unknownNumber = null
         callDetails = null
         if (destination.isMainDestination()) {
@@ -130,21 +151,26 @@ class NewUiNavigator(
         }
     }
 
-    fun navigateSettings(destination: NewUiSettingsDestination) {
-        settingsDestination?.takeIf { it != destination }?.let(settingsBackStack::add)
+    fun navigateSettings(destination: NewUiSettingsDestination, highlightKey: String? = null) {
+        settingsDestination
+            ?.takeIf { it != destination || settingsHighlightKey != highlightKey }
+            ?.let { settingsBackStack.add(it to settingsHighlightKey) }
         settingsDestination = destination
+        settingsHighlightKey = highlightKey
     }
 
     fun restoreLastMainDestination(destination: NewUiDestination) {
         currentDestination = destination.takeIf { it.isMainDestination() }
             ?: NewUiDestination.Dialer
         settingsDestination = null
+        settingsHighlightKey = null
         settingsBackStack.clear()
         backStack.clear()
         contactDetails = null
         contactDetailsPhoneNumber = null
         contactToEdit = null
         contactEditInitialPhone = null
+        contactEditInitialName = null
         unknownNumber = null
         callDetails = null
     }
@@ -164,16 +190,27 @@ class NewUiNavigator(
         }
         contactToEdit = contact
         contactEditInitialPhone = null
+        contactEditInitialName = null
         currentDestination = NewUiDestination.ContactEdit
     }
 
-    fun openCreateContact(phoneNumber: String? = null) {
+    fun openCreateContact(phoneNumber: String? = null, name: String? = null) {
         if (currentDestination != NewUiDestination.ContactEdit) {
             backStack += currentDestination
         }
         contactToEdit = null
         contactEditInitialPhone = phoneNumber
+        contactEditInitialName = name
         currentDestination = NewUiDestination.ContactEdit
+    }
+
+    fun openDialer(number: String) {
+        dialerInitialNumber = number
+        navigate(NewUiDestination.Dialer)
+    }
+
+    fun consumeDialerInitialNumber() {
+        dialerInitialNumber = null
     }
 
     fun openUnknownNumberDetails(number: String) {
@@ -196,10 +233,12 @@ class NewUiNavigator(
         if (settingsDestination != null) {
             val previousSettingsDestination = settingsBackStack.removeLastOrNull()
             if (previousSettingsDestination != null) {
-                settingsDestination = previousSettingsDestination
+                settingsDestination = previousSettingsDestination.first
+                settingsHighlightKey = previousSettingsDestination.second
                 return true
             }
             settingsDestination = null
+            settingsHighlightKey = null
             return true
         }
         if (currentDestination.isMainDestination()) {
@@ -265,7 +304,43 @@ enum class NewUiSettingsDestination(val title: String) {
     RaiseToAnswer("Raise to Answer"),
     RainMode("Rain Mode"),
     VolumeDnd("Volume DND"),
-    NetworkSwitcher("Network Switcher")
+    FakeCalls("Fake Calls"),
+    BackupRestore("Backup & Restore"),
+    NetworkSwitcher("Network Switcher"),
+    About("About LibreDialer")
+}
+
+typealias NewUiSettingsNavigation = (NewUiSettingsDestination, String?) -> Unit
+
+sealed interface NewUiNavigationRequest {
+    data object OpenUniversalSearch : NewUiNavigationRequest
+
+    data class OpenContacts(
+        val groupId: String? = null,
+        val clearGroupFilter: Boolean = false
+    ) : NewUiNavigationRequest
+
+    data class OpenSettings(
+        val destination: NewUiSettingsDestination,
+        val highlightKey: String? = null
+    ) : NewUiNavigationRequest
+}
+
+object NewUiNavigationRequests {
+    private val channel = Channel<NewUiNavigationRequest>(Channel.BUFFERED)
+    internal val requests = channel.receiveAsFlow()
+
+    fun openContacts(groupId: String? = null, clearGroupFilter: Boolean = false) {
+        channel.trySend(NewUiNavigationRequest.OpenContacts(groupId, clearGroupFilter)).getOrThrow()
+    }
+
+    fun openUniversalSearch() {
+        channel.trySend(NewUiNavigationRequest.OpenUniversalSearch).getOrThrow()
+    }
+
+    fun openSettings(destination: NewUiSettingsDestination, highlightKey: String? = null) {
+        channel.trySend(NewUiNavigationRequest.OpenSettings(destination, highlightKey)).getOrThrow()
+    }
 }
 
 @Composable
@@ -280,26 +355,42 @@ fun rememberNewUiNavigator(
 fun NewUiHost(
     navigator: NewUiNavigator = rememberNewUiNavigator(),
     onCall: (String, String?) -> Unit,
+    onOpenRecording: (String) -> Unit,
 ) {
     val destination = navigator.currentDestination
     val settingsDestination = navigator.settingsDestination
+    val settingsHighlightKey = navigator.settingsHighlightKey
     val saveableStateHolder = rememberSaveableStateHolder()
+    val spatialMotion = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    val effectsMotion = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     AnimatedContent(
-        targetState = destination to settingsDestination,
-        transitionSpec = { fadeIn() togetherWith fadeOut() },
+        targetState = Triple(destination, settingsDestination, settingsHighlightKey),
+        transitionSpec = {
+            (scaleIn(
+                initialScale = 0.92f,
+                animationSpec = spatialMotion
+            ) + fadeIn(animationSpec = effectsMotion)) togetherWith
+                (scaleOut(
+                    targetScale = 0.96f,
+                    animationSpec = spatialMotion
+                ) + fadeOut(animationSpec = effectsMotion))
+        },
         label = "newUiDestination"
-    ) { (currentDestination, selectedSettingsDestination) ->
+    ) { (currentDestination, selectedSettingsDestination, selectedSettingsHighlightKey) ->
         saveableStateHolder.SaveableStateProvider(
-            key = "$currentDestination:$selectedSettingsDestination"
+            key = "$currentDestination:$selectedSettingsDestination:$selectedSettingsHighlightKey"
         ) {
             when (currentDestination) {
                 NewUiDestination.Dialer -> NewDialerScreen(
                     onCall = { number -> onCall(number, null) },
                     onSettings = { navigator.navigate(NewUiDestination.Settings) },
-                    onAddContact = navigator::openCreateContact
+                    onAddContact = navigator::openCreateContact,
+                    initialNumber = navigator.dialerInitialNumber,
+                    onInitialNumberConsumed = navigator::consumeDialerInitialNumber
                 )
                 NewUiDestination.Recents -> NewRecentsScreen(
                     onCallLogClick = navigator::openCallDetails,
+                    onContactClick = navigator::openContactDetails,
                     onSettings = { navigator.navigate(NewUiDestination.Settings) },
                     onCall = { number -> onCall(number, null) },
                     onAddContact = navigator::openCreateContact
@@ -307,10 +398,6 @@ fun NewUiHost(
                 NewUiDestination.Contacts -> NewContactsScreen(
                     onContactClick = navigator::openContactDetails,
                     onCreateContact = { navigator.openContactEdit() },
-                    onSettings = { navigator.navigate(NewUiDestination.Settings) }
-                )
-                NewUiDestination.Favorites -> NewFavoritesScreen(
-                    onContactClick = navigator::openContactDetails,
                     onSettings = { navigator.navigate(NewUiDestination.Settings) }
                 )
                 NewUiDestination.ContactDetails -> {
@@ -359,10 +446,24 @@ fun NewUiHost(
                 NewUiDestination.ContactEdit -> NewContactEditScreen(
                     contact = navigator.contactToEdit,
                     initialPhone = navigator.contactEditInitialPhone,
+                    initialName = navigator.contactEditInitialName,
                     onSaved = navigator::back
+                )
+                NewUiDestination.UniversalSearch -> NewUniversalSearchScreen(
+                    onBack = navigator::back,
+                    onContactClick = navigator::openContactDetails,
+                    onNumberClick = navigator::openDialer,
+                    onUnknownNumberClick = navigator::openUnknownNumberDetails,
+                    onCallLogClick = navigator::openCallDetails,
+                    onRecordingClick = onOpenRecording,
+                    onSettings = { destination, key ->
+                        navigator.navigate(NewUiDestination.Settings)
+                        navigator.navigateSettings(destination, key)
+                    }
                 )
                 NewUiDestination.Settings -> NewSettingsScreen(
                     selectedDestination = selectedSettingsDestination,
+                    selectedHighlightKey = selectedSettingsHighlightKey,
                     onNavigate = navigator::navigateSettings,
                     onBack = navigator::back
                 )
@@ -374,25 +475,140 @@ fun NewUiHost(
 @Composable
 fun NewUiAppShell(
     onCall: (String, String?) -> Unit,
+    onOpenRecording: (String) -> Unit = {},
     launcherResetVersion: Int = 0,
+    externalIntent: Intent? = null,
+    onExternalCallIntent: (Intent) -> Boolean = { false },
+    onResolveDialIntent: (Intent) -> String? = { null },
+    onExternalIntentHandled: () -> Unit = {},
 ) {
     val prefs: PreferenceManager = org.koin.compose.koinInject()
+    val contactsViewModel: ContactsViewModel = koinActivityViewModel()
+    val callLogViewModel: CallLogViewModel = koinActivityViewModel()
+    val callLogs by callLogViewModel.allCallLogs.collectAsState()
     val startDestination = remember { prefs.lastMainDestination() }
     val navigator = rememberNewUiNavigator(startDestination) { destination ->
         prefs.setString(PreferenceManager.KEY_NEW_UI_LAST_MAIN_DESTINATION, destination.route)
+    }
+    LaunchedEffect(navigator) {
+        NewUiNavigationRequests.requests.collect { request ->
+            when (request) {
+                NewUiNavigationRequest.OpenUniversalSearch -> navigator.navigate(NewUiDestination.UniversalSearch)
+                is NewUiNavigationRequest.OpenContacts -> {
+                    when {
+                        request.groupId != null -> contactsViewModel.setGroupFilter(request.groupId)
+                        request.clearGroupFilter -> contactsViewModel.clearFilters()
+                    }
+                    navigator.navigate(NewUiDestination.Contacts)
+                }
+                is NewUiNavigationRequest.OpenSettings -> {
+                    navigator.navigate(NewUiDestination.Settings)
+                    navigator.navigateSettings(request.destination, request.highlightKey)
+                }
+            }
+        }
     }
     LaunchedEffect(launcherResetVersion) {
         if (launcherResetVersion > 0) {
             navigator.restoreLastMainDestination(prefs.lastMainDestination())
         }
     }
+    LaunchedEffect(externalIntent) {
+        val intent = externalIntent ?: return@LaunchedEffect
+        val data = intent.data
+        val action = intent.action
+        val contactId = data?.lastPathSegment ?: intent.getStringExtra("contact_id")
+
+        when {
+            intent.getBooleanExtra("NAV_TO_RECENTS", false) ||
+                action == "com.android.libredialer.OPEN_RECENTS" ||
+                action == "com.android.libredialer.OPEN_CALL_LOGS_DETAIL" ||
+                (action == Intent.ACTION_VIEW &&
+                    (intent.type == "vnd.android.cursor.dir/calls" ||
+                        data?.toString()?.contains("call_log") == true ||
+                        data?.toString()?.contains("calls") == true)) -> {
+                val phoneNumber = intent.getStringExtra("phone_number")
+                val matchingEntry = callLogs.firstOrNull { entry ->
+                    (!contactId.isNullOrBlank() && entry.contactId == contactId) ||
+                        (!phoneNumber.isNullOrBlank() &&
+                            numbersLikelyMatch(entry.number, phoneNumber))
+                }
+                if (matchingEntry != null && action == "com.android.libredialer.OPEN_CALL_LOGS_DETAIL") {
+                    navigator.openCallDetails(matchingEntry)
+                } else {
+                    navigator.navigate(NewUiDestination.Recents)
+                }
+            }
+            action == Intent.ACTION_CALL ||
+                action == "android.intent.action.CALL_PRIVILEGED" ||
+                ((action == Intent.ACTION_VIEW || action == Intent.ACTION_DIAL) &&
+                    (intent.getBooleanExtra("android.intent.extra.CALL_NOW", false) ||
+                        intent.getBooleanExtra("direct_call", false))) -> {
+                val callStarted = onExternalCallIntent(intent)
+                if (!callStarted && action != Intent.ACTION_CALL &&
+                    action != "android.intent.action.CALL_PRIVILEGED" &&
+                    data?.scheme == "tel"
+                ) {
+                    navigator.openDialer(data.schemeSpecificPart)
+                }
+            }
+            action == Intent.ACTION_DIAL || action == Intent.ACTION_VIEW -> {
+                if (action == Intent.ACTION_VIEW &&
+                    (intent.type == "vnd.android.cursor.item/phone" ||
+                        intent.type == "vnd.android.cursor.item/phone_v2")) {
+                    if (!onExternalCallIntent(intent) && data?.scheme == "tel") {
+                        navigator.openDialer(data.schemeSpecificPart)
+                    }
+                } else if (data?.scheme == "tel") {
+                    navigator.openDialer(data.schemeSpecificPart)
+                } else if (
+                    data?.toString()?.contains("contacts") == true ||
+                        data?.toString()?.contains("com.android.contacts") == true ||
+                        intent.hasExtra("contact_id")
+                ) {
+                    val contact = contactId?.let {
+                        withContext(Dispatchers.IO) { contactsViewModel.getContactById(it) }
+                    }
+                    if (contact != null) {
+                        navigator.openContactDetails(contact)
+                    } else {
+                        navigator.navigate(NewUiDestination.Contacts)
+                    }
+                } else if (action == Intent.ACTION_DIAL) {
+                    val number = onResolveDialIntent(intent)
+                    if (number.isNullOrBlank()) {
+                        navigator.navigate(NewUiDestination.Dialer)
+                    } else {
+                        navigator.openDialer(number)
+                    }
+                }
+            }
+            action == Intent.ACTION_INSERT -> {
+                navigator.openCreateContact(
+                    phoneNumber = intent.getStringExtra(ContactsContract.Intents.Insert.PHONE),
+                    name = intent.getStringExtra(ContactsContract.Intents.Insert.NAME)
+                )
+            }
+            action == Intent.ACTION_EDIT -> {
+                val contact = contactId?.let {
+                    withContext(Dispatchers.IO) { contactsViewModel.getContactById(it) }
+                }
+                if (contact != null) {
+                    navigator.openContactEdit(contact)
+                } else {
+                    navigator.navigate(NewUiDestination.Contacts)
+                }
+            }
+        }
+        onExternalIntentHandled()
+    }
     val predictiveBackEnabled = remember(prefs.settingsChanged.collectAsState().value) {
         prefs.getBoolean(PreferenceManager.KEY_PREDICTIVE_BACK_GESTURE, true)
     }
     var rawBackProgress by remember { mutableFloatStateOf(0f) }
+    val backMotion = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
     val tabDestinations = remember {
         listOf(
-            NewUiDestination.Favorites,
             NewUiDestination.Recents,
             NewUiDestination.Contacts,
             NewUiDestination.Dialer
@@ -401,9 +617,7 @@ fun NewUiAppShell(
     val swipeThresholdPx = with(LocalDensity.current) { 72.dp.toPx() }
     val backProgress by androidx.compose.animation.core.animateFloatAsState(
         targetValue = rawBackProgress,
-        animationSpec = androidx.compose.animation.core.spring(
-            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
-        ),
+        animationSpec = backMotion,
         label = "newUiBackProgress"
     )
     if (predictiveBackEnabled) {
@@ -465,22 +679,21 @@ fun NewUiAppShell(
                         )
                     }
                     .graphicsLayer {
-                        translationX = size.width * backProgress * 0.18f
-                        scaleX = 1f - backProgress * 0.02f
-                        scaleY = 1f - backProgress * 0.02f
-                        alpha = 1f - backProgress * 0.08f
+                        val scale = 1f - backProgress * 0.06f
+                        scaleX = scale
+                        scaleY = scale
                     }
             ) {
                 NewUiHost(
                     navigator = navigator,
                     onCall = onCall,
+                    onOpenRecording = onOpenRecording,
                 )
             }
             if (
                 navigator.currentDestination == NewUiDestination.Dialer ||
-                navigator.currentDestination == NewUiDestination.Recents ||
-                navigator.currentDestination == NewUiDestination.Contacts ||
-                navigator.currentDestination == NewUiDestination.Favorites
+                    navigator.currentDestination == NewUiDestination.Recents ||
+                    navigator.currentDestination == NewUiDestination.Contacts
             ) {
                 Box(
                     modifier = Modifier

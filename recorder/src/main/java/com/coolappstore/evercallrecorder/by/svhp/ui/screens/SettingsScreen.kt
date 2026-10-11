@@ -302,7 +302,7 @@ private fun AppearanceSection(preferences: AppPreferences, updateTrigger: Int, a
     }
 }
 
-// ── Appearance (Call Recording menu placement in Ever Dialer's Settings) ──────────
+// ── Appearance (Call Recording menu placement in LibreDialer's Settings) ─────────
 
 @Composable
 private fun RecordingMenuAppearanceSection(preferences: AppPreferences, updateTrigger: Int, actions: SettingsActions) {

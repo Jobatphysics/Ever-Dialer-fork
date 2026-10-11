@@ -22,18 +22,19 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.Dialpad
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Contacts
 import androidx.compose.material.icons.outlined.Dialpad
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.runtime.getValue
@@ -249,6 +250,17 @@ fun NewUiScreenShell(
 }
 
 @Composable
+fun NewUiSettingsAction(onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Icon(
+            imageVector = Icons.Filled.Settings,
+            contentDescription = "Settings",
+            tint = MaterialTheme.colorScheme.onBackground
+        )
+    }
+}
+
+@Composable
 fun Modifier.newUiScrollHaptics(enabled: Boolean = true): Modifier {
     val hapticFeedback = com.android.libredialer.view.components.rememberComposeAppHaptic()
     val prefs: PreferenceManager = koinInject()
@@ -317,32 +329,51 @@ fun NewUiNavigationBar(navigator: NewUiNavigator) {
             ),
         contentAlignment = Alignment.Center
     ) {
-        LensSurfaceBox(
-            modifier = Modifier
-                .wrapContentWidth(),
-            shape = MaterialTheme.shapes.extraLarge
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                verticalAlignment = Alignment.CenterVertically
+            LensSurfaceBox(
+                modifier = Modifier.weight(1f),
+                shape = MaterialTheme.shapes.extraLarge,
+                contentAlignment = Alignment.Center
             ) {
-                NewUiDestination.entries
-                    .filter {
-                        it != NewUiDestination.Settings &&
-                            it != NewUiDestination.ContactDetails &&
-                            it != NewUiDestination.ContactEdit &&
-                            it != NewUiDestination.CallDetails &&
-                            it != NewUiDestination.UnknownNumberDetails
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    listOf(
+                        NewUiDestination.Recents,
+                        NewUiDestination.Contacts,
+                        NewUiDestination.Dialer
+                    ).forEach { destination ->
+                        NewUiNavigationItem(
+                            destination = destination,
+                            selected = navigator.currentDestination == destination,
+                            onClick = { navigator.navigate(destination) },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
-                    .forEach { destination ->
-                    NewUiNavigationItem(
-                        destination = destination,
-                        selected = navigator.currentDestination == destination,
-                        onClick = { navigator.navigate(destination) },
-                        modifier = Modifier.weight(1f)
+                }
+            }
+
+            LensSurfaceBox(
+                modifier = Modifier.size(72.dp),
+                shape = CircleShape,
+                contentAlignment = Alignment.Center
+            ) {
+                IconButton(
+                    onClick = { navigator.navigate(NewUiDestination.UniversalSearch) }
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Search,
+                        contentDescription = "Search",
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -376,7 +407,7 @@ private fun NewUiNavigationItem(
         color = if (selected) {
             MaterialTheme.colorScheme.secondaryContainer
         } else {
-            MaterialTheme.colorScheme.surfaceContainer
+            androidx.compose.ui.graphics.Color.Transparent
         },
         contentColor = if (selected) {
             MaterialTheme.colorScheme.onSecondaryContainer
@@ -411,10 +442,10 @@ private fun NewUiDestination.icon(selected: Boolean) =
         NewUiDestination.Dialer -> if (selected) Icons.Filled.Dialpad else Icons.Outlined.Dialpad
         NewUiDestination.Recents -> if (selected) Icons.Filled.History else Icons.Outlined.History
         NewUiDestination.Contacts -> if (selected) Icons.Filled.Contacts else Icons.Outlined.Contacts
-        NewUiDestination.Favorites -> if (selected) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder
         NewUiDestination.Settings -> if (selected) Icons.Filled.Settings else Icons.Outlined.Settings
         NewUiDestination.ContactDetails -> if (selected) Icons.Filled.Contacts else Icons.Outlined.Contacts
         NewUiDestination.ContactEdit -> if (selected) Icons.Filled.Contacts else Icons.Outlined.Contacts
         NewUiDestination.CallDetails -> if (selected) Icons.Filled.History else Icons.Outlined.History
         NewUiDestination.UnknownNumberDetails -> if (selected) Icons.Filled.Contacts else Icons.Outlined.Contacts
+        NewUiDestination.UniversalSearch -> Icons.Filled.Search
     }

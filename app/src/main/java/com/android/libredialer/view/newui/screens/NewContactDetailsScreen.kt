@@ -53,7 +53,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -65,15 +67,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.core.view.WindowCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import coil.compose.AsyncImage
@@ -174,6 +179,25 @@ fun NewContactDetailsScreen(
     onCall: (String, String) -> Unit
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
+    val useDarkStatusBarIcons = MaterialTheme.colorScheme.background.luminance() > 0.5f
+    DisposableEffect(view) {
+        val window = (view.context as? Activity)?.window
+        val controller = window?.let { WindowCompat.getInsetsController(it, view) }
+        val previousAppearance = controller?.isAppearanceLightStatusBars
+        onDispose {
+            if (controller != null && previousAppearance != null) {
+                controller.isAppearanceLightStatusBars = previousAppearance
+            }
+        }
+    }
+    SideEffect {
+        val window = (view.context as? Activity)?.window
+        if (window != null) {
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars =
+                useDarkStatusBarIcons
+        }
+    }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
     val prefs = koinInject<PreferenceManager>()
@@ -184,7 +208,7 @@ fun NewContactDetailsScreen(
         .firstOrNull { it.id == contact.id } ?: contact
     val settingsVersion by prefs.settingsChanged.collectAsState()
     val numbers = remember(currentContact, phoneNumber) {
-        (currentContact.phoneNumbers + listOfNotNull(phoneNumber))
+        (listOfNotNull(phoneNumber) + currentContact.phoneNumbers)
             .filter(String::isNotBlank).distinct()
     }
     val contactLogs = remember(logs, currentContact, numbers) {
@@ -307,11 +331,16 @@ fun NewContactDetailsScreen(
                     IconButton(onClick = { contactsViewModel.toggleFavorite(currentContact) }) {
                         Icon(
                             if (currentContact.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                            contentDescription = if (currentContact.isFavorite) "Remove favorite" else "Add favorite"
+                            contentDescription = if (currentContact.isFavorite) "Remove favorite" else "Add favorite",
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                     IconButton(onClick = { onEdit(currentContact) }) {
-                        Icon(Icons.Default.Edit, "Edit contact")
+                        Icon(
+                            Icons.Default.Edit,
+                            "Edit contact",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 }
             }
@@ -337,7 +366,8 @@ fun NewContactDetailsScreen(
                         Text(
                             currentContact.name.ifBlank { numbers.firstOrNull() ?: "Contact" },
                             style = MaterialTheme.typography.headlineSmall,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -405,7 +435,12 @@ fun NewContactDetailsScreen(
                     item {
                         DetailsCard("Contact information") {
                             numbers.forEach { number ->
-                                DetailRow(number, "Phone", providedCallIcon()) { call(number) }
+                                DetailRow(
+                                    headline = number,
+                                    supporting = "Phone",
+                                    icon = providedCallIcon(),
+                                    headlineColor = MaterialTheme.colorScheme.onSurface
+                                ) { call(number) }
                             }
                             currentContact.emails.forEach { email ->
                                 DetailRow(email, "Email", Icons.Default.Email) {
@@ -844,6 +879,7 @@ internal fun DetailRow(
     headline: String,
     supporting: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
+    headlineColor: Color = Color.Unspecified,
     onClick: (() -> Unit)? = null
 ) {
     Row(
@@ -860,7 +896,7 @@ internal fun DetailRow(
         Icon(icon, contentDescription = supporting, tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.size(12.dp))
         Column {
-            Text(headline, style = MaterialTheme.typography.bodyLarge)
+            Text(headline, style = MaterialTheme.typography.bodyLarge, color = headlineColor)
             Text(supporting, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

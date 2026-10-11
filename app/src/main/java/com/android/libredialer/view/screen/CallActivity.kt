@@ -2246,7 +2246,7 @@ fun ExpressiveCallScreen(
                     }
                 }
                 "pin" -> {
-                    com.android.libredialer.view.screen.settings.PinSetupDialog(
+                    com.android.libredialer.view.components.security.PinSetupDialog(
                         title = "Enter PIN", isVerify = true,
                         expectedPin = prefs.getString(PreferenceManager.KEY_BIOMETRICS_PIN, "") ?: "",
                         showCloseButton = !biometricGatesScreen,
@@ -2259,7 +2259,7 @@ fun ExpressiveCallScreen(
                     )
                 }
                 "password" -> {
-                    com.android.libredialer.view.screen.settings.PasswordSetupDialog(
+                    com.android.libredialer.view.components.security.PasswordSetupDialog(
                         title = "Enter Password", isVerify = true,
                         expectedPassword = prefs.getString(PreferenceManager.KEY_BIOMETRICS_PASSWORD, "") ?: "",
                         showCloseButton = !biometricGatesScreen,
@@ -3333,7 +3333,7 @@ private fun AutoRedialDialog(
                             onValueChange = {},
                             readOnly = true,
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-                            modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
+                            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp),
                             colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
                         )

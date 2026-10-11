@@ -79,6 +79,7 @@ private data class NewEditablePhone(
 fun NewContactEditScreen(
     contact: Contact?,
     initialPhone: String? = null,
+    initialName: String? = null,
     onSaved: () -> Unit
 ) {
     val context = LocalContext.current
@@ -90,7 +91,7 @@ fun NewContactEditScreen(
     }
     val saveTargets = remember { contactsViewModel.getSaveTargets() }
     var initialized by remember { mutableStateOf(false) }
-    var name by remember { mutableStateOf(contact?.name.orEmpty()) }
+    var name by remember { mutableStateOf(contact?.name ?: initialName.orEmpty()) }
     var photoUri by remember { mutableStateOf(contact?.photoUri) }
     var callingCardUri by remember(contact?.id) { mutableStateOf<String?>(null) }
     var originalCallingCardUri by remember(contact?.id) { mutableStateOf<String?>(null) }

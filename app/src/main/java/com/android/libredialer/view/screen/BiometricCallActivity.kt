@@ -22,8 +22,8 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.android.libredialer.controller.CallService
 import com.android.libredialer.controller.util.PreferenceManager
-import com.android.libredialer.view.screen.settings.PasswordDialogContent
-import com.android.libredialer.view.screen.settings.PinDialogContent
+import com.android.libredialer.view.components.security.PasswordDialogContent
+import com.android.libredialer.view.components.security.PinDialogContent
 import com.android.libredialer.view.newui.theme.NewUiTheme
 import com.android.libredialer.view.theme.Rivo4Theme
 import org.koin.android.ext.android.inject

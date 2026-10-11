@@ -60,7 +60,7 @@ fun HomeScreen(
     onRecordingClick: (com.coolappstore.evercallrecorder.by.svhp.ui.viewmodels.RecordingItem, String) -> Unit = { _, _ -> },
     onSelectionModeChanged: (Boolean) -> Unit = {},
     onGlobalSearchClick: () -> Unit = {},
-    onEverDialerSettingsClick: () -> Unit = {},
+    onDialerSettingsClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val vm: HomeViewModel = viewModel()
@@ -112,7 +112,7 @@ fun HomeScreen(
         modifier = modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text("Ever Call Recorder", fontWeight = FontWeight.Bold) },
+                title = { Text("Call Recordings", fontWeight = FontWeight.Bold) },
                 actions = {
                     AnimatedVisibility(visible = !isSelectionMode, enter = fadeIn(), exit = fadeOut()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -120,7 +120,7 @@ fun HomeScreen(
                                 // Same size/shape as the Settings button on the Calls / Favourites /
                                 // Contacts tabs in Ever Dialer (TopBar.kt: 52.dp, 16.dp corner, 22.dp icon).
                                 Surface(
-                                    onClick = onEverDialerSettingsClick,
+                                    onClick = onDialerSettingsClick,
                                     modifier = Modifier.padding(end = 8.dp).size(52.dp),
                                     shape = RoundedCornerShape(16.dp),
                                     color = MaterialTheme.colorScheme.primaryContainer
@@ -128,7 +128,7 @@ fun HomeScreen(
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             Icons.Default.Tune,
-                                            contentDescription = "Ever Dialer Settings",
+                                            contentDescription = "LibreDialer Settings",
                                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                             modifier = Modifier.size(22.dp)
                                         )
@@ -348,7 +348,7 @@ private fun SelectionBar(
 
 // ── Search bar ────────────────────────────────────────────────────────────────
 
-/** Same look/behaviour as the "Search in Ever Dialer" pill shown atop the main Calls / Contacts
+/** Same look/behaviour as the "Search in LibreDialer" pill shown atop the main Calls / Contacts
  *  / Favourites tabs: a non-editable pill that opens the app's single unified search screen
  *  (which also searches call recordings and recording notes) rather than filtering only the
  *  recordings list in place. */
@@ -396,7 +396,7 @@ fun GlobalSearchPill(onClick: () -> Unit, modifier: Modifier = Modifier) {
                 tint = searchBarFg
             )
             Text(
-                text = "Search in Ever Dialer",
+                text = "Search in LibreDialer",
                 style = MaterialTheme.typography.bodyLarge,
                 color = searchBarFg,
                 modifier = Modifier.weight(1f)

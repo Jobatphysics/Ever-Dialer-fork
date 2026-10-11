@@ -12,29 +12,15 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.ContactsContract
 import android.provider.Settings
-import android.telecom.TelecomManager
 import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.zIndex
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Dialpad
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.SystemUpdate
-import androidx.compose.material.icons.outlined.Dialpad
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,15 +30,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.displayCutout
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
-import androidx.navigation.compose.rememberNavController
-import com.android.libredialer.controller.CallService
 import com.android.libredialer.controller.util.DefaultDialerManager
 import com.android.libredialer.controller.util.DialerCodeType
 import com.android.libredialer.controller.util.classifyDialerCode
@@ -73,48 +52,12 @@ import com.android.libredialer.controller.util.fetchLatestRelease
 import com.android.libredialer.controller.util.getApkDestinationFile
 import com.android.libredialer.controller.util.installApkAndScheduleDelete
 import com.android.libredialer.controller.util.isNewerVersion
-import com.android.libredialer.view.screen.CallActivity
 import com.android.libredialer.view.components.Android14WelcomeDialog
 import com.android.libredialer.view.components.FullScreenIntentDialog
-import com.android.libredialer.view.components.BottomBar
-import com.android.libredialer.view.components.providedCallIcon
-import com.android.libredialer.view.components.enterNotesTab
 import com.android.libredialer.view.theme.Rivo4Theme
-import com.android.libredialer.view.theme.TabTransitionStyle
 import com.android.libredialer.view.newui.navigation.NewUiAppShell
 import com.android.libredialer.view.newui.theme.NewUiTheme
-import com.ramcosta.composedestinations.DestinationsNavHost
-import com.ramcosta.composedestinations.generated.NavGraphs
-import com.ramcosta.composedestinations.generated.destinations.ContactDetailsScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.DialPadScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.ContactEditScreenDestination
 import kotlinx.coroutines.delay
-import android.content.res.Configuration
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
-import android.view.Surface
-import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Group
-import androidx.compose.material.icons.outlined.Note
-import androidx.compose.material.icons.outlined.FiberManualRecord
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Note
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.FiberManualRecord
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import com.ramcosta.composedestinations.generated.destinations.ContactScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.FavoritesScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.GroupsScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.NotesScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.RecentScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.RecordingsScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.UpdatesScreenDestination
 import org.koin.core.context.GlobalContext
 
 class MainActivity : FragmentActivity() {
@@ -185,7 +128,7 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    // Holds whatever intent should currently be processed by handleIntent(). Set from onCreate's
+    // Holds whatever intent should currently be processed by LibreUI. Set from onCreate's
     // initial intent and re-set from onNewIntent() so Compose actually reacts to intents delivered
     // to an already-running instance (contact/dial shortcuts, "call back" from other apps like
     // Truecaller, widgets, etc.) — a plain onNewIntent() { setIntent(intent) } does NOT retrigger
@@ -231,24 +174,6 @@ class MainActivity : FragmentActivity() {
 
         setContent {
             Rivo4Theme {
-                val navController = rememberNavController()
-                var showNewUi by remember { mutableStateOf(true) }
-
-                // Eagerly create CallLogViewModel here, at the top of the compose tree, instead
-                // of letting it lazily spin up the first time the Calls/Recents screen (or any
-                // other screen that happens to reference it) is composed. Its init{} block is
-                // what registers the CallLog/Contacts ContentObservers and starts collecting
-                // CallService.currentCallSession — so until it exists, a call placed or received
-                // through EverDialer *or any other app* (any write to the system CallLog
-                // provider) doesn't trigger a refresh at all; the list only ever catches up the
-                // next time the user happens to open the app or navigate into the call log
-                // section, since that's what was creating the ViewModel for the first time.
-                // Creating it unconditionally here means the observers are live as soon as
-                // MainActivity is, regardless of which tab is the configured start destination,
-                // so call log updates from anywhere arrive immediately instead of on next visit.
-                val callLogViewModel: com.android.libredialer.controller.CallLogViewModel =
-                    org.koin.compose.viewmodel.koinActivityViewModel()
-
                 val prefs = remember {
                     GlobalContext.get().get<PreferenceManager>()
                 }
@@ -264,18 +189,6 @@ class MainActivity : FragmentActivity() {
                 LaunchedEffect(settingsVer) {
                     if (biometricType.isEmpty() || !appLockEnabled) {
                         isAppUnlocked = true
-                    }
-                }
-
-                // Compute start destination from prefs — done once so no flash
-                val startDestination = remember {
-                    when (prefs.getString(PreferenceManager.KEY_DEFAULT_TAB, "calls") ?: "calls") {
-                        "favorites"  -> FavoritesScreenDestination
-                        "contacts"   -> ContactScreenDestination
-                        "groups"     -> GroupsScreenDestination
-                        "recordings" -> RecordingsScreenDestination()
-                        "notes"      -> NotesScreenDestination()
-                        else         -> RecentScreenDestination
                     }
                 }
 
@@ -405,7 +318,27 @@ class MainActivity : FragmentActivity() {
                         readyToInstall = false,
                         onAction = {
                             showAutoUpdateDialog = false
-                            navController.navigate(UpdatesScreenDestination.route)
+                            val apkUrl = autoUpdateApkUrl
+                            if (apkUrl == null) {
+                                android.widget.Toast.makeText(
+                                    this@MainActivity,
+                                    "The update download is unavailable.",
+                                    android.widget.Toast.LENGTH_LONG
+                                ).show()
+                            } else {
+                                val downloadId = enqueueApkDownload(this@MainActivity, apkUrl)
+                                if (downloadId == null) {
+                                    android.widget.Toast.makeText(
+                                        this@MainActivity,
+                                        "Couldn't start the update download.",
+                                        android.widget.Toast.LENGTH_LONG
+                                    ).show()
+                                } else {
+                                    autoDownloadId = downloadId
+                                    autoDownloadProgress = 0f
+                                    showAutoDownloadProgress = true
+                                }
+                            }
                         },
                         onDismiss = { showAutoUpdateDialog = false }
                     )
@@ -425,272 +358,54 @@ class MainActivity : FragmentActivity() {
                     label = "biometricBlur"
                 )
 
-                // ── Ongoing Call Banner + Main nav host ───────────────────
-                val callSession by CallService.currentCallSession.collectAsState()
-                val isCallActive = callSession != null &&
-                    callSession?.state != android.telecom.Call.STATE_SELECT_PHONE_ACCOUNT &&
-                    callSession?.state != android.telecom.Call.STATE_DISCONNECTED
-                val hasOngoingCall = isCallActive && callSession?.state != android.telecom.Call.STATE_RINGING
-
                 Box(modifier = Modifier.fillMaxSize()) {
-
-                    // Main content — blurred when locked
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .then(
-                                if (blurRadius > 0.dp)
-                                    Modifier.blur(blurRadius, edgeTreatment = BlurredEdgeTreatment.Unbounded)
-                                else
-                                    Modifier
-                            )
-                    ) {
-                    // ── Ongoing Call Banner (above all content) ────────────
-                    AnimatedVisibility(
-                        visible = hasOngoingCall && !showNewUi,
-                        enter = slideInVertically { -it } + fadeIn(),
-                        exit = slideOutVertically { -it } + fadeOut()
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFF1B5E20))
-                                .statusBarsPadding()
-                                .clickable {
-                                    startActivity(
-                                        Intent(this@MainActivity, CallActivity::class.java).apply {
-                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-                                        }
+                // Main LibreUI content, blurred when locked.
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (blurRadius > 0.dp)
+                                Modifier.blur(blurRadius, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                            else
+                                Modifier
+                        )
+                ) {
+                    NewUiTheme {
+                        NewUiAppShell(
+                            launcherResetVersion = launcherResetVersion,
+                            onCall = { number, contactKey -> placeDirectCall(number, contactKey) },
+                            onOpenRecording = { recordingUri ->
+                                startActivity(
+                                    Intent(
+                                        this@MainActivity,
+                                        com.coolappstore.evercallrecorder.by.svhp.MainActivity::class.java
+                                    ).putExtra(
+                                        com.coolappstore.evercallrecorder.by.svhp.MainActivity.EXTRA_OPEN_RECORDING_URI,
+                                        recordingUri
                                     )
-                                }
-                                .padding(horizontal = 16.dp, vertical = 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Icon(
-                                    providedCallIcon(),
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
                                 )
-                                Text(
-                                    text = "Call is Ongoing — Tap to return",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    }
-
-                    Box(modifier = Modifier.fillMaxSize()) {
-                    if (showNewUi) {
-                        NewUiTheme {
-                            NewUiAppShell(
-                                launcherResetVersion = launcherResetVersion,
-                                onCall = { number, contactKey -> placeDirectCall(number, contactKey) },
-                            )
-                        }
-                    }
-
-                    if (!showNewUi) {
-                    androidx.compose.foundation.layout.Box(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                    // ── Legacy main nav host retained for incremental migration ───
-                    val configuration = LocalConfiguration.current
-                    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-                    com.android.libredialer.view.theme.isLandscapeMode = isLandscape
-                    // Keep the page-switching slide animation's tab order in sync with
-                    // whatever order the user has configured in Settings > Appearance >
-                    // Tab Sections — never hardcoded, so reordering tabs there never makes
-                    // the slide direction feel wrong on the main screen.
-                    remember(settingsVer) {
-                        com.android.libredialer.view.theme.syncTabTransitionOrder(prefs)
-                    }
-                    val navBackStack by navController.currentBackStackEntryAsState()
-                    val currentDest = navBackStack?.destination
-                    val prefs2 = remember { GlobalContext.get().get<PreferenceManager>() }
-                    val showNotesRail = prefs2.getBoolean(PreferenceManager.KEY_TAB_SHOW_NOTES, true)
-                    val showRecordingsRail = prefs2.getBoolean(PreferenceManager.KEY_TAB_SHOW_RECORDINGS, true)
-
-                    fun navTo(route: String) {
-                        com.android.libredialer.view.components.TabNavigationHelper.navigateToTab(navController, route)
-                    }
-
-                    if (isLandscape) {
-                        // The rail's own windowInsetsPadding(displayCutout) below already keeps
-                        // the whole column clear of the camera cutout — no need for any per-item
-                        // horizontal padding, which was both throwing off centering and eating
-                        // into the width labels like "Favourites"/"Recordings" need to fit
-                        // without getting clipped ("Favourit", "Recordin").
-                        val railPaddingStart = 0.dp
-                        val railPaddingEnd   = 0.dp
-
-                        Row(modifier = Modifier.fillMaxSize()) {
-                            Surface(
-                                color = MaterialTheme.colorScheme.surfaceContainer,
-                                modifier = Modifier.fillMaxHeight()
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxHeight()
-                                        .width(112.dp)
-                                        .windowInsetsPadding(
-                                            WindowInsets.displayCutout
-                                                .union(WindowInsets.systemBars)
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(
-                                        modifier = Modifier.fillMaxSize(),
-                                        // Evenly distribute every item (including the divider) across
-                                        // the full rail height so the gaps are always uniform, instead
-                                        // of clustering everything in the middle with big empty space
-                                        // above/below.
-                                        verticalArrangement = Arrangement.SpaceEvenly,
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        // Nav items — order and visibility driven by the same
-                                        // Settings > Appearance > Tab Sections config as the
-                                        // portrait bottom bar, never hardcoded.
-                                        val showFavoritesRail = prefs2.getBoolean(PreferenceManager.KEY_TAB_SHOW_FAVORITES, true)
-                                        val showCallsRail     = prefs2.getBoolean(PreferenceManager.KEY_TAB_SHOW_CALLS, true)
-                                        val showContactsRail  = prefs2.getBoolean(PreferenceManager.KEY_TAB_SHOW_CONTACTS, true)
-                                        val showGroupsRail    = prefs2.getBoolean(PreferenceManager.KEY_TAB_SHOW_GROUPS, false)
-                                        val showDialpadRail   = prefs2.getBoolean(PreferenceManager.KEY_TAB_SHOW_DIALPAD, false)
-                                        val railTabOrder = remember(settingsVer) {
-                                            PreferenceManager.parseTabOrder(prefs2.getString(PreferenceManager.KEY_TAB_ORDER, null))
-                                        }
-
-                                        railTabOrder.forEach { tabKey ->
-                                            key(tabKey) {
-                                                when (tabKey) {
-                                                    "favorites" -> if (showFavoritesRail) RailItem(
-                                                        selected = currentDest?.hierarchy?.any { it.route == FavoritesScreenDestination.route } == true,
-                                                        icon = { sel -> Icon(if (sel) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder, "Favourites", modifier = Modifier.size(24.dp)) },
-                                                        label = "Favourites",
-                                                        paddingStart = railPaddingStart,
-                                                        paddingEnd = railPaddingEnd,
-                                                        onClick = { navTo(FavoritesScreenDestination.route) }
-                                                    )
-                                                    "calls" -> if (showCallsRail) RailItem(
-                                                        selected = currentDest?.hierarchy?.any { it.route == RecentScreenDestination.route } == true,
-                                                        icon = { sel -> Icon(if (sel) Icons.Filled.History else Icons.Outlined.History, "Calls", modifier = Modifier.size(24.dp)) },
-                                                        label = "Calls",
-                                                        paddingStart = railPaddingStart,
-                                                        paddingEnd = railPaddingEnd,
-                                                        onClick = { navTo(RecentScreenDestination.route) }
-                                                    )
-                                                    "contacts" -> if (showContactsRail) RailItem(
-                                                        selected = currentDest?.hierarchy?.any { it.route == ContactScreenDestination.route } == true,
-                                                        icon = { sel -> Icon(if (sel) Icons.Filled.Person else Icons.Outlined.Person, "Contacts", modifier = Modifier.size(24.dp)) },
-                                                        label = "Contacts",
-                                                        paddingStart = railPaddingStart,
-                                                        paddingEnd = railPaddingEnd,
-                                                        onClick = { navTo(ContactScreenDestination.route) }
-                                                    )
-                                                    "groups" -> if (showGroupsRail) RailItem(
-                                                        selected = currentDest?.hierarchy?.any { it.route == GroupsScreenDestination.route } == true,
-                                                        icon = { sel -> Icon(if (sel) Icons.Filled.Group else Icons.Outlined.Group, "Groups", modifier = Modifier.size(24.dp)) },
-                                                        label = "Groups",
-                                                        paddingStart = railPaddingStart,
-                                                        paddingEnd = railPaddingEnd,
-                                                        onClick = { navTo(GroupsScreenDestination.route) }
-                                                    )
-                                                    "recordings" -> if (showRecordingsRail) RailItem(
-                                                        selected = currentDest?.hierarchy?.any { it.route == RecordingsScreenDestination.route } == true,
-                                                        icon = { sel -> Icon(if (sel) Icons.Filled.FiberManualRecord else Icons.Outlined.FiberManualRecord, "Recordings", modifier = Modifier.size(24.dp)) },
-                                                        label = "Recordings",
-                                                        paddingStart = railPaddingStart,
-                                                        paddingEnd = railPaddingEnd,
-                                                        onClick = { navTo(RecordingsScreenDestination.route) }
-                                                    )
-                                                    "notes" -> if (showNotesRail) RailItem(
-                                                        selected = currentDest?.hierarchy?.any { it.route == NotesScreenDestination.route } == true,
-                                                        icon = { sel -> Icon(if (sel) Icons.Filled.Note else Icons.Outlined.Note, "Notes", modifier = Modifier.size(24.dp)) },
-                                                        label = "Notes",
-                                                        paddingStart = railPaddingStart,
-                                                        paddingEnd = railPaddingEnd,
-                                                        onClick = { navTo(NotesScreenDestination.route) }
-                                                    )
-                                                    "dialpad" -> if (showDialpadRail) RailItem(
-                                                        selected = currentDest?.hierarchy?.any { it.route == DialPadScreenDestination.route } == true,
-                                                        icon = { sel -> Icon(if (sel) Icons.Filled.Dialpad else Icons.Outlined.Dialpad, "Dialpad", modifier = Modifier.size(24.dp)) },
-                                                        label = "Dialpad",
-                                                        paddingStart = railPaddingStart,
-                                                        paddingEnd = railPaddingEnd,
-                                                        onClick = {
-                                                            navTo(DialPadScreenDestination().route)
-                                                        }
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        HorizontalDivider(
-                                            modifier = Modifier.padding(horizontal = 8.dp),
-                                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                                        )
-
-                                        RailItem(
-                                            // Compare only the path portion of the route (before any "?" query
-                                            // args) — Recordings' own route params like "openedFromSettings"
-                                            // contain the substring "settings" too, which used to falsely
-                                            // highlight this icon while just sitting on the Recordings tab.
-                                            selected = currentDest?.hierarchy?.any {
-                                                it.route?.substringBefore("?")?.contains("settings", ignoreCase = true) == true
-                                            } == true,
-                                            icon = { _ -> Icon(Icons.Default.Tune, "Settings", modifier = Modifier.size(24.dp)) },
-                                            label = "Settings",
-                                            paddingStart = railPaddingStart,
-                                            paddingEnd = railPaddingEnd,
-                                            onClick = { navTo(com.ramcosta.composedestinations.generated.destinations.SettingsScreenDestination().route) }
-                                        )
-                                    }
-                                }
-                            }
-                            // ── Main content fills the rest, edge-to-edge ──────────────────────
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                            ) {
-                                DestinationsNavHost(navGraph = NavGraphs.root, navController = navController, start = startDestination, defaultTransitions = TabTransitionStyle)
-                            }
-                        }
-                    } else {
-                            Scaffold(
-                                bottomBar = { BottomBar(navController) },
-                                containerColor = MaterialTheme.colorScheme.surface,
-                                contentWindowInsets = WindowInsets(0)
-                            ) { scaffoldPadding ->
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(MaterialTheme.colorScheme.surface)
-                                        .padding(scaffoldPadding)
-                                        .then(
-                                            if (hasOngoingCall)
-                                                Modifier.consumeWindowInsets(WindowInsets.statusBars)
-                                            else
-                                                Modifier
-                                        )
-                                ) {
-                                    DestinationsNavHost(
-                                        navGraph      = NavGraphs.root,
-                                        navController = navController,
-                                        start         = startDestination,
-                                        defaultTransitions = TabTransitionStyle
+                            },
+                            externalIntent = pendingIntent,
+                            onExternalCallIntent = { externalIntent ->
+                                val target = resolveCallTargetFromIntent(this@MainActivity, externalIntent)
+                                if (target != null && target.number.isNotBlank()) {
+                                    placeDirectCall(target.number, target.contactId)
+                                    true
+                                } else {
+                                    android.util.Log.w(
+                                        "LibreDialerCall",
+                                        "External call intent had no resolvable target: ${externalIntent.action}"
                                     )
-                            }
-                        }
-                    }
-                    }
-                    }
+                                    false
+                                }
+                            },
+                            onResolveDialIntent = { externalIntent ->
+                                externalIntent.data?.let { data ->
+                                    resolveCallTargetFromUri(this@MainActivity, data)?.number
+                                }
+                            },
+                            onExternalIntentHandled = { pendingIntent = null }
+                        )
                     }
                 } // end blurred Column
 
@@ -729,7 +444,7 @@ class MainActivity : FragmentActivity() {
                                 )
                                 prompt.authenticate(
                                     androidx.biometric.BiometricPrompt.PromptInfo.Builder()
-                                        .setTitle("Phone")
+                                        .setTitle("LibreDialer")
                                         .setSubtitle(if (callAuthRequired) "Verify your identity to place call" else "Verify your identity to continue")
                                         .setNegativeButtonText("Cancel")
                                         .setAllowedAuthenticators(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK)
@@ -738,7 +453,7 @@ class MainActivity : FragmentActivity() {
                             }
                         }
                         if (biometricType == "pin") {
-                            com.android.libredialer.view.screen.settings.PinSetupDialog(
+                            com.android.libredialer.view.components.security.PinSetupDialog(
                                 title = if (callAuthRequired) "Verify PIN to Call" else "Enter PIN",
                                 isVerify = true,
                                 expectedPin = prefs.getString(PreferenceManager.KEY_BIOMETRICS_PIN, "") ?: "",
@@ -756,7 +471,7 @@ class MainActivity : FragmentActivity() {
                                 }
                             )
                         } else if (biometricType == "password") {
-                            com.android.libredialer.view.screen.settings.PasswordSetupDialog(
+                            com.android.libredialer.view.components.security.PasswordSetupDialog(
                                 title = if (callAuthRequired) "Verify Password to Call" else "Enter Password",
                                 isVerify = true,
                                 expectedPassword = prefs.getString(PreferenceManager.KEY_BIOMETRICS_PASSWORD, "") ?: "",
@@ -774,20 +489,6 @@ class MainActivity : FragmentActivity() {
                                 }
                             )
                         }
-                    }
-
-                    if (!isAppUnlocked && hasOngoingCall && !callAuthRequired) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clickable(
-                                    interactionSource = remember {
-                                        androidx.compose.foundation.interaction.MutableInteractionSource()
-                                    },
-                                    indication = null,
-                                    onClick = {}
-                                )
-                        )
                     }
 
                 } // end outer Box
@@ -813,27 +514,6 @@ class MainActivity : FragmentActivity() {
                     )
                 }
 
-                LaunchedEffect(pendingIntent) {
-                    pendingIntent?.let {
-                        if (it.action == Intent.ACTION_MAIN && it.hasCategory(Intent.CATEGORY_LAUNCHER)) {
-                            showNewUi = true
-                        }
-                        val dataString = it.data?.toString().orEmpty()
-                        if (
-                            it.action == Intent.ACTION_INSERT ||
-                            it.action == Intent.ACTION_EDIT ||
-                            it.action == Intent.ACTION_DIAL ||
-                            (it.action == Intent.ACTION_VIEW &&
-                                (dataString.contains("contacts") ||
-                                    dataString.contains("com.android.contacts") ||
-                                    it.hasExtra("contact_id")))
-                        ) {
-                            showNewUi = false
-                        }
-                        handleIntent(it, navController)
-                        pendingIntent = null
-                    }
-                }
             }
         }
     }
@@ -1115,113 +795,6 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    private fun handleIntent(intent: Intent?, navController: androidx.navigation.NavController) {
-        intent ?: return
-        android.util.Log.d("EverDialerCall", "handleIntent action=${intent.action} data=${intent.data}")
-        val data = intent.data
-        val action = intent.action
-
-        if (intent.getBooleanExtra("NAV_TO_RECENTS", false) && action != "com.android.libredialer.OPEN_CALL_LOGS_DETAIL") {
-            navController.navigate(RecentScreenDestination.route) {
-                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                launchSingleTop = true
-            }
-            return
-        }
-
-        when (action) {
-            "com.android.libredialer.OPEN_RECENTS" -> {
-                navController.navigate(RecentScreenDestination.route) {
-                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                    launchSingleTop = true
-                }
-            }
-            "com.android.libredialer.OPEN_CALL_LOGS_DETAIL" -> {
-                val contactId = intent.getStringExtra("contact_id")
-                val phoneNumber = intent.getStringExtra("phone_number")
-                if (!contactId.isNullOrBlank() || !phoneNumber.isNullOrBlank()) {
-                    navController.navigate("call_log_detail_screen?contactId=${contactId ?: "null"}&phoneNumber=${phoneNumber ?: "null"}")
-                } else {
-                    navController.navigate(RecentScreenDestination.route) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                    }
-                }
-            }
-            Intent.ACTION_VIEW -> {
-                val mimeType = intent.type
-                if (mimeType == "vnd.android.cursor.dir/calls" ||
-                    data?.toString()?.contains("call_log") == true ||
-                    data?.toString()?.contains("calls") == true) {
-                    navController.navigate(RecentScreenDestination.route) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                    }
-                } else if (mimeType == "vnd.android.cursor.item/phone" ||
-                    mimeType == "vnd.android.cursor.item/phone_v2" ||
-                    intent.getBooleanExtra("android.intent.extra.CALL_NOW", false) ||
-                    intent.getBooleanExtra("direct_call", false)) {
-                    val target = resolveCallTargetFromIntent(this, intent)
-                    if (target != null && target.number.isNotBlank()) {
-                        placeDirectCall(target.number, target.contactId)
-                    } else if (data?.scheme == "tel") {
-                        val number = data.schemeSpecificPart
-                        navController.navigate(DialPadScreenDestination(initialNumber = number).route)
-                    }
-                } else if (data?.scheme == "tel") {
-                    val number = data.schemeSpecificPart
-                    navController.navigate(DialPadScreenDestination(initialNumber = number).route)
-                } else if (data?.toString()?.contains("contacts") == true ||
-                    data?.toString()?.contains("com.android.contacts") == true ||
-                    intent.hasExtra("contact_id")) {
-                    val id = data?.lastPathSegment ?: intent.getStringExtra("contact_id")
-                    if (id != null) {
-                        navController.navigate(ContactDetailsScreenDestination(contactId = id).route)
-                    }
-                }
-            }
-            Intent.ACTION_DIAL -> {
-                if (intent.getBooleanExtra("android.intent.extra.CALL_NOW", false) ||
-                    intent.getBooleanExtra("direct_call", false)) {
-                    val target = resolveCallTargetFromIntent(this, intent)
-                    if (target != null && target.number.isNotBlank()) {
-                        placeDirectCall(target.number, target.contactId)
-                        return
-                    }
-                }
-                if (data?.scheme == "tel") {
-                    val number = data.schemeSpecificPart
-                    navController.navigate(DialPadScreenDestination(initialNumber = number).route)
-                } else if (data != null) {
-                    val target = resolveCallTargetFromUri(this, data)
-                    if (target != null && target.number.isNotBlank()) {
-                        navController.navigate(DialPadScreenDestination(initialNumber = target.number).route)
-                    }
-                }
-            }
-            Intent.ACTION_CALL, "android.intent.action.CALL_PRIVILEGED" -> {
-                val target = resolveCallTargetFromIntent(this, intent)
-                android.util.Log.d("EverDialerCall", "external call intent action=$action data=$data target=$target")
-                if (target != null && target.number.isNotBlank()) {
-                    placeDirectCall(target.number, target.contactId)
-                } else {
-                    android.util.Log.w("EverDialerCall", "external call intent had no resolvable number, ignoring")
-                }
-            }
-            Intent.ACTION_INSERT -> {
-                val name = intent.getStringExtra(ContactsContract.Intents.Insert.NAME)
-                val phone = intent.getStringExtra(ContactsContract.Intents.Insert.PHONE)
-                navController.navigate(ContactEditScreenDestination(initialName = name, initialPhone = phone).route)
-            }
-            Intent.ACTION_EDIT -> {
-                val id = data?.lastPathSegment
-                if (id != null) {
-                    navController.navigate(ContactEditScreenDestination(contactId = id).route)
-                }
-            }
-        }
-    }
-
     fun requestDefaultDialer() {
         if (!DefaultDialerManager.isDefaultDialer(this)) {
             DefaultDialerManager.requestDefaultDialer(requestRoleLauncher, this)
@@ -1255,61 +828,5 @@ class MainActivity : FragmentActivity() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) {
             com.android.libredialer.controller.util.MissedCallBadgeManager.markMissedCallsAsRead(this)
         }
-    }
-}
-
-@androidx.compose.runtime.Composable
-private fun RailItem(
-    selected: Boolean,
-    icon: @androidx.compose.runtime.Composable (selected: Boolean) -> Unit,
-    label: String,
-    paddingStart: androidx.compose.ui.unit.Dp = 0.dp,
-    paddingEnd: androidx.compose.ui.unit.Dp = 0.dp,
-    onClick: () -> Unit
-) {
-    val bgColor = if (selected)
-        androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer
-    else
-        androidx.compose.ui.graphics.Color.Transparent
-    val contentColor = if (selected)
-        androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer
-    else
-        androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
-
-    androidx.compose.foundation.layout.Column(
-        modifier = androidx.compose.ui.Modifier
-            .fillMaxWidth()
-            .clickable(
-                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                indication = null,
-                onClick = onClick
-            )
-            .padding(start = paddingStart, end = paddingEnd, top = 4.dp, bottom = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Box(
-            modifier = androidx.compose.ui.Modifier
-                .size(width = 56.dp, height = 32.dp)
-                .clip(androidx.compose.foundation.shape.RoundedCornerShape(50))
-                .background(bgColor),
-            contentAlignment = Alignment.Center
-        ) {
-            androidx.compose.runtime.CompositionLocalProvider(
-                androidx.compose.material3.LocalContentColor provides contentColor
-            ) {
-                icon(selected)
-            }
-        }
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = contentColor,
-            maxLines = 1,
-            softWrap = false,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-            modifier = androidx.compose.ui.Modifier.fillMaxWidth()
-        )
     }
 }

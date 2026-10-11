@@ -192,7 +192,8 @@ fun NewCallScreen(
             Text(
                 contactName,
                 style = MaterialTheme.typography.headlineMedium,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 number.ifBlank { "Private number" },
@@ -446,7 +447,11 @@ private fun CallControl(
             onClick = onClick,
             containerColor = containerColor ?: if (active) MaterialTheme.colorScheme.secondaryContainer
             else MaterialTheme.colorScheme.surfaceContainerHigh,
-            contentColor = contentColor ?: MaterialTheme.colorScheme.onSurface,
+            contentColor = contentColor ?: if (active) {
+                MaterialTheme.colorScheme.onSecondaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
             enabled = enabled,
             diameter = diameter,
             pressedScale = pressedScale

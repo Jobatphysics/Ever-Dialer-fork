@@ -1,6 +1,6 @@
 package com.android.libredialer
 
-val APP_NAME = "Phone"
+val APP_NAME = "LibreDialer"
 // Sourced from app/build.gradle's defaultConfig.versionName — never hardcode it here,
 // BuildConfig.VERSION_NAME is regenerated from Gradle on every build.
 val APP_VERSION = BuildConfig.VERSION_NAME

@@ -94,7 +94,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.libredialer.APP_VERSION
-import com.android.libredialer.view.screen.settings.CardDivider
 import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Mic
@@ -114,23 +113,9 @@ import androidx.compose.material.icons.outlined.CallMade
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.filled.Favorite
-import com.ramcosta.composedestinations.generated.destinations.AboutAppScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.AnswerStyleScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.AppSettingsScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.BiometricScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.CallerUIScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.DefaultMessageAppScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.IncomingCallUIScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.InterfaceScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.RaiseToAnswerScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.RainModeScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.RecordingsScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.SettingsScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.SimAndCallPlacementScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.SoundVibrationScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.UpdatesScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.VolumeDndScreenDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import com.android.libredialer.view.newui.navigation.NewUiSettingsDestination
+import com.android.libredialer.view.newui.navigation.NewUiSettingsNavigation
+import com.android.libredialer.view.newui.navigation.NewUiNavigationRequests
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.collectAsState
 import org.koin.compose.koinInject
@@ -141,7 +126,7 @@ import com.android.libredialer.controller.util.SearchHistoryManager
  * Applied to a settings row so that tapping a search result can reveal *where* that setting
  * lives (scrolling it into view and flashing it) instead of silently firing its action.
  *
- * Shared across SettingsScreen and every settings sub-screen so a search result that points
+ * Shared across LibreUI Settings and every settings sub-screen so a search result that points
  * into a nested screen (e.g. "Auto Redial" inside Call Settings) can be scrolled to and
  * highlighted there too, after navigating with a `highlightKey` nav arg.
  */
@@ -207,7 +192,7 @@ data class GlobalSettingsSearchEntry(
     val iconContainerColor: Color,
     val titleLower: String = title.lowercase(),
     val subtitleLower: String = subtitle.lowercase(),
-    val navigateTo: ((DestinationsNavigator) -> Unit)? = null
+    val navigateTo: () -> Unit
 )
 
 typealias SettingsSearchEntry = GlobalSettingsSearchEntry
@@ -219,7 +204,6 @@ private val GsColorTeal    = Color(0xFF009688)
 private val GsColorIndigo  = Color(0xFF3F51B5)
 private val GsColorBluGrey = Color(0xFF607D8B)
 private val GsColorAmber   = Color(0xFFFFC107)
-private val GsColorBrown   = Color(0xFF795548)
 private val GsColorCyan    = Color(0xFF00BCD4)
 private val GsColorRed     = Color(0xFFE53935)
 private val GsColorPink    = Color(0xFFE91E63)
@@ -227,151 +211,103 @@ private val GsColorPink    = Color(0xFFE91E63)
 val globalSettingsSearchEntries: List<GlobalSettingsSearchEntry> by lazy {
     listOf(
         // ── Rows that live directly on the main Settings screen ─────────────────
-        GlobalSettingsSearchEntry("Check For Updates", "Current version: v$APP_VERSION", "check_for_updates", Icons.Default.SystemUpdate, GsColorAmber),
-        GlobalSettingsSearchEntry("Interface", "Themes, colors, and layout", "interface", Icons.Outlined.Palette, GsColorPurple),
-        GlobalSettingsSearchEntry("Tap Haptics", "Vibration on taps across the app", "tap_haptics", Icons.Outlined.Vibration, GsColorPurple),
-        GlobalSettingsSearchEntry("Scroll Haptics", "Vibrate on scroll gestures across the app", "scroll_haptics", Icons.Outlined.SwipeVertical, GsColorIndigo),
-        GlobalSettingsSearchEntry("Authentication", "App lock, biometrics, and PIN/password", "authentication", Icons.Default.Fingerprint, Color(0xFF6750A4)),
-        GlobalSettingsSearchEntry("Interesting Settings !", "Call settings, network switcher, and notes", "app_settings", Icons.Outlined.Tune, GsColorTeal),
-        GlobalSettingsSearchEntry("Contacts Hider", "Hide contacts behind a secret code", "contacts_hider", Icons.Outlined.Lock, Color(0xFF5E35B1)),
-        GlobalSettingsSearchEntry("Fake Call", "Schedule fake incoming calls without calling the real person", "fake_call", Icons.Outlined.PhoneCallback, GsColorRed),
-        GlobalSettingsSearchEntry("Call Recording", "Open Call Recorder", "call_recording", Icons.Default.FiberManualRecord, Color(0xFFE53935)),
-        GlobalSettingsSearchEntry("Silence Unknown Callers", "Automatically decline calls from unknown numbers", "silence_unknown", Icons.Outlined.PhoneDisabled, GsColorRed),
-        GlobalSettingsSearchEntry("Blocked Numbers", "Numbers you've blocked from calling you", "blocked_numbers", Icons.Outlined.PersonOff, GsColorBluGrey),
-        GlobalSettingsSearchEntry("Auto Check For Updates", "Automatically check for updates when the app opens", "auto_check_updates", Icons.Default.Autorenew, GsColorAmber) { it.navigate(UpdatesScreenDestination) },
-        GlobalSettingsSearchEntry("Create Backup", "Save app configuration, settings and calling cards", "create_backup", Icons.Default.Backup, GsColorGreen),
-        GlobalSettingsSearchEntry("Restore Backup", "Restore app configuration, settings and calling cards", "restore_backup", Icons.Default.Restore, GsColorBrown),
-        GlobalSettingsSearchEntry("About Phone", "Version $APP_VERSION · Developer info", "about_app", Icons.Outlined.Info, GsColorBluGrey),
+        GlobalSettingsSearchEntry("Themes", "Choose LibreDialer's appearance", "interface", Icons.Outlined.Palette, GsColorPurple) {
+            NewUiNavigationRequests.openSettings(NewUiSettingsDestination.ColorsAndTheme, "theme_mode")
+        },
+        GlobalSettingsSearchEntry("Authentication", "App lock, biometrics, and PIN/password", "authentication", Icons.Default.Fingerprint, Color(0xFF6750A4)) {
+            NewUiNavigationRequests.openSettings(NewUiSettingsDestination.BiometricAndAppLock, "auth_method")
+        },
+        GlobalSettingsSearchEntry("Call Behavior & Integrations", "Call features, network switcher, and recording notes", "app_settings", Icons.Outlined.Tune, GsColorTeal) {
+            NewUiNavigationRequests.openSettings(NewUiSettingsDestination.AppAndCallBehavior)
+        },
+        GlobalSettingsSearchEntry("Contacts Hider", "Hide selected contacts behind an access code", "contacts_hider", Icons.Outlined.Lock, Color(0xFF5E35B1)) {
+            NewUiNavigationRequests.openSettings(NewUiSettingsDestination.ContactsHider)
+        },
+        GlobalSettingsSearchEntry("Call Recording", "Configure call recording", "call_recording", Icons.Default.FiberManualRecord, Color(0xFFE53935)) {
+            NewUiNavigationRequests.openSettings(NewUiSettingsDestination.CallRecording, "call_recording")
+        },
+        GlobalSettingsSearchEntry("Backup & Restore", "Create, share, or restore an app backup", "backup_restore", Icons.Default.Backup, GsColorBlue) {
+            NewUiNavigationRequests.openSettings(NewUiSettingsDestination.BackupRestore, "backup_restore")
+        },
+        GlobalSettingsSearchEntry("Fake Calls", "Schedule test incoming calls", "fake_calls", Icons.Outlined.Call, GsColorTeal) {
+            NewUiNavigationRequests.openSettings(NewUiSettingsDestination.FakeCalls, "fake_calls")
+        },
 
         // ── App Settings screen ──────────────────────────────────────────────────
-        GlobalSettingsSearchEntry("Interesting Settings !", "Call features, Volume DND, network switcher, notes", "app_settings", Icons.Outlined.Tune, GsColorTeal) { it.navigate(AppSettingsScreenDestination()) },
-        GlobalSettingsSearchEntry("4G/5G Switcher", "Quickly switch network mode per app", "network_switcher", Icons.Outlined.NetworkCell, GsColorBlue) { it.navigate(AppSettingsScreenDestination(highlightKey = "network_switcher")) },
-        GlobalSettingsSearchEntry("Integrate Notes Section", "Show notes alongside call recordings", "integrate_notes", Icons.Outlined.Notes, GsColorGreen) { it.navigate(AppSettingsScreenDestination(highlightKey = "integrate_notes")) },
-        GlobalSettingsSearchEntry("Delete Notes With Recording", "Remove the note when its recording is deleted", "delete_notes_with_recording", Icons.Outlined.NoteAlt, GsColorRed) { it.navigate(AppSettingsScreenDestination(highlightKey = "delete_notes_with_recording")) },
+        GlobalSettingsSearchEntry("4G/5G Switcher", "Quickly switch network mode per app", "network_switcher", Icons.Outlined.NetworkCell, GsColorBlue) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.NetworkSwitcher, "network_switcher") },
+        GlobalSettingsSearchEntry("Integrate Notes Section", "Show notes alongside call recordings", "integrate_notes", Icons.Outlined.Notes, GsColorGreen) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.AppAndCallBehavior, "integrate_notes") },
+        GlobalSettingsSearchEntry("Delete Notes With Recording", "Remove the note when its recording is deleted", "delete_notes_with_recording", Icons.Outlined.NoteAlt, GsColorRed) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.AppAndCallBehavior, "delete_notes_with_recording") },
 
         // ── Sim And Call Placement screen ──────────────────────────────────────
-        GlobalSettingsSearchEntry("Sim And Call Placement", "Default SIM, SIM colors, confirm calls, contacts", "sim_and_call_placement", Icons.Outlined.SimCard, GsColorGreen) { it.navigate(SimAndCallPlacementScreenDestination(highlightKey = "sim_and_call_placement")) },
-        GlobalSettingsSearchEntry("Sound & Vibration", "Ringtones and dialpad tones", "sound_vibration_link", Icons.Outlined.VolumeUp, GsColorBlue) { it.navigate(SimAndCallPlacementScreenDestination(highlightKey = "sound_vibration_link")) },
-        GlobalSettingsSearchEntry("Default SIM", "Which SIM is used to place calls", "default_sim", Icons.Outlined.SimCard, GsColorGreen) { it.navigate(SimAndCallPlacementScreenDestination(highlightKey = "default_sim")) },
-        GlobalSettingsSearchEntry("Confirm placing a call", "Ask for confirmation before placing any outgoing call", "confirm_placing_call", Icons.Outlined.CheckCircle, Color(0xFF3F51B5)) { it.navigate(SimAndCallPlacementScreenDestination(highlightKey = "confirm_placing_call")) },
-        GlobalSettingsSearchEntry("Show SIM buttons", "Show SIM 1 and SIM 2 buttons instead of dial button in dialpad", "show_sim_buttons_in_dialpad", Icons.Outlined.Dialpad, GsColorTeal) { it.navigate(SimAndCallPlacementScreenDestination(highlightKey = "show_sim_buttons_in_dialpad")) },
-        GlobalSettingsSearchEntry("Use SIM based on call logs history on any call", "Automatically select the same SIM from call log history", "use_sim_from_call_log", Icons.Outlined.History, Color(0xFF3F51B5)) { it.navigate(SimAndCallPlacementScreenDestination(highlightKey = "use_sim_from_call_log")) },
-        GlobalSettingsSearchEntry("Customize SIM Colors", "Choose custom colors for SIM 1 and SIM 2", "customize_sim_colors", Icons.Outlined.Palette, GsColorAmber) { it.navigate(SimAndCallPlacementScreenDestination(highlightKey = "customize_sim_colors")) },
-        GlobalSettingsSearchEntry("Contacts to display", "Choose which accounts' contacts are shown", "contacts_to_display", Icons.Outlined.Contacts, GsColorBlue) { it.navigate(SimAndCallPlacementScreenDestination(highlightKey = "contacts_to_display")) },
-        GlobalSettingsSearchEntry("Missed Call Notification", "Show missed call notifications through Phone", "missed_call_notification", Icons.AutoMirrored.Filled.CallMissed, GsColorRed) { it.navigate(SimAndCallPlacementScreenDestination(highlightKey = "missed_call_notification")) },
+        GlobalSettingsSearchEntry("Sim And Call Placement", "Default SIM, SIM colors, confirm calls, contacts", "sim_and_call_placement", Icons.Outlined.SimCard, GsColorGreen) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.SimAndCallPlacement, "sim_and_call_placement") },
+        GlobalSettingsSearchEntry("Sound & Vibration", "Ringtones and dialpad tones", "sound_vibration_link", Icons.Outlined.VolumeUp, GsColorBlue) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.SoundAndVibration, "sound_vibration_link") },
+        GlobalSettingsSearchEntry("Default SIM", "Which SIM is used to place calls", "default_sim", Icons.Outlined.SimCard, GsColorGreen) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.SimAndCallPlacement, "default_sim") },
+        GlobalSettingsSearchEntry("Confirm placing a call", "Ask for confirmation before placing any outgoing call", "confirm_placing_call", Icons.Outlined.CheckCircle, Color(0xFF3F51B5)) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.SimAndCallPlacement, "confirm_placing_call") },
+        GlobalSettingsSearchEntry("Show SIM buttons", "Show SIM 1 and SIM 2 buttons instead of dial button in dialpad", "show_sim_buttons_in_dialpad", Icons.Outlined.Dialpad, GsColorTeal) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.SimAndCallPlacement, "show_sim_buttons_in_dialpad") },
+        GlobalSettingsSearchEntry("Use SIM based on call logs history on any call", "Automatically select the same SIM from call log history", "use_sim_from_call_log", Icons.Outlined.History, Color(0xFF3F51B5)) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.SimAndCallPlacement, "use_sim_from_call_log") },
+        GlobalSettingsSearchEntry("Customize SIM Colors", "Choose custom colors for SIM 1 and SIM 2", "customize_sim_colors", Icons.Outlined.Palette, GsColorAmber) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.SimAndCallPlacement, "customize_sim_colors") },
+        GlobalSettingsSearchEntry("Contacts to display", "Choose which accounts' contacts are shown", "contacts_to_display", Icons.Outlined.Contacts, GsColorBlue) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.SimAndCallPlacement, "contacts_to_display") },
+        GlobalSettingsSearchEntry("Missed Call Notification", "Show missed call notifications through LibreDialer", "missed_call_notification", Icons.AutoMirrored.Filled.CallMissed, GsColorRed) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.SimAndCallPlacement, "missed_call_notification") },
 
         // ── Call Features & Behavior ─────────────────────────────────────────────
-        GlobalSettingsSearchEntry("Device Orientation with Proximity Sensor", "Combine orientation and proximity to prevent false screen-offs during a call", "proximity_orientation_bg", Icons.Outlined.ScreenLockPortrait, GsColorPink) { it.navigate(AppSettingsScreenDestination(highlightKey = "proximity_orientation_bg")) },
-        GlobalSettingsSearchEntry("Proximity Sensor on in background", "Turn off screen when phone is near ear during a call", "proximity_sensor_bg", Icons.Outlined.Sensors, GsColorTeal) { it.navigate(AppSettingsScreenDestination(highlightKey = "proximity_sensor_bg")) },
-        GlobalSettingsSearchEntry("Pocket Mode Prevention", "Block accidental answer/decline when phone is in pocket", "pocket_mode_prevention", Icons.Outlined.Sensors, GsColorAmber) { it.navigate(AppSettingsScreenDestination(highlightKey = "pocket_mode_prevention")) },
-        GlobalSettingsSearchEntry("Floating Ongoing Call", "Draggable floating bubble during calls", "floating_ongoing_call", Icons.Outlined.Sensors, GsColorBlue) { it.navigate(AppSettingsScreenDestination(highlightKey = "floating_ongoing_call")) },
-        GlobalSettingsSearchEntry("Direct Call on Tap", "Tap a call log entry to call directly", "direct_call_on_tap", Icons.Outlined.Call, GsColorGreen) { it.navigate(AppSettingsScreenDestination(highlightKey = "direct_call_on_tap")) },
-        GlobalSettingsSearchEntry("Auto Speaker", "Switch to loudspeaker when phone is away from ear", "auto_speaker", Icons.Outlined.VolumeUp, GsColorRed) { it.navigate(AppSettingsScreenDestination(highlightKey = "auto_speaker")) },
-        GlobalSettingsSearchEntry("Rain Mode", "Answer/decline calls by shaking your device", "rain_mode_link", Icons.Outlined.WaterDrop, Color(0xFF0288D1)) { it.navigate(RainModeScreenDestination()) },
-        GlobalSettingsSearchEntry("Auto Redial", "Automatically redial on rejected/unanswered/busy calls", "auto_redial", Icons.Default.Replay, GsColorBlue) { it.navigate(AppSettingsScreenDestination(highlightKey = "auto_redial")) },
-        GlobalSettingsSearchEntry("Missed Call Popup", "Show interactive popup over other apps on missed calls", "missed_call_popup", Icons.AutoMirrored.Filled.CallMissed, GsColorAmber) { it.navigate(AppSettingsScreenDestination(highlightKey = "missed_call_popup")) },
-        GlobalSettingsSearchEntry("Always Show Popup After Every Call Ends", "Show popup after every call ends with only custom response", "always_show_after_call_ends", Icons.AutoMirrored.Filled.CallMissed, GsColorAmber) { it.navigate(AppSettingsScreenDestination(highlightKey = "missed_call_popup")) },
-        GlobalSettingsSearchEntry("Volume DND", "Toggle Do Not Disturb using volume button combination", "volume_dnd", Icons.Outlined.VolumeUp, GsColorPurple) { it.navigate(VolumeDndScreenDestination(highlightKey = "volume_dnd")) },
+        GlobalSettingsSearchEntry("Device Orientation with Proximity Sensor", "Combine orientation and proximity to prevent false screen-offs during a call", "proximity_orientation_bg", Icons.Outlined.ScreenLockPortrait, GsColorPink) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.AppAndCallBehavior, "proximity_orientation_bg") },
+        GlobalSettingsSearchEntry("Proximity Sensor on in background", "Turn off screen when phone is near ear during a call", "proximity_sensor_bg", Icons.Outlined.Sensors, GsColorTeal) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.AppAndCallBehavior, "proximity_sensor_bg") },
+        GlobalSettingsSearchEntry("Pocket Mode Prevention", "Block accidental answer/decline when phone is in pocket", "pocket_mode_prevention", Icons.Outlined.Sensors, GsColorAmber) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.AppAndCallBehavior, "pocket_mode_prevention") },
+        GlobalSettingsSearchEntry("Floating Ongoing Call", "Draggable floating bubble during calls", "floating_ongoing_call", Icons.Outlined.Sensors, GsColorBlue) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.AppAndCallBehavior, "floating_ongoing_call") },
+        GlobalSettingsSearchEntry("Direct Call on Tap", "Tap a call log entry to call directly", "direct_call_on_tap", Icons.Outlined.Call, GsColorGreen) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.AppAndCallBehavior, "direct_call_on_tap") },
+        GlobalSettingsSearchEntry("Auto Speaker", "Switch to loudspeaker when phone is away from ear", "auto_speaker", Icons.Outlined.VolumeUp, GsColorRed) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.AppAndCallBehavior, "auto_speaker") },
+        GlobalSettingsSearchEntry("Rain Mode", "Answer/decline calls by shaking your device", "rain_mode_link", Icons.Outlined.WaterDrop, Color(0xFF0288D1)) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.RainMode) },
+        GlobalSettingsSearchEntry("Auto Redial", "Automatically redial on rejected/unanswered/busy calls", "auto_redial", Icons.Default.Replay, GsColorBlue) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.AppAndCallBehavior, "auto_redial") },
+        GlobalSettingsSearchEntry("Missed Call Popup", "Show interactive popup over other apps on missed calls", "missed_call_popup", Icons.AutoMirrored.Filled.CallMissed, GsColorAmber) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.AppAndCallBehavior, "missed_call_popup") },
+        GlobalSettingsSearchEntry("Always Show Popup After Every Call Ends", "Show popup after every call ends with only custom response", "always_show_after_call_ends", Icons.AutoMirrored.Filled.CallMissed, GsColorAmber) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.AppAndCallBehavior, "missed_call_popup") },
+        GlobalSettingsSearchEntry("Volume DND", "Toggle Do Not Disturb using volume button combination", "volume_dnd", Icons.Outlined.VolumeUp, GsColorPurple) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.VolumeDnd, "volume_dnd") },
 
         // ── Rain Mode screen ─────────────────────────────────────────────────────
-        GlobalSettingsSearchEntry("Enable Rain Mode", "Answer or decline calls by shaking device", "enable_rain_mode", Icons.Outlined.WaterDrop, Color(0xFF0288D1)) { it.navigate(RainModeScreenDestination(highlightKey = "enable_rain_mode")) },
-        GlobalSettingsSearchEntry("Rain Mode Shake Sensitivity", "Adjust shake intensity threshold for Rain Mode", "rain_mode_intensity", Icons.Outlined.Tune, Color(0xFF0288D1)) { it.navigate(RainModeScreenDestination()) },
-        GlobalSettingsSearchEntry("Rain Mode Vibration Feedback", "Vibrate when call is answered or declined via shake gesture", "rain_mode_vibrate", Icons.Outlined.Vibration, GsColorPurple) { it.navigate(RainModeScreenDestination(highlightKey = "rain_mode_vibrate")) },
+        GlobalSettingsSearchEntry("Enable Rain Mode", "Answer or decline calls by shaking device", "enable_rain_mode", Icons.Outlined.WaterDrop, Color(0xFF0288D1)) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.RainMode, "enable_rain_mode") },
+        GlobalSettingsSearchEntry("Rain Mode Shake Sensitivity", "Adjust shake intensity threshold for Rain Mode", "rain_mode_intensity", Icons.Outlined.Tune, Color(0xFF0288D1)) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.RainMode, "rain_mode_intensity") },
+        GlobalSettingsSearchEntry("Rain Mode Vibration Feedback", "Vibrate when call is answered or declined via shake gesture", "rain_mode_vibrate", Icons.Outlined.Vibration, GsColorPurple) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.RainMode, "rain_mode_vibrate") },
 
         // ── Raise to Answer screen ───────────────────────────────────────────────
-        GlobalSettingsSearchEntry("Enable Raise to Answer", "Answer calls by raising the phone to your ear", "enable_raise_to_answer", Icons.Outlined.Vibration, GsColorTeal) { it.navigate(RaiseToAnswerScreenDestination(highlightKey = "enable_raise_to_answer")) },
-        GlobalSettingsSearchEntry("Answer at Any Angle", "Raise to Answer sensitivity", "answer_any_angle", Icons.Outlined.Vibration, GsColorTeal) { it.navigate(RaiseToAnswerScreenDestination(highlightKey = "answer_any_angle")) },
-        GlobalSettingsSearchEntry("Decline by Flipping", "Flip the phone face down to decline a call", "decline_by_flipping", Icons.Outlined.Vibration, GsColorRed) { it.navigate(RaiseToAnswerScreenDestination(highlightKey = "decline_by_flipping")) },
-        GlobalSettingsSearchEntry("Raise to Answer Beep Feedback", "Play a beep when raise/flip is detected", "raise_beep_feedback", Icons.Outlined.Vibration, GsColorAmber) { it.navigate(RaiseToAnswerScreenDestination(highlightKey = "raise_beep_feedback")) },
-        GlobalSettingsSearchEntry("Raise to Answer Vibrate Feedback", "Vibrate when raise/flip is detected", "raise_vibrate_feedback", Icons.Outlined.Vibration, GsColorPurple) { it.navigate(RaiseToAnswerScreenDestination(highlightKey = "raise_vibrate_feedback")) },
+        GlobalSettingsSearchEntry("Enable Raise to Answer", "Answer calls by raising the phone to your ear", "enable_raise_to_answer", Icons.Outlined.Vibration, GsColorTeal) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.RaiseToAnswer, "enable_raise_to_answer") },
+        GlobalSettingsSearchEntry("Answer at Any Angle", "Raise to Answer sensitivity", "answer_any_angle", Icons.Outlined.Vibration, GsColorTeal) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.RaiseToAnswer, "answer_any_angle") },
+        GlobalSettingsSearchEntry("Decline by Flipping", "Flip the phone face down to decline a call", "decline_by_flipping", Icons.Outlined.Vibration, GsColorRed) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.RaiseToAnswer, "decline_by_flipping") },
+        GlobalSettingsSearchEntry("Raise to Answer Beep Feedback", "Play a beep when raise/flip is detected", "raise_beep_feedback", Icons.Outlined.Vibration, GsColorAmber) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.RaiseToAnswer, "raise_beep_feedback") },
+        GlobalSettingsSearchEntry("Raise to Answer Vibrate Feedback", "Vibrate when raise/flip is detected", "raise_vibrate_feedback", Icons.Outlined.Vibration, GsColorPurple) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.RaiseToAnswer, "raise_vibrate_feedback") },
 
-        // ── Ever Call Recorder Settings ──────────────────────────────────────────
-        GlobalSettingsSearchEntry("Call Recording Master Switch", "Enable or disable all background call recording", "call_recording_master", Icons.Default.FiberManualRecord, Color(0xFFE53935)) { it.navigate(RecordingsScreenDestination(openedFromSettings = true)) },
-        GlobalSettingsSearchEntry("Auto Record Incoming Calls", "Automatically record incoming calls from all or specific contacts", "auto_record_incoming", Icons.Outlined.CallReceived, GsColorGreen) { it.navigate(RecordingsScreenDestination(openedFromSettings = true)) },
-        GlobalSettingsSearchEntry("Auto Record Outgoing Calls", "Automatically record outgoing calls to all or specific contacts", "auto_record_outgoing", Icons.Outlined.CallMade, GsColorBlue) { it.navigate(RecordingsScreenDestination(openedFromSettings = true)) },
-        GlobalSettingsSearchEntry("Recording Storage Location", "Choose custom folder or app-private storage for recordings", "recording_storage", Icons.Outlined.Folder, GsColorAmber) { it.navigate(RecordingsScreenDestination(openedFromSettings = true)) },
-        GlobalSettingsSearchEntry("Recording Audio Source", "Microphone, media projection, or internal call stream", "recording_audio_source", Icons.Outlined.Mic, GsColorTeal) { it.navigate(RecordingsScreenDestination(openedFromSettings = true)) },
-        GlobalSettingsSearchEntry("Recording Audio Codec", "Audio recording format (AAC, Opus, etc.)", "recording_audio_codec", Icons.Outlined.GraphicEq, GsColorPurple) { it.navigate(RecordingsScreenDestination(openedFromSettings = true)) },
-        GlobalSettingsSearchEntry("Recording Sample Rate", "Audio quality sample rate (e.g. 48kHz, 44.1kHz)", "recording_sample_rate", Icons.Outlined.Equalizer, GsColorIndigo) { it.navigate(RecordingsScreenDestination(openedFromSettings = true)) },
-        GlobalSettingsSearchEntry("Auto Delete Old Recordings", "Clean up call recordings older than 7/30/90 days", "auto_delete_recordings", Icons.Outlined.DeleteSweep, GsColorRed) { it.navigate(RecordingsScreenDestination(openedFromSettings = true)) },
-        GlobalSettingsSearchEntry("Recording Notifications", "Show persistent notification while recording calls", "recording_notifications", Icons.Outlined.Notifications, GsColorAmber) { it.navigate(RecordingsScreenDestination(openedFromSettings = true)) },
-        GlobalSettingsSearchEntry("Post-Recording File Actions", "Quick play, share, or delete notification after call ends", "post_recording_actions", Icons.Outlined.DoneAll, GsColorGreen) { it.navigate(RecordingsScreenDestination(openedFromSettings = true)) },
-        GlobalSettingsSearchEntry("Call Recording App Lock", "Require PIN or biometric authentication for recordings", "recording_app_lock", Icons.Default.Fingerprint, Color(0xFF6750A4)) { it.navigate(RecordingsScreenDestination(openedFromSettings = true)) },
-        GlobalSettingsSearchEntry("Separate Audio Channels", "Record caller and receiver on left and right channels", "separate_channels", Icons.Outlined.Headphones, GsColorCyan) { it.navigate(RecordingsScreenDestination(openedFromSettings = true)) },
+        // ── Call Recording settings ──────────────────────────────────────────────
+        GlobalSettingsSearchEntry("Call Recording Master Switch", "Enable or disable all background call recording", "call_recording_master", Icons.Default.FiberManualRecord, Color(0xFFE53935)) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.CallRecording, "call_recording_master") },
+        GlobalSettingsSearchEntry("Auto Record Incoming Calls", "Automatically record incoming calls from all or specific contacts", "auto_record_incoming", Icons.Outlined.CallReceived, GsColorGreen) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.CallRecording, "auto_record_incoming") },
+        GlobalSettingsSearchEntry("Auto Record Outgoing Calls", "Automatically record outgoing calls to all or specific contacts", "auto_record_outgoing", Icons.Outlined.CallMade, GsColorBlue) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.CallRecording, "auto_record_outgoing") },
+        GlobalSettingsSearchEntry("Recording Storage Location", "Choose custom folder or app-private storage for recordings", "recording_storage", Icons.Outlined.Folder, GsColorAmber) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.CallRecording, "recording_storage") },
+        GlobalSettingsSearchEntry("Recording Audio Source", "Microphone, media projection, or internal call stream", "recording_audio_source", Icons.Outlined.Mic, GsColorTeal) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.CallRecording, "recording_audio_source") },
+        GlobalSettingsSearchEntry("Recording Audio Codec", "Audio recording format (AAC, Opus, etc.)", "recording_audio_codec", Icons.Outlined.GraphicEq, GsColorPurple) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.CallRecording, "recording_audio_codec") },
+        GlobalSettingsSearchEntry("Recording Sample Rate", "Audio quality sample rate (e.g. 48kHz, 44.1kHz)", "recording_sample_rate", Icons.Outlined.Equalizer, GsColorIndigo) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.CallRecording, "recording_sample_rate") },
+        GlobalSettingsSearchEntry("Auto Delete Old Recordings", "Clean up call recordings older than 7/30/90 days", "auto_delete_recordings", Icons.Outlined.DeleteSweep, GsColorRed) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.CallRecording, "auto_delete_recordings") },
+        GlobalSettingsSearchEntry("Recording Notifications", "Show persistent notification while recording calls", "recording_notifications", Icons.Outlined.Notifications, GsColorAmber) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.CallRecording, "recording_notifications") },
+        GlobalSettingsSearchEntry("Post-Recording File Actions", "Quick play, share, or delete notification after call ends", "post_recording_actions", Icons.Outlined.DoneAll, GsColorGreen) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.CallRecording, "post_recording_actions") },
+        GlobalSettingsSearchEntry("Call Recording App Lock", "Require PIN or biometric authentication for recordings", "recording_app_lock", Icons.Default.Fingerprint, Color(0xFF6750A4)) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.CallRecording, "recording_app_lock") },
+        GlobalSettingsSearchEntry("Separate Audio Channels", "Record caller and receiver on left and right channels", "separate_channels", Icons.Outlined.Headphones, GsColorCyan) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.CallRecording, "separate_channels") },
 
         // ── 4G/5G Network Switch Settings ─────────────────────────────────────────
-        GlobalSettingsSearchEntry("4G/5G Network Switcher", "Force LTE/NR network mode or per-app automation", "network_switcher_app", Icons.Outlined.NetworkCell, GsColorBlue) { it.navigate(AppSettingsScreenDestination(highlightKey = "network_switcher")) },
-        GlobalSettingsSearchEntry("Per-App Network Mode Automation", "Automatically switch network mode per application", "network_automation", Icons.Outlined.AutoMode, GsColorIndigo) { it.navigate(AppSettingsScreenDestination(highlightKey = "network_switcher")) },
-        GlobalSettingsSearchEntry("Preferred Network Mode", "Select 5G NR, 4G LTE, 3G, or 2G network modes", "preferred_network_mode", Icons.Outlined.SignalCellularAlt, GsColorTeal) { it.navigate(AppSettingsScreenDestination(highlightKey = "network_switcher")) },
-        GlobalSettingsSearchEntry("Network Switcher Shizuku Mode", "Switch network modes without root using Shizuku", "network_shizuku", Icons.Outlined.Security, GsColorGreen) { it.navigate(AppSettingsScreenDestination(highlightKey = "network_switcher")) },
-        GlobalSettingsSearchEntry("Network Switcher Root Mode", "Direct shell network mode execution with root access", "network_root", Icons.Outlined.AdminPanelSettings, GsColorRed) { it.navigate(AppSettingsScreenDestination(highlightKey = "network_switcher")) },
-        GlobalSettingsSearchEntry("Network Switch Quick Settings Tile", "Toggle 4G/5G directly from Android notification shade", "network_tile", Icons.Outlined.ViewStream, GsColorAmber) { it.navigate(AppSettingsScreenDestination(highlightKey = "network_switcher")) },
-        GlobalSettingsSearchEntry("Network Switch Floating Hint", "Show on-screen network mode floating indicator", "network_floating_hint", Icons.Outlined.PictureInPicture, GsColorCyan) { it.navigate(AppSettingsScreenDestination(highlightKey = "network_switcher")) },
+        GlobalSettingsSearchEntry("4G/5G Network Switcher", "Force LTE/NR network mode or per-app automation", "network_switcher_app", Icons.Outlined.NetworkCell, GsColorBlue) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.NetworkSwitcher, "network_switcher") },
+        GlobalSettingsSearchEntry("Per-App Network Mode Automation", "Automatically switch network mode per application", "network_automation", Icons.Outlined.AutoMode, GsColorIndigo) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.NetworkSwitcher, "network_switcher") },
+        GlobalSettingsSearchEntry("Preferred Network Mode", "Select 5G NR, 4G LTE, 3G, or 2G network modes", "preferred_network_mode", Icons.Outlined.SignalCellularAlt, GsColorTeal) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.NetworkSwitcher, "network_switcher") },
+        GlobalSettingsSearchEntry("Network Switcher Shizuku Mode", "Switch network modes without root using Shizuku", "network_shizuku", Icons.Outlined.Security, GsColorGreen) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.NetworkSwitcher, "network_switcher") },
+        GlobalSettingsSearchEntry("Network Switcher Root Mode", "Direct shell network mode execution with root access", "network_root", Icons.Outlined.AdminPanelSettings, GsColorRed) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.NetworkSwitcher, "network_switcher") },
+        GlobalSettingsSearchEntry("Network Switch Quick Settings Tile", "Toggle 4G/5G directly from Android notification shade", "network_tile", Icons.Outlined.ViewStream, GsColorAmber) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.NetworkSwitcher, "network_switcher") },
+        GlobalSettingsSearchEntry("Network Switch Floating Hint", "Show on-screen network mode floating indicator", "network_floating_hint", Icons.Outlined.PictureInPicture, GsColorCyan) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.NetworkSwitcher, "network_switcher") },
 
         // ── Sound & Vibration screen ─────────────────────────────────────────────
-        GlobalSettingsSearchEntry("DTMF Tone", "Play tones when dialing digits", "dtmf_tone", Icons.Outlined.VolumeUp, GsColorBlue) { it.navigate(SoundVibrationScreenDestination(highlightKey = "dtmf_tone")) },
-        GlobalSettingsSearchEntry("Dial Pad Tone", "Choose the dialpad key tone", "dialpad_tone", Icons.Outlined.VolumeUp, GsColorTeal) { it.navigate(SoundVibrationScreenDestination(highlightKey = "dialpad_tone")) },
-        GlobalSettingsSearchEntry("Ringtone Settings", "Choose your incoming call ringtone", "ringtone_settings", Icons.Outlined.VolumeUp, GsColorAmber) { it.navigate(SoundVibrationScreenDestination(highlightKey = "ringtone_settings")) },
-        GlobalSettingsSearchEntry("Do Not Disturb", "Manage Do Not Disturb access", "dnd_settings", Icons.Outlined.VolumeUp, GsColorIndigo) { it.navigate(SoundVibrationScreenDestination(highlightKey = "dnd_settings")) },
+        GlobalSettingsSearchEntry("DTMF Tone", "Play tones when dialing digits", "dtmf_tone", Icons.Outlined.VolumeUp, GsColorBlue) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.SoundAndVibration, "dtmf_tone") },
+        GlobalSettingsSearchEntry("Dial Pad Tone", "Choose the dialpad key tone", "dialpad_tone", Icons.Outlined.VolumeUp, GsColorTeal) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.SoundAndVibration, "dialpad_tone") },
+        GlobalSettingsSearchEntry("Ringtone Settings", "Choose your incoming call ringtone", "ringtone_settings", Icons.Outlined.VolumeUp, GsColorAmber) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.SoundAndVibration, "ringtone_settings") },
+        GlobalSettingsSearchEntry("Do Not Disturb", "Manage Do Not Disturb access", "dnd_settings", Icons.Outlined.VolumeUp, GsColorIndigo) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.SoundAndVibration, "dnd_settings") },
 
         // ── Authentication (Biometric) screen ────────────────────────────────────
-        GlobalSettingsSearchEntry("Authentication Method", "System biometrics, PIN, or password", "auth_method", Icons.Default.Fingerprint, Color(0xFF6750A4)) { it.navigate(BiometricScreenDestination(highlightKey = "auth_method")) },
-        GlobalSettingsSearchEntry("Lock App on Open", "Require authentication whenever the app opens", "lock_app_open", Icons.Default.Fingerprint, GsColorRed) { it.navigate(BiometricScreenDestination(highlightKey = "lock_app_open")) },
-        GlobalSettingsSearchEntry("Lock Call Actions", "Require authentication for sensitive call actions", "lock_call_actions", Icons.Default.Fingerprint, GsColorTeal) { it.navigate(BiometricScreenDestination(highlightKey = "lock_call_actions")) },
+        GlobalSettingsSearchEntry("Authentication Method", "System biometrics, PIN, or password", "auth_method", Icons.Default.Fingerprint, Color(0xFF6750A4)) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.BiometricAndAppLock, "auth_method") },
+        GlobalSettingsSearchEntry("Lock App on Open", "Require authentication whenever the app opens", "lock_app_open", Icons.Default.Fingerprint, GsColorRed) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.BiometricAndAppLock, "lock_app_open") },
+        GlobalSettingsSearchEntry("Lock Call Actions", "Require authentication for sensitive call actions", "lock_call_actions", Icons.Default.Fingerprint, GsColorTeal) { NewUiNavigationRequests.openSettings(NewUiSettingsDestination.BiometricAndAppLock, "lock_call_actions") },
 
-        // ── Interface screen ──────────────────────────────────────────────────────
-        GlobalSettingsSearchEntry("Dynamic Colors", "Match app colors to your wallpaper (Material You)", "dynamic_colors", Icons.Outlined.Palette, GsColorPurple) { it.navigate(InterfaceScreenDestination(highlightKey = "dynamic_colors")) },
-        GlobalSettingsSearchEntry("Saturated Colors", "Apply rich saturated colors behind containers", "saturated_colors", Icons.Outlined.Palette, GsColorAmber) { it.navigate(InterfaceScreenDestination(highlightKey = "saturated_colors")) },
-        GlobalSettingsSearchEntry("Hangup Animation", "Animate the screen when a call ends", "hangup_animation", Icons.Outlined.Palette, GsColorRed) { it.navigate(InterfaceScreenDestination(highlightKey = "hangup_animation")) },
-        GlobalSettingsSearchEntry("Incoming Call UI", "Customize the incoming call screen", "incoming_call_ui_link", Icons.Outlined.Palette, GsColorGreen) { it.navigate(InterfaceScreenDestination(highlightKey = "incoming_call_ui_link")) },
-        GlobalSettingsSearchEntry("Ongoing Call UI", "Customize the in-call screen layout", "caller_ui_link", Icons.Outlined.Palette, GsColorGreen) { it.navigate(InterfaceScreenDestination(highlightKey = "caller_ui_link")) },
-        GlobalSettingsSearchEntry("Calls Section Elements", "Choose what shows in the Calls tab", "calls_section_elements", Icons.Outlined.Palette, GsColorTeal) { it.navigate(InterfaceScreenDestination(highlightKey = "calls_section_elements")) },
-        GlobalSettingsSearchEntry("Context Menu Elements", "Choose what shows in long-press menus", "context_menu_elements", Icons.Outlined.Palette, GsColorTeal) { it.navigate(InterfaceScreenDestination(highlightKey = "context_menu_elements")) },
-        GlobalSettingsSearchEntry("Tab Sections", "Choose which bottom tabs are visible", "tab_sections", Icons.Outlined.Palette, GsColorAmber) { it.navigate(InterfaceScreenDestination(highlightKey = "tab_sections")) },
-        GlobalSettingsSearchEntry("Contact Info Elements", "Choose which elements appear in contact details", "contact_info_elements", Icons.Outlined.Palette, GsColorAmber) { it.navigate(InterfaceScreenDestination(highlightKey = "contact_info_elements")) },
-        GlobalSettingsSearchEntry("Default Tab Section", "Which tab opens when you launch the app", "default_tab_section", Icons.Outlined.Palette, GsColorAmber) { it.navigate(InterfaceScreenDestination(highlightKey = "default_tab_section")) },
-        GlobalSettingsSearchEntry("Scroll Animation", "Animate list scrolling", "scroll_animation", Icons.Outlined.Palette, GsColorBlue) { it.navigate(InterfaceScreenDestination(highlightKey = "scroll_animation")) },
-        GlobalSettingsSearchEntry("Pill Style Navigation", "Pill-shaped bottom navigation bar", "pill_style_nav", Icons.Outlined.Palette, GsColorPurple) { it.navigate(InterfaceScreenDestination(highlightKey = "pill_style_nav")) },
-        GlobalSettingsSearchEntry("Group numbers in call logs based on latest calls", "Group call logs by number and sort by latest calls", "group_calls_by_latest", Icons.Outlined.Palette, GsColorBlue) { it.navigate(InterfaceScreenDestination(highlightKey = "group_calls_by_latest")) },
-        GlobalSettingsSearchEntry("Show Sims In Call Logs", "Show which SIM a call used in the call log", "show_sims_call_logs", Icons.Outlined.Palette, GsColorGreen) { it.navigate(InterfaceScreenDestination(highlightKey = "show_sims_call_logs")) },
-        GlobalSettingsSearchEntry("Show total number of calls made", "Show total call count in call logs", "show_total_calls_made", Icons.Outlined.Palette, GsColorPurple) { it.navigate(InterfaceScreenDestination(highlightKey = "show_total_calls_made")) },
-        GlobalSettingsSearchEntry("Hide Duplicate Numbers In A Contact", "Show only one of multiple identical phone numbers", "hide_duplicate_numbers_in_contact", Icons.Outlined.Palette, GsColorPurple) { it.navigate(InterfaceScreenDestination(highlightKey = "hide_duplicate_numbers_in_contact")) },
-        GlobalSettingsSearchEntry("Name non contacts as Unknown", "Display Unknown or phone number for unsaved callers", "name_non_contacts_as_unknown", Icons.Outlined.Palette, GsColorTeal) { it.navigate(InterfaceScreenDestination(highlightKey = "name_non_contacts_as_unknown")) },
-        GlobalSettingsSearchEntry("Dialpad Memory", "Remember typed numbers when switching tabs or closing dialpad", "dialpad_memory", Icons.Outlined.Palette, GsColorTeal) { it.navigate(InterfaceScreenDestination(highlightKey = "dialpad_memory")) },
-        GlobalSettingsSearchEntry("Auto Delete Unknown No in call log", "Automatically clean up unknown-number entries", "auto_delete_unknown_calllog", Icons.Outlined.Palette, GsColorRed) { it.navigate(InterfaceScreenDestination(highlightKey = "auto_delete_unknown_calllog")) },
-
-        GlobalSettingsSearchEntry("Call Time Format in call logs", "12-hour or 24-hour time format", "call_time_format", Icons.Outlined.Palette, GsColorTeal) { it.navigate(InterfaceScreenDestination(highlightKey = "call_time_format")) },
-        GlobalSettingsSearchEntry("Talk time in call logs", "Show call duration for non-missed calls", "talk_time_in_call_logs", Icons.Outlined.Timer, GsColorGreen) { it.navigate(InterfaceScreenDestination(highlightKey = "talk_time_in_call_logs")) },
-        GlobalSettingsSearchEntry("Icon-Only Bottom Bar", "Hide labels on the bottom navigation bar", "icon_only_bottom_bar", Icons.Outlined.Palette, GsColorIndigo) { it.navigate(InterfaceScreenDestination(highlightKey = "icon_only_bottom_bar")) },
-        GlobalSettingsSearchEntry("Open Dialpad by Default", "Launch straight into the dialpad", "open_dialpad_default", Icons.Outlined.Palette, GsColorBlue) { it.navigate(InterfaceScreenDestination(highlightKey = "open_dialpad_default")) },
-        GlobalSettingsSearchEntry("Show favourites in list", "Display favourites in a vertical list instead of grid", "favorites_in_list", Icons.Outlined.Palette, GsColorPink) { it.navigate(InterfaceScreenDestination(highlightKey = "favorites_in_list")) },
-        GlobalSettingsSearchEntry("Show First Letter in Avatar", "Fallback avatar shows a contact's initial", "avatar_first_letter", Icons.Outlined.Palette, GsColorAmber) { it.navigate(InterfaceScreenDestination(highlightKey = "avatar_first_letter")) },
-        GlobalSettingsSearchEntry("Solid Icons", "Use solid background behind icons without colors", "solid_icons", Icons.Outlined.Palette, GsColorBluGrey) { it.navigate(InterfaceScreenDestination(highlightKey = "solid_icons")) },
-        GlobalSettingsSearchEntry("Circle Icons", "Use circle shapes for icons across the app", "circle_icons", Icons.Outlined.Palette, GsColorCyan) { it.navigate(InterfaceScreenDestination(highlightKey = "circle_icons")) },
-        GlobalSettingsSearchEntry("Use Colorful Avatars", "Give fallback avatars varied colors", "colorful_avatars", Icons.Outlined.Palette, GsColorPurple) { it.navigate(InterfaceScreenDestination(highlightKey = "colorful_avatars")) },
-        GlobalSettingsSearchEntry("Show Picture in Avatar", "Show a contact's photo in their avatar", "avatar_picture", Icons.Outlined.Palette, GsColorGreen) { it.navigate(InterfaceScreenDestination(highlightKey = "avatar_picture")) },
-        GlobalSettingsSearchEntry("Show call logs in the dialpad search list", "Show recent call logs in the search list when nothing is typed or searched", "show_call_logs_in_dialpad_search_list", Icons.Outlined.History, GsColorTeal) { it.navigate(InterfaceScreenDestination(highlightKey = "show_call_logs_in_dialpad_search_list")) },
-
-        // ── Incoming Call UI screen ──────────────────────────────────────────────
-        GlobalSettingsSearchEntry("Show Full screen call UI on any apps", "Open full screen incoming call UI over any app", "show_fullscreen_call_ui_on_any_apps", Icons.Outlined.Call, GsColorGreen) { it.navigate(IncomingCallUIScreenDestination(highlightKey = "show_fullscreen_call_ui_on_any_apps")) },
-        GlobalSettingsSearchEntry("Show Mute button", "Show a button to silence ringtone during incoming calls", "incoming_show_mute_button", Icons.Outlined.VolumeUp, GsColorAmber) { it.navigate(IncomingCallUIScreenDestination(highlightKey = "incoming_show_mute_button")) },
-        GlobalSettingsSearchEntry("Answer Style", "Choose between modern and classic incoming call answer style", "answer_style", Icons.Outlined.SwipeVertical, GsColorGreen) { it.navigate(AnswerStyleScreenDestination) },
-        GlobalSettingsSearchEntry("Background And Contact PFP Customisation (Incoming)", "Customize background and avatar photo for incoming calls", "incoming_custom_background", Icons.Outlined.Wallpaper, GsColorPurple) { it.navigate(IncomingCallUIScreenDestination(highlightKey = "incoming_custom_background")) },
-        GlobalSettingsSearchEntry("Show Contact PFP", "Display caller's avatar photo over incoming call screen", "incoming_show_contact_pfp", Icons.Outlined.Contacts, GsColorCyan) { it.navigate(IncomingCallUIScreenDestination(highlightKey = "incoming_show_contact_pfp")) },
-        GlobalSettingsSearchEntry("Show PFP for Non-Contacts (Incoming)", "Display avatar for incoming callers without photo", "incoming_custom_pfp_show_for_no_pfp", Icons.Outlined.Contacts, GsColorCyan) { it.navigate(IncomingCallUIScreenDestination(highlightKey = "incoming_custom_pfp_show_for_no_pfp")) },
-        GlobalSettingsSearchEntry("Show Phone Number", "Display caller's phone number on incoming call screen", "incoming_show_phone_number", Icons.Outlined.Call, GsColorGreen) { it.navigate(IncomingCallUIScreenDestination(highlightKey = "incoming_show_phone_number")) },
-        GlobalSettingsSearchEntry("Default Message", "Quick-reply message shown for incoming calls", "default_message_link", Icons.Outlined.Message, GsColorBlue) { it.navigate(IncomingCallUIScreenDestination(highlightKey = "default_message_link")) },
-        GlobalSettingsSearchEntry("Default Message App", "Choose default messaging app for quick replies", "default_message_app", Icons.Outlined.Message, GsColorBlue) { it.navigate(DefaultMessageAppScreenDestination) },
-
-        // ── Ongoing Call UI screen ───────────────────────────────────────────────
-        GlobalSettingsSearchEntry("Show ongoing call UI when the call is answered", "Display full screen in-call screen after answering", "show_ongoing_call_ui_when_answered", Icons.Outlined.Call, GsColorBlue) { it.navigate(CallerUIScreenDestination(highlightKey = "show_ongoing_call_ui_when_answered")) },
-        GlobalSettingsSearchEntry("Show ongoing call UI screen in lockscreen when the call is answered", "Display in-call screen on lockscreen after answering", "show_ongoing_call_ui_on_lockscreen_when_answered", Icons.Outlined.Lock, GsColorIndigo) { it.navigate(CallerUIScreenDestination(highlightKey = "show_ongoing_call_ui_on_lockscreen_when_answered")) },
-        GlobalSettingsSearchEntry("Background And Contact PFP Customisation (Ongoing)", "Customize background and avatar photo for ongoing in-call screen", "ongoing_custom_background", Icons.Outlined.Wallpaper, GsColorPurple) { it.navigate(CallerUIScreenDestination(highlightKey = "ongoing_custom_background")) },
-        GlobalSettingsSearchEntry("Show Contact PFP in Ongoing Call", "Display contact avatar photo on ongoing call screen", "ongoing_show_contact_pfp", Icons.Outlined.Contacts, GsColorCyan) { it.navigate(CallerUIScreenDestination(highlightKey = "ongoing_show_contact_pfp")) },
-        GlobalSettingsSearchEntry("Show PFP for Non-Contacts (Ongoing)", "Display avatar on ongoing call screen for callers without photo", "ongoing_custom_pfp_show_for_no_pfp", Icons.Outlined.Contacts, GsColorCyan) { it.navigate(CallerUIScreenDestination(highlightKey = "ongoing_custom_pfp_show_for_no_pfp")) },
-        GlobalSettingsSearchEntry("Show Phone Number in Ongoing Call", "Display phone number on ongoing call screen", "ongoing_show_phone_number", Icons.Outlined.Call, GsColorGreen) { it.navigate(CallerUIScreenDestination(highlightKey = "ongoing_show_phone_number")) },
-
-        // ── About screen ──────────────────────────────────────────────────────────
     )
 }
 
@@ -380,7 +316,7 @@ val globalSettingsSearchEntries: List<GlobalSettingsSearchEntry> by lazy {
 fun buildGlobalSettingsSearchEntries(): List<GlobalSettingsSearchEntry> = globalSettingsSearchEntries
 
 @Composable
-fun SettingsSearchHeaderAction(navigator: DestinationsNavigator) {
+fun SettingsSearchHeaderAction(onNavigateSettings: NewUiSettingsNavigation) {
     var showSearch by rememberSaveable { mutableStateOf(false) }
 
     IconButton(onClick = { showSearch = true }) {
@@ -399,7 +335,7 @@ fun SettingsSearchHeaderAction(navigator: DestinationsNavigator) {
             )
         ) {
             SettingsSearchFloatingPopup(
-                navigator = navigator,
+                onNavigateSettings = onNavigateSettings,
                 onClose = { showSearch = false }
             )
         }
@@ -408,7 +344,7 @@ fun SettingsSearchHeaderAction(navigator: DestinationsNavigator) {
 
 @Composable
 private fun SettingsSearchFloatingPopup(
-    navigator: DestinationsNavigator,
+    onNavigateSettings: NewUiSettingsNavigation,
     onClose: () -> Unit
 ) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -540,13 +476,7 @@ private fun SettingsSearchFloatingPopup(
                                         keyboardController?.hide()
                                         focusManager.clearFocus(force = true)
                                         onClose()
-                                        if (entry.navigateTo != null) {
-                                            entry.navigateTo.invoke(navigator)
-                                        } else {
-                                            navigator.navigate(
-                                                SettingsScreenDestination(highlightKey = entry.key)
-                                            )
-                                        }
+                                        entry.navigateTo()
                                     }
                                 )
                             }
@@ -587,6 +517,35 @@ private fun SettingsSearchFloatingPopup(
     }
 }
 
+internal fun settingsDestinationForKey(key: String): NewUiSettingsDestination = when (key) {
+    "interface" -> NewUiSettingsDestination.ColorsAndTheme
+    "authentication", "auth_method", "lock_app_open", "lock_call_actions" ->
+        NewUiSettingsDestination.BiometricAndAppLock
+    "app_settings" -> NewUiSettingsDestination.AppAndCallBehavior
+    "contacts_hider" -> NewUiSettingsDestination.ContactsHider
+    "call_recording", "call_recording_master", "auto_record_incoming",
+    "auto_record_outgoing", "recording_storage", "recording_audio_source",
+    "recording_audio_codec", "recording_sample_rate", "auto_delete_recordings",
+    "recording_notifications", "post_recording_actions", "recording_app_lock",
+    "separate_channels" -> NewUiSettingsDestination.CallRecording
+    "sim_and_call_placement", "default_sim", "confirm_placing_call",
+    "show_sim_buttons_in_dialpad", "use_sim_from_call_log",
+    "customize_sim_colors", "contacts_to_display", "missed_call_notification" ->
+        NewUiSettingsDestination.SimAndCallPlacement
+    "sound_vibration_link", "dtmf_tone", "dialpad_tone", "ringtone_settings",
+    "dnd_settings" -> NewUiSettingsDestination.SoundAndVibration
+    "rain_mode_link", "enable_rain_mode", "rain_mode_intensity",
+    "rain_mode_vibrate" -> NewUiSettingsDestination.RainMode
+    "enable_raise_to_answer", "answer_any_angle", "decline_by_flipping",
+    "raise_beep_feedback", "raise_vibrate_feedback" ->
+        NewUiSettingsDestination.RaiseToAnswer
+    "volume_dnd" -> NewUiSettingsDestination.VolumeDnd
+    "network_switcher", "network_switcher_app", "network_automation",
+    "preferred_network_mode", "network_shizuku", "network_root",
+    "network_tile", "network_floating_hint" -> NewUiSettingsDestination.NetworkSwitcher
+    else -> error("No LibreUI destination for settings search key: $key")
+}
+
 /**
  * A "Search settings" box that can be dropped as the first item on any settings page (main
  * Settings screen included, in principle, though it has its own richer local search). Typing
@@ -595,7 +554,6 @@ private fun SettingsSearchFloatingPopup(
  */
 @Composable
 fun SettingsSearchEntryPoint(
-    navigator: DestinationsNavigator,
     modifier: Modifier = Modifier,
     onClose: (() -> Unit)? = null
 ) {
@@ -732,11 +690,7 @@ fun SettingsSearchEntryPoint(
                                 saveQuery()
                                 keyboardController?.hide()
                                 focusManager.clearFocus(force = true)
-                                if (entry.navigateTo != null) {
-                                    entry.navigateTo.invoke(navigator)
-                                } else {
-                                    navigator.navigate(SettingsScreenDestination(highlightKey = entry.key))
-                                }
+                                entry.navigateTo()
                             }
                         )
                         if (index < filtered.size - 1) CardDivider()

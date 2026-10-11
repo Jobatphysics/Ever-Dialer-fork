@@ -101,14 +101,14 @@ import com.android.libredialer.view.newui.components.newUiClickable
 import com.android.libredialer.view.newui.components.newUiSettingsHeaderContentTopPadding
 import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import com.android.libredialer.view.newui.navigation.NewUiDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import com.android.libredialer.view.newui.navigation.NewUiSettingsNavigation
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 import java.util.Locale
 
 @Composable
 fun NewUiRaiseToAnswerScreen(
-    navigator: DestinationsNavigator,
+    onNavigateSettings: NewUiSettingsNavigation,
     highlightKey: String? = null
 ) {
     val prefs: PreferenceManager = koinInject()
@@ -137,7 +137,7 @@ fun NewUiRaiseToAnswerScreen(
     NewUiScreenShell(
         NewUiDestination.Settings,
         titleOverride = "Raise to Answer",
-        headerAction = { SettingsSearchHeaderAction(navigator) }
+        headerAction = { SettingsSearchHeaderAction(onNavigateSettings) }
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -251,7 +251,7 @@ fun NewUiRaiseToAnswerScreen(
 
 @Composable
 fun NewUiRainModeScreen(
-    navigator: DestinationsNavigator,
+    onNavigateSettings: NewUiSettingsNavigation,
     highlightKey: String? = null
 ) {
     val prefs: PreferenceManager = koinInject()
@@ -321,7 +321,7 @@ fun NewUiRainModeScreen(
     NewUiScreenShell(
         NewUiDestination.Settings,
         titleOverride = "Rain Mode",
-        headerAction = { SettingsSearchHeaderAction(navigator) }
+        headerAction = { SettingsSearchHeaderAction(onNavigateSettings) }
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -373,7 +373,12 @@ fun NewUiRainModeScreen(
                 item {
                     NewUiMotionSection("Shake Sensitivity") {
                         Column(
-                            Modifier.fillMaxWidth().padding(16.dp),
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                                .settingsSearchHighlight("rain_mode_intensity", highlightedKey) {
+                                    highlightedKey = null
+                                },
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Row(
@@ -531,7 +536,7 @@ fun NewUiRainModeScreen(
 
 @Composable
 fun NewUiVolumeDndScreen(
-    navigator: DestinationsNavigator,
+    onNavigateSettings: NewUiSettingsNavigation,
     highlightKey: String? = null
 ) {
     val prefs: PreferenceManager = koinInject()
@@ -613,7 +618,7 @@ fun NewUiVolumeDndScreen(
     NewUiScreenShell(
         NewUiDestination.Settings,
         titleOverride = "Volume DND",
-        headerAction = { SettingsSearchHeaderAction(navigator) }
+        headerAction = { SettingsSearchHeaderAction(onNavigateSettings) }
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),

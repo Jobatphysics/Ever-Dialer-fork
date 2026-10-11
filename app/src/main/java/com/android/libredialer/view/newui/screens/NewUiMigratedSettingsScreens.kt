@@ -106,17 +106,13 @@ import com.android.libredialer.view.newui.components.newUiSettingsHeaderContentT
 import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import com.android.libredialer.view.newui.navigation.NewUiDestination
 import com.android.libredialer.view.newui.navigation.NewUiSettingsDestination
-import com.ramcosta.composedestinations.generated.destinations.RainModeScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.RaiseToAnswerScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.SoundVibrationScreenDestination
-import com.ramcosta.composedestinations.generated.destinations.VolumeDndScreenDestination
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import com.android.libredialer.view.newui.navigation.NewUiSettingsNavigation
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinActivityViewModel
 
 @Composable
 fun NewUiAppSettingsScreen(
-    navigator: DestinationsNavigator,
+    onNavigateSettings: NewUiSettingsNavigation,
     highlightKey: String? = null
 ) {
     val prefs: PreferenceManager = koinInject()
@@ -208,7 +204,7 @@ fun NewUiAppSettingsScreen(
             icon = { Icon(Icons.AutoMirrored.Filled.CallMissed, null, tint = MaterialTheme.colorScheme.primary) },
             title = { Text("Display Over Other Apps") },
             text = {
-                Text("To display the missed call popup over other apps when an incoming call is missed, Phone requires the 'Display over other apps' permission.")
+                Text("To display the missed call popup over other apps when an incoming call is missed, LibreDialer requires the 'Display over other apps' permission.")
             },
             confirmButton = {
                 TextButton(onClick = {
@@ -236,7 +232,7 @@ fun NewUiAppSettingsScreen(
     NewUiScreenShell(
         NewUiDestination.Settings,
         titleOverride = "App & Call Behavior",
-        headerAction = { SettingsSearchHeaderAction(navigator) }
+        headerAction = { SettingsSearchHeaderAction(onNavigateSettings) }
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -367,13 +363,13 @@ fun NewUiAppSettingsScreen(
                         "Raise to Answer",
                         if (!raiseToAnswerSupported) "Not supported on this device" else if (raiseToAnswerEnabled) "On" else "Off",
                         Icons.Filled.Vibration,
-                        onClick = { navigator.navigate(RaiseToAnswerScreenDestination()) }
+                        onClick = { onNavigateSettings(NewUiSettingsDestination.RaiseToAnswer, null) }
                     )
                     NewUiSettingsActionRow(
                         "Rain Mode",
                         if (rainModeEnabled) "On (Shake to answer/reject)" else "Off",
                         Icons.Filled.WaterDrop,
-                        onClick = { navigator.navigate(RainModeScreenDestination()) }
+                        onClick = { onNavigateSettings(NewUiSettingsDestination.RainMode, null) }
                     )
                     NewUiSettingsSwitchRow(
                         "Auto Redial",
@@ -495,7 +491,7 @@ fun NewUiAppSettingsScreen(
                         "Toggle Do Not Disturb using a volume button sequence",
                         Icons.Filled.DoNotDisturbOn,
                         modifier = Modifier.settingsSearchHighlight("volume_dnd", highlightedKey) { highlightedKey = null },
-                        onClick = { navigator.navigate(VolumeDndScreenDestination()) }
+                        onClick = { onNavigateSettings(NewUiSettingsDestination.VolumeDnd, null) }
                     )
                     NewUiSettingsSwitchRow(
                         "Integrate Notes Section",
@@ -527,7 +523,10 @@ fun NewUiAppSettingsScreen(
 }
 
 @Composable
-fun NewUiSimAndCallPlacementScreen(navigator: DestinationsNavigator) {
+fun NewUiSimAndCallPlacementScreen(
+    onNavigateSettings: NewUiSettingsNavigation,
+    highlightKey: String? = null
+) {
     val prefs: PreferenceManager = koinInject()
     val context = LocalContext.current
     var showContactsSheet by remember { mutableStateOf(false) }
@@ -613,7 +612,7 @@ fun NewUiSimAndCallPlacementScreen(navigator: DestinationsNavigator) {
     NewUiScreenShell(
         NewUiDestination.Settings,
         titleOverride = "SIM & Call Placement",
-        headerAction = { SettingsSearchHeaderAction(navigator) }
+        headerAction = { SettingsSearchHeaderAction(onNavigateSettings) }
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -675,8 +674,8 @@ fun NewUiSimAndCallPlacementScreen(navigator: DestinationsNavigator) {
                     )
                     NewUiSettingsSwitchRow(
                         "Missed Call Notification",
-                        if (missedCallNotification) "Showing missed call notifications through Phone"
-                        else "Missed call notifications disabled in Phone",
+                        if (missedCallNotification) "Showing missed call notifications through LibreDialer"
+                        else "Missed call notifications disabled in LibreDialer",
                         Icons.AutoMirrored.Filled.CallMissed,
                         missedCallNotification
                     ) {
@@ -699,7 +698,7 @@ fun NewUiSimAndCallPlacementScreen(navigator: DestinationsNavigator) {
                         Icons.Filled.VolumeUp,
                         trailing = true,
                         modifier = Modifier.settingsSearchHighlight("sound_vibration_link", highlightedKey) { highlightedKey = null },
-                        onClick = { navigator.navigate(SoundVibrationScreenDestination()) }
+                        onClick = { onNavigateSettings(NewUiSettingsDestination.SoundAndVibration, null) }
                     )
                 }
             }

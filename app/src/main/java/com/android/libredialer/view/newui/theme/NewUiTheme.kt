@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
@@ -109,7 +110,8 @@ fun NewUiTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = colors,
         typography = typography,
-        shapes = NewUiShapes
+        shapes = NewUiShapes,
+        motionScheme = MotionScheme.expressive()
     ) {
         androidx.compose.foundation.layout.Box(
             modifier = androidx.compose.ui.Modifier

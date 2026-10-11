@@ -20,7 +20,6 @@ import androidx.compose.ui.platform.InterceptPlatformTextInput
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -39,6 +38,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Search
@@ -86,15 +86,19 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SimCard
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.automirrored.filled.CallMade
 import androidx.compose.material.icons.automirrored.filled.CallMissed
 import androidx.compose.material.icons.automirrored.filled.CallReceived
@@ -156,6 +160,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.libredialer.view.newui.components.NewUiPlaceholderCard
 import com.android.libredialer.view.newui.components.NewUiScreenShell
+import com.android.libredialer.view.newui.components.NewUiSettingsAction
 import com.android.libredialer.view.newui.components.NewUiDialerButton
 import com.android.libredialer.view.newui.components.newUiScrollContentPadding
 import com.android.libredialer.view.newui.components.newUiSettingsHeaderContentTopPadding
@@ -167,6 +172,9 @@ import com.android.libredialer.view.newui.components.NewContextualAction
 import com.android.libredialer.view.newui.components.NewContextualActionsDialog
 import com.android.libredialer.view.newui.navigation.NewUiDestination
 import com.android.libredialer.view.newui.navigation.NewUiSettingsDestination
+import com.android.libredialer.view.newui.navigation.NewUiSettingsNavigation
+import com.android.libredialer.APP_NAME
+import com.android.libredialer.APP_VERSION
 import com.android.libredialer.view.newui.navigation.NewUiNavigationTiming
 import com.android.libredialer.view.newui.theme.NewUiDimensions
 import com.android.libredialer.controller.ContactsViewModel
@@ -180,16 +188,8 @@ import com.android.libredialer.controller.util.CallReminderManager
 import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.controller.util.makeCall
 import com.android.libredialer.modal.`interface`.ICallLogRepository
-import com.android.libredialer.view.screen.settings.ContactsHiderScreen
 import com.coolappstore.evercallrecorder.by.svhp.ui.screens.SettingsScreen as RecorderSettingsScreen
 import com.coolappstore.evercallrecorder.by.svhp.ui.viewmodels.SettingsViewModel
-import com.ramcosta.composedestinations.navigation.DestinationsNavOptionsBuilder
-import com.ramcosta.composedestinations.navigation.DestinationsNavigator
-import com.ramcosta.composedestinations.spec.Direction
-import com.ramcosta.composedestinations.spec.RouteOrDirection
-import androidx.navigation.NavBackStackEntry
-import androidx.navigation.NavOptions
-import androidx.navigation.Navigator
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.ViewModel
 import android.provider.CallLog
@@ -199,9 +199,20 @@ import android.provider.CallLog
 fun NewDialerScreen(
     onCall: (String) -> Unit,
     onSettings: () -> Unit,
-    onAddContact: (String?) -> Unit = {}
+    onAddContact: (String?) -> Unit = {},
+    initialNumber: String? = null,
+    onInitialNumberConsumed: () -> Unit = {}
 ) {
     val numberField = rememberTextFieldState()
+    LaunchedEffect(initialNumber) {
+        if (initialNumber != null) {
+            numberField.edit {
+                replace(0, length, initialNumber)
+                selection = TextRange(initialNumber.length)
+            }
+            onInitialNumberConsumed()
+        }
+    }
     val number = numberField.text.toString()
     val context = LocalContext.current
 
@@ -248,15 +259,7 @@ fun NewDialerScreen(
         destination = NewUiDestination.Dialer,
         showTitle = number.isEmpty(),
         contentUnderStatusBar = true,
-        headerAction = if (number.isEmpty()) ({
-            IconButton(onClick = onSettings) {
-                Icon(
-                    Icons.Filled.Settings,
-                    contentDescription = "Settings",
-                    tint = MaterialTheme.colorScheme.onBackground
-                )
-            }
-        }) else null
+        headerAction = { NewUiSettingsAction(onSettings) }
     ) {
         Box(
             modifier = Modifier.fillMaxSize()
@@ -439,6 +442,7 @@ internal class NewRecentsProcessingCache : ViewModel() {
 @Composable
 fun NewRecentsScreen(
     onCallLogClick: (CallLogEntry) -> Unit,
+    onContactClick: (Contact) -> Unit,
     onSettings: () -> Unit,
     onCall: (String) -> Unit = {},
     onAddContact: (String) -> Unit = {}
@@ -448,6 +452,7 @@ fun NewRecentsScreen(
     val processingCache: NewRecentsProcessingCache = viewModel()
     val logs by callLogViewModel.allCallLogs.collectAsState()
     val contacts by contactsViewModel.allContacts.collectAsState()
+    val favorites = remember(contacts) { contacts.filter { it.isFavorite } }
     val context = LocalContext.current
     val prefs: PreferenceManager = koinInject()
     val themeSettingsVersion by prefs.settingsChanged.collectAsState()
@@ -461,6 +466,7 @@ fun NewRecentsScreen(
         else -> systemDarkTheme
     }
     var contextualItem by remember { mutableStateOf<NewUiCallLogItem?>(null) }
+    var contextualFavoriteContact by remember { mutableStateOf<Contact?>(null) }
     var showReminderPicker by remember { mutableStateOf<NewUiCallLogItem?>(null) }
 
     val physicalListState = rememberPhysicalListState()
@@ -641,38 +647,62 @@ fun NewRecentsScreen(
     NewUiScreenShell(
         destination = NewUiDestination.Recents,
         contentUnderStatusBar = true,
-        headerAction = {
-            IconButton(onClick = onSettings) {
-                Icon(
-                    Icons.Filled.Settings,
-                    contentDescription = "Settings",
-                    tint = MaterialTheme.colorScheme.onBackground
-                )
-            }
-        }
+        headerAction = { NewUiSettingsAction(onSettings) }
     ) {
-        if (uiLogs.isEmpty()) {
-            if (callLogsProcessed) {
-                Text(
-                    text = "No recent calls",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 88.dp),
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        } else if (recentsContentReady) {
+        if (recentsContentReady) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = newUiScrollContentPadding(PaddingValues(top = 112.dp)),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                item(key = "favorites_header") {
+                    com.android.libredialer.view.components.RivoSectionHeader("Favorites")
+                }
+                if (favorites.isEmpty()) {
+                    item(key = "favorites_empty") {
+                        Text(
+                            text = "No favorite contacts",
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    item(key = "favorite_contacts") {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(favorites, key = { it.id }) { contact ->
+                                NewFavoriteCard(
+                                    contact = contact,
+                                    width = 112.dp,
+                                    onClick = { onContactClick(contact) },
+                                    onLongClick = { contextualFavoriteContact = contact }
+                                )
+                            }
+                        }
+                    }
+                }
+                item(key = "calls_header") {
+                    com.android.libredialer.view.components.RivoSectionHeader("Recent calls")
+                }
+                if (callLogsProcessed && uiLogs.isEmpty()) {
+                    item(key = "calls_empty") {
+                        Text(
+                            text = "No recent calls",
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
                 val listBuildStartedAt = SystemClock.elapsedRealtimeNanos()
                 Trace.beginSection("Recents.buildLazyListItems")
                 try {
-                    dateSections.forEach { section ->
+                    if (callLogsProcessed) dateSections.forEach { section ->
                         item(
                             key = "date_${section.key}",
                             contentType = "date-header"
@@ -704,6 +734,30 @@ fun NewRecentsScreen(
                     )
                 }
             }
+        }
+        contextualFavoriteContact?.let { contact ->
+            val number = contact.phoneNumbers.firstOrNull().orEmpty()
+            val blocked = BlockedNumbersManager.isBlocked(context, prefs, number)
+            NewContextualActionsDialog(
+                actions = listOf(
+                    NewContextualAction("Remove from Favorites", Icons.Filled.Favorite) {
+                        contactsViewModel.toggleFavorite(contact)
+                    },
+                    NewContextualAction(if (blocked) "Unblock" else "Block", Icons.Filled.Block) {
+                        if (blocked) BlockedNumbersManager.unblock(context, prefs, number)
+                        else BlockedNumbersManager.block(context, prefs, number)
+                    },
+                    NewContextualAction("Delete Contact", Icons.Filled.Delete) {
+                        contactsViewModel.deleteContact(contact.id)
+                    },
+                    NewContextualAction("Copy number", Icons.Filled.ContentCopy) {
+                        context.getSystemService(ClipboardManager::class.java)
+                            ?.setPrimaryClip(ClipData.newPlainText("Phone number", number))
+                    }
+                ),
+                onDismiss = { contextualFavoriteContact = null }
+            )
+        }
             contextualItem?.let { item ->
                 val number = item.log.number
                 val blocked = BlockedNumbersManager.isBlocked(context, prefs, number)
@@ -759,7 +813,6 @@ fun NewRecentsScreen(
                     true
                 ).apply { setOnDismissListener { showReminderPicker = null } }.show()
             }
-        }
     }
 }
 
@@ -889,7 +942,11 @@ fun NewContactsScreen(
 ) {
     val contactsViewModel: ContactsViewModel = koinActivityViewModel()
     val contacts by contactsViewModel.displayedContacts.collectAsState()
+    val allContacts by contactsViewModel.allContacts.collectAsState()
+    val contactGroups by contactsViewModel.contactGroups.collectAsState()
     var query by remember { mutableStateOf("") }
+    var showGroupManager by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { contactsViewModel.fetchContactGroups() }
     val filteredContacts = remember(contacts, query) {
         val normalizedQuery = query.trim()
         val matchingContacts = if (normalizedQuery.isBlank()) {
@@ -955,6 +1012,19 @@ fun NewContactsScreen(
                     shape = CircleShape,
                     contentAlignment = Alignment.Center
                 ) {
+                    IconButton(onClick = { showGroupManager = true }) {
+                        Icon(
+                            androidx.compose.material.icons.Icons.Filled.Group,
+                            contentDescription = "Manage contact groups",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                }
+                LensSurfaceBox(
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                    contentAlignment = Alignment.Center
+                ) {
                     IconButton(onClick = {
                         contactsBehindSearch = filteredContacts
                         searchExpanded = true
@@ -984,13 +1054,7 @@ fun NewContactsScreen(
                     shape = CircleShape,
                     contentAlignment = Alignment.Center
                 ) {
-                    IconButton(onClick = onSettings) {
-                        Icon(
-                            Icons.Filled.Settings,
-                            contentDescription = "Settings",
-                            tint = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
+                    NewUiSettingsAction(onSettings)
                 }
             }
         }
@@ -1166,6 +1230,160 @@ fun NewContactsScreen(
             }
         }
     }
+    if (showGroupManager) {
+        NewUiGroupManagerDialog(
+            groups = contactGroups,
+            contacts = allContacts,
+            onSelectGroup = { groupId ->
+                contactsViewModel.setGroupFilter(groupId)
+                showGroupManager = false
+            },
+            onSaveGroup = contactsViewModel::addContactGroup,
+            onDeleteGroup = contactsViewModel::deleteContactGroup,
+            onDismiss = { showGroupManager = false }
+        )
+    }
+}
+
+@Composable
+private fun NewUiGroupManagerDialog(
+    groups: List<com.android.libredialer.modal.data.ContactGroup>,
+    contacts: List<Contact>,
+    onSelectGroup: (String?) -> Unit,
+    onSaveGroup: (com.android.libredialer.modal.data.ContactGroup) -> Unit,
+    onDeleteGroup: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var editingGroup by remember { mutableStateOf<com.android.libredialer.modal.data.ContactGroup?>(null) }
+    var showEditor by remember { mutableStateOf(false) }
+
+    if (showEditor) {
+        NewUiGroupEditorDialog(
+            group = editingGroup,
+            contacts = contacts,
+            onSave = {
+                onSaveGroup(it)
+                showEditor = false
+            },
+            onDismiss = { showEditor = false }
+        )
+    } else {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Contact groups") },
+            text = {
+                Column {
+                    androidx.compose.material3.TextButton(onClick = {
+                        editingGroup = null
+                        showEditor = true
+                    }) { Text("Create group") }
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = Modifier.heightIn(max = 420.dp)
+                    ) {
+                        items(groups, key = { it.id }) { group ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                androidx.compose.material3.TextButton(
+                                    onClick = { onSelectGroup(group.id) },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Column {
+                                        Text(group.name)
+                                        Text(
+                                            "${group.contactIds.size} contacts",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                }
+                                IconButton(onClick = {
+                                    editingGroup = group
+                                    showEditor = true
+                                }) {
+                                    Icon(Icons.Filled.Edit, contentDescription = "Edit ${group.name}")
+                                }
+                                IconButton(onClick = { onDeleteGroup(group.id) }) {
+                                    Icon(Icons.Filled.Delete, contentDescription = "Delete ${group.name}")
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { onSelectGroup(null) }) {
+                    Text("Show all contacts")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Done") }
+            }
+        )
+    }
+}
+
+@Composable
+private fun NewUiGroupEditorDialog(
+    group: com.android.libredialer.modal.data.ContactGroup?,
+    contacts: List<Contact>,
+    onSave: (com.android.libredialer.modal.data.ContactGroup) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var name by remember(group?.id) { mutableStateOf(group?.name.orEmpty()) }
+    var selectedIds by remember(group?.id) { mutableStateOf(group?.contactIds.orEmpty().toSet()) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (group == null) "Create group" else "Edit group") },
+        text = {
+            Column {
+                androidx.compose.material3.OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Group name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                androidx.compose.foundation.lazy.LazyColumn(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp)
+                ) {
+                    items(contacts, key = { it.id }) { contact ->
+                        val checked = contact.id in selectedIds
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                contact.name.ifBlank { contact.phoneNumbers.firstOrNull().orEmpty() },
+                                modifier = Modifier.weight(1f)
+                            )
+                            androidx.compose.material3.Checkbox(
+                                checked = checked,
+                                onCheckedChange = {
+                                    selectedIds = if (checked) selectedIds - contact.id
+                                    else selectedIds + contact.id
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(
+                enabled = name.isNotBlank(),
+                onClick = {
+                    onSave(
+                        (group ?: com.android.libredialer.modal.data.ContactGroup(name = name.trim()))
+                            .copy(name = name.trim(), contactIds = selectedIds.toList())
+                    )
+                }
+            ) { Text("Save") }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable
@@ -1371,92 +1589,6 @@ private fun NewContactAvatar(
 }
 
 @Composable
-fun NewFavoritesScreen(
-    onContactClick: (Contact) -> Unit,
-    onSettings: () -> Unit
-) {
-    val contactsViewModel: ContactsViewModel = koinActivityViewModel()
-    val allContacts by contactsViewModel.allContacts.collectAsState()
-    val favorites = remember(allContacts) {
-        allContacts.filter { it.isFavorite }
-    }
-    val context = LocalContext.current
-    val prefs: PreferenceManager = koinInject()
-    var contextualContact by remember { mutableStateOf<Contact?>(null) }
-
-    NewUiScreenShell(
-        destination = NewUiDestination.Favorites,
-        headerAction = {
-            IconButton(onClick = onSettings) {
-                Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.onBackground)
-            }
-        }
-    ) {
-        if (favorites.isEmpty()) {
-            Text(
-                text = "No favorite contacts",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 112.dp),
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        } else {
-            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                val cardWidth = ((maxWidth - 24.dp) / 3).coerceAtLeast(96.dp)
-                LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 112.dp),
-                    contentPadding = PaddingValues(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(
-                        items = favorites,
-                        key = { it.id }
-                    ) { contact ->
-                        NewFavoriteCard(
-                            contact = contact,
-                            width = cardWidth,
-                            onClick = { onContactClick(contact) },
-                            onLongClick = { contextualContact = contact }
-                        )
-                    }
-                }
-            }
-            contextualContact?.let { contact ->
-                val number = contact.phoneNumbers.firstOrNull().orEmpty()
-                val blocked = BlockedNumbersManager.isBlocked(context, prefs, number)
-                NewContextualActionsDialog(
-                    actions = listOf(
-                        NewContextualAction(
-                            "Remove from Favorites",
-                            Icons.Filled.Favorite
-                        ) { contactsViewModel.toggleFavorite(contact) },
-                        NewContextualAction(
-                            if (blocked) "Unblock" else "Block",
-                            Icons.Filled.Block
-                        ) {
-                            if (blocked) BlockedNumbersManager.unblock(context, prefs, number)
-                            else BlockedNumbersManager.block(context, prefs, number)
-                        },
-                        NewContextualAction("Delete Contact", Icons.Filled.Delete) {
-                            contactsViewModel.deleteContact(contact.id)
-                        },
-                        NewContextualAction("Copy number", Icons.Filled.ContentCopy) {
-                            context.getSystemService(ClipboardManager::class.java)
-                                ?.setPrimaryClip(ClipData.newPlainText("Phone number", number))
-                        }
-                    ),
-                    onDismiss = { contextualContact = null }
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun NewFavoriteCard(
     contact: Contact,
     width: androidx.compose.ui.unit.Dp,
@@ -1542,12 +1674,14 @@ private data class NewSettingsRow(
 @Composable
 fun NewSettingsScreen(
     selectedDestination: NewUiSettingsDestination?,
-    onNavigate: (NewUiSettingsDestination) -> Unit,
+    selectedHighlightKey: String?,
+    onNavigate: NewUiSettingsNavigation,
     onBack: () -> Boolean
 ) {
     if (selectedDestination != null) {
         NewSettingsDestinationScreen(
             destination = selectedDestination,
+            highlightKey = selectedHighlightKey,
             onNavigate = onNavigate,
             onBack = { onBack() }
         )
@@ -1574,6 +1708,18 @@ fun NewSettingsScreen(
                     "Manage Android Telecom phone accounts",
                     Icons.Filled.Phone,
                     NewUiSettingsDestination.CallAccounts
+                ),
+                NewSettingsRow(
+                    "Fake Calls",
+                    "Schedule test incoming calls",
+                    Icons.Filled.Call,
+                    NewUiSettingsDestination.FakeCalls
+                ),
+                NewSettingsRow(
+                    "Backup & Restore",
+                    "Export or restore app data and settings",
+                    Icons.Filled.Restore,
+                    NewUiSettingsDestination.BackupRestore
                 )
             ),
             "Appearance" to listOf(
@@ -1639,16 +1785,21 @@ fun NewSettingsScreen(
                     Icons.Filled.Tune,
                     NewUiSettingsDestination.NetworkSwitcher
                 )
+            ),
+            "About" to listOf(
+                NewSettingsRow(
+                    "About LibreDialer",
+                    "Version, app details, and license",
+                    Icons.Outlined.Info,
+                    NewUiSettingsDestination.About
+                )
             )
         )
     }
 
-    val settingsNavigator = remember(onBack, onNavigate) {
-        NewSettingsDestinationsNavigator({ onBack() }, onNavigate)
-    }
     NewUiScreenShell(
         destination = NewUiDestination.Settings,
-        headerAction = { SettingsSearchHeaderAction(settingsNavigator) }
+        headerAction = { SettingsSearchHeaderAction(onNavigate) }
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -1671,7 +1822,7 @@ fun NewSettingsScreen(
                         ) {
                             Column {
                                 sectionRows.forEachIndexed { index, row ->
-                                    NewSettingsRowItem(row = row, onClick = { onNavigate(row.destination) })
+                                    NewSettingsRowItem(row = row, onClick = { onNavigate(row.destination, null) })
                                     if (index < sectionRows.lastIndex) {
                                         androidx.compose.material3.HorizontalDivider(
                                             modifier = Modifier.padding(start = 68.dp),
@@ -1692,7 +1843,8 @@ fun NewSettingsScreen(
 @Composable
 private fun NewSettingsDestinationScreen(
     destination: NewUiSettingsDestination,
-    onNavigate: (NewUiSettingsDestination) -> Unit,
+    highlightKey: String?,
+    onNavigate: NewUiSettingsNavigation,
     onBack: () -> Unit
 ) {
     if (destination == NewUiSettingsDestination.ColorsAndTheme) {
@@ -1700,21 +1852,18 @@ private fun NewSettingsDestinationScreen(
         return
     }
 
-    val navigator = remember(onBack, onNavigate) {
-        NewSettingsDestinationsNavigator(onBack, onNavigate)
-    }
     CompositionLocalProvider(LocalNewUiSettingsStyle provides true) {
         when (destination) {
             NewUiSettingsDestination.AppAndCallBehavior ->
-                NewUiAppSettingsScreen(navigator = navigator)
+                NewUiAppSettingsScreen(onNavigateSettings = onNavigate, highlightKey = highlightKey)
             NewUiSettingsDestination.SimAndCallPlacement ->
-                NewUiSimAndCallPlacementScreen(navigator = navigator)
+                NewUiSimAndCallPlacementScreen(onNavigateSettings = onNavigate, highlightKey = highlightKey)
             NewUiSettingsDestination.CallAccounts ->
                 NewUiCallAccountsScreen()
             NewUiSettingsDestination.SoundAndVibration ->
-                NewUiSoundVibrationScreen(navigator = navigator)
+                NewUiSoundVibrationScreen(onNavigateSettings = onNavigate, highlightKey = highlightKey)
             NewUiSettingsDestination.BiometricAndAppLock ->
-                NewUiBiometricScreen(navigator = navigator)
+                NewUiBiometricScreen(onNavigateSettings = onNavigate, highlightKey = highlightKey)
             NewUiSettingsDestination.ContactsHider ->
                 NewUiContactsHiderScreen()
             NewUiSettingsDestination.CallRecording -> {
@@ -1722,7 +1871,7 @@ private fun NewSettingsDestinationScreen(
                 NewUiScreenShell(
                     destination = NewUiDestination.Settings,
                     titleOverride = "Call Recording",
-                    headerAction = { SettingsSearchHeaderAction(navigator) }
+                    headerAction = { SettingsSearchHeaderAction(onNavigate) }
                 ) {
                     RecorderSettingsScreen(
                         viewModel = recorderViewModel,
@@ -1732,78 +1881,72 @@ private fun NewSettingsDestinationScreen(
                     )
                 }
             }
+            NewUiSettingsDestination.FakeCalls ->
+                NewUiFakeCallScreen(onBack = onBack)
+            NewUiSettingsDestination.BackupRestore ->
+                NewUiBackupRestoreScreen(onNavigateSettings = onNavigate)
             NewUiSettingsDestination.RaiseToAnswer ->
-                NewUiRaiseToAnswerScreen(navigator = navigator)
+                NewUiRaiseToAnswerScreen(onNavigateSettings = onNavigate, highlightKey = highlightKey)
             NewUiSettingsDestination.RainMode ->
-                NewUiRainModeScreen(navigator = navigator)
+                NewUiRainModeScreen(onNavigateSettings = onNavigate, highlightKey = highlightKey)
             NewUiSettingsDestination.VolumeDnd ->
-                NewUiVolumeDndScreen(navigator = navigator)
+                NewUiVolumeDndScreen(onNavigateSettings = onNavigate, highlightKey = highlightKey)
             NewUiSettingsDestination.NetworkSwitcher ->
-                NewUiAppSettingsScreen(navigator = navigator, highlightKey = "network_switcher")
+                NewUiAppSettingsScreen(
+                    onNavigateSettings = onNavigate,
+                    highlightKey = highlightKey ?: "network_switcher"
+                )
+            NewUiSettingsDestination.About -> NewUiAboutScreen()
             NewUiSettingsDestination.ColorsAndTheme -> Unit
         }
     }
+
 }
 
-private class NewSettingsDestinationsNavigator(
-    private val onBack: () -> Unit,
-    private val onNavigate: (NewUiSettingsDestination) -> Unit
-) : DestinationsNavigator {
-    override fun navigate(
-        direction: Direction,
-        builder: DestinationsNavOptionsBuilder.() -> Unit
-    ) = navigate(direction, null, null)
-
-    override fun navigate(
-        direction: Direction,
-        navOptions: NavOptions?,
-        navigatorExtras: Navigator.Extras?
+@Composable
+private fun NewUiAboutScreen() {
+    NewUiScreenShell(
+        destination = NewUiDestination.Settings,
+        titleOverride = "About LibreDialer"
     ) {
-        when {
-            direction.route.startsWith("sound_vibration_screen") ->
-                onNavigate(NewUiSettingsDestination.SoundAndVibration)
-            direction.route.startsWith("raise_to_answer_screen") ->
-                onNavigate(NewUiSettingsDestination.RaiseToAnswer)
-            direction.route.startsWith("rain_mode_screen") ->
-                onNavigate(NewUiSettingsDestination.RainMode)
-            direction.route.startsWith("volume_dnd_screen") ->
-                onNavigate(NewUiSettingsDestination.VolumeDnd)
-            direction.route.startsWith("sim_and_call_placement_screen") ->
-                onNavigate(NewUiSettingsDestination.SimAndCallPlacement)
-            direction.route.startsWith("biometric_screen") ->
-                onNavigate(NewUiSettingsDestination.BiometricAndAppLock)
-            direction.route.startsWith("contacts_hider_screen") ->
-                onNavigate(NewUiSettingsDestination.ContactsHider)
-            direction.route.startsWith("recordings_screen") ->
-                onNavigate(NewUiSettingsDestination.CallRecording)
-            direction.route.startsWith("app_settings_screen") ->
-                onNavigate(NewUiSettingsDestination.AppAndCallBehavior)
-            direction.route.startsWith("settings_screen") ->
-                onNavigate(NewUiSettingsDestination.AppAndCallBehavior)
-            direction.route.startsWith("interface_screen") ->
-                onNavigate(NewUiSettingsDestination.ColorsAndTheme)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp)
+                .padding(top = 112.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.surfaceContainerLow
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        Icons.Outlined.Info,
+                        contentDescription = null,
+                        modifier = Modifier.size(52.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(APP_NAME, style = MaterialTheme.typography.headlineSmall)
+                    Text(
+                        "Version $APP_VERSION",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "GNU General Public License, version 3",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
-
-    override fun navigateUp(): Boolean {
-        onBack()
-        return true
-    }
-
-    override fun popBackStack(): Boolean {
-        onBack()
-        return true
-    }
-
-    override fun popBackStack(
-        route: RouteOrDirection,
-        inclusive: Boolean,
-        saveState: Boolean
-    ): Boolean = popBackStack()
-
-    override fun clearBackStack(route: RouteOrDirection): Boolean = false
-
-    override fun getBackStackEntry(route: RouteOrDirection): NavBackStackEntry? = null
 }
 
 @Composable
