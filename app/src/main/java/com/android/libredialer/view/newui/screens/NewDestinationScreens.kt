@@ -2,6 +2,11 @@
 package com.android.libredialer.view.newui.screens
 
 import com.android.libredialer.view.newui.components.LensSurfaceBox
+import com.android.libredialer.view.components.liquidglass.LiquidGlassActionSurface
+import androidx.compose.material3.Slider
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableFloatStateOf
+import kotlin.math.roundToInt
 import com.android.libredialer.view.components.SettingsSearchHeaderAction
 import com.android.libredialer.view.components.providedCallIcon
 import com.android.libredialer.view.components.providedMessageIcon
@@ -267,7 +272,7 @@ fun NewDialerScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(bottom = 96.dp),
+                    .padding(bottom = 128.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
             // Search results area.
@@ -1007,10 +1012,10 @@ fun NewContactsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                LensSurfaceBox(
+                LiquidGlassActionSurface(
                     modifier = Modifier.size(48.dp),
-                    shape = CircleShape,
-                    contentAlignment = Alignment.Center
+                    cornerRadius = 24.dp,
+                    fallbackColor = MaterialTheme.colorScheme.surfaceContainer
                 ) {
                     IconButton(onClick = { showGroupManager = true }) {
                         Icon(
@@ -1020,10 +1025,10 @@ fun NewContactsScreen(
                         )
                     }
                 }
-                LensSurfaceBox(
+                LiquidGlassActionSurface(
                     modifier = Modifier.size(48.dp),
-                    shape = CircleShape,
-                    contentAlignment = Alignment.Center
+                    cornerRadius = 24.dp,
+                    fallbackColor = MaterialTheme.colorScheme.surfaceContainer
                 ) {
                     IconButton(onClick = {
                         contactsBehindSearch = filteredContacts
@@ -1036,10 +1041,10 @@ fun NewContactsScreen(
                         )
                     }
                 }
-                LensSurfaceBox(
+                LiquidGlassActionSurface(
                     modifier = Modifier.size(48.dp),
-                    shape = CircleShape,
-                    contentAlignment = Alignment.Center
+                    cornerRadius = 24.dp,
+                    fallbackColor = MaterialTheme.colorScheme.surfaceContainer
                 ) {
                     IconButton(onClick = onCreateContact) {
                         Icon(
@@ -1049,10 +1054,10 @@ fun NewContactsScreen(
                         )
                     }
                 }
-                LensSurfaceBox(
+                LiquidGlassActionSurface(
                     modifier = Modifier.size(48.dp),
-                    shape = CircleShape,
-                    contentAlignment = Alignment.Center
+                    cornerRadius = 24.dp,
+                    fallbackColor = MaterialTheme.colorScheme.surfaceContainer
                 ) {
                     NewUiSettingsAction(onSettings)
                 }
@@ -1797,6 +1802,8 @@ fun NewSettingsScreen(
         )
     }
 
+    val prefs: PreferenceManager = koinInject()
+
     NewUiScreenShell(
         destination = NewUiDestination.Settings,
         headerAction = { SettingsSearchHeaderAction(onNavigate) }
@@ -1832,6 +1839,9 @@ fun NewSettingsScreen(
 
                                 }
                             }
+                        }
+                        if (section == "Appearance") {
+                            LiquidGlassTintSettingCard(prefs = prefs)
                         }
                     }
                 }
@@ -2024,9 +2034,96 @@ private fun NewColorsAndThemeScreen() {
                             }
                         }
                     }
+                item {
+                    LiquidGlassTintSettingCard(prefs = prefs)
                 }
             }
         }
+    }
+
+@Composable
+fun LiquidGlassTintSettingCard(
+    prefs: PreferenceManager = koinInject(),
+    modifier: Modifier = Modifier
+) {
+    val settingsVersion by prefs.settingsChanged.collectAsState()
+    var sliderValue by remember(settingsVersion) {
+        mutableFloatStateOf(prefs.getLiquidGlassTint())
+    }
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        tonalElevation = 1.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Liquid Glass Tint",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = "Adjust the intensity of the neutral grey tint applied to Liquid Glass surfaces.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                TextButton(
+                    onClick = {
+                        sliderValue = PreferenceManager.DEFAULT_LIQUID_GLASS_TINT
+                        prefs.setLiquidGlassTint(PreferenceManager.DEFAULT_LIQUID_GLASS_TINT)
+                    }
+                ) {
+                    Text("Reset")
+                }
+            }
+
+            Text(
+                text = "Intensity: ${(sliderValue * 100f).roundToInt()}%",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Slider(
+                value = sliderValue,
+                onValueChange = { newValue ->
+                    val stepped = (newValue * 100f).roundToInt() / 100f
+                    sliderValue = stepped
+                    prefs.setLiquidGlassTint(stepped)
+                },
+                valueRange = 0f..0.25f,
+                steps = 24
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "0% (Transparent)",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "25% (Strong)",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
 
 @Composable
 private fun NewSettingsRowItem(

@@ -6,6 +6,13 @@ import android.media.RingtoneManager
 import android.net.Uri
 import android.provider.ContactsContract
 
+internal fun encodeContactRingtoneSelection(pickedUri: String?, defaultUri: String): String? =
+    when {
+        pickedUri == null -> ""
+        pickedUri == defaultUri -> null
+        else -> pickedUri
+    }
+
 /**
  * Reads/writes a contact's individual ringtone via ContactsContract.Contacts.CUSTOM_RINGTONE —
  * the same column Android's own Contacts app and Telecom's incoming-call ringer use, so setting
@@ -35,8 +42,8 @@ object ContactRingtoneUtils {
         null
     }
 
-    fun setCustomRingtoneUri(context: Context, contactId: String, uri: Uri?) {
-        try {
+    fun setCustomRingtoneUri(context: Context, contactId: String, uri: Uri?): Boolean {
+        return try {
             val values = ContentValues().apply {
                 put(
                     ContactsContract.Contacts.CUSTOM_RINGTONE,
@@ -48,9 +55,9 @@ object ContactRingtoneUtils {
                 )
             }
             val target = Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_URI, contactId)
-            context.contentResolver.update(target, values, null, null)
+            context.contentResolver.update(target, values, null, null) > 0
         } catch (_: Exception) {
-            // Ignore — worst case the contact keeps ringing with the system default.
+            false
         }
     }
 

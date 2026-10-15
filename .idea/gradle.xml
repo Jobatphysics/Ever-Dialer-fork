@@ -19,6 +19,7 @@
             <option value="$PROJECT_DIR$/hiddenapi" />
             <option value="$PROJECT_DIR$/networkswitch" />
             <option value="$PROJECT_DIR$/recorder" />
+            <option value="$PROJECT_DIR$/third_party/liquidglass" />
           </set>
         </option>
       </GradleProjectSettings>

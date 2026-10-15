@@ -40,13 +40,13 @@ object ContactShortcutUtils {
         ShortcutManagerCompat.isRequestPinShortcutSupported(context)
 
     /** Pins a shortcut that opens straight to this contact's Contact Info page. */
-    fun pinOpenContactShortcut(context: Context, contactId: String, displayName: String, photoUri: String?) {
+    fun pinOpenContactShortcut(context: Context, contactId: String, displayName: String, photoUri: String?): Boolean {
         val intent = Intent(context, MainActivity::class.java).apply {
             action = Intent.ACTION_VIEW
             putExtra("contact_id", contactId)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
-        pin(
+        return pin(
             context = context,
             id = "contact_info_$contactId",
             label = displayName,
@@ -56,13 +56,13 @@ object ContactShortcutUtils {
     }
 
     /** Pins a shortcut that dials [number] immediately when tapped, skipping the app entirely. */
-    fun pinCallShortcut(context: Context, keyId: String, displayName: String, number: String, photoUri: String?) {
+    fun pinCallShortcut(context: Context, keyId: String, displayName: String, number: String, photoUri: String?): Boolean {
         val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$number")).apply {
             setClass(context, MainActivity::class.java)
             putExtra("contact_id", keyId)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
-        pin(
+        return pin(
             context = context,
             id = "call_${keyId}_${number.hashCode()}",
             label = displayName,

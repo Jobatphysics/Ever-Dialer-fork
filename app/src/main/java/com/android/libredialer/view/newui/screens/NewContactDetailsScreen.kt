@@ -79,6 +79,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.core.view.WindowCompat
+import androidx.core.net.toUri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import coil.compose.AsyncImage
@@ -92,6 +93,7 @@ import com.android.libredialer.controller.util.QrCodeUtils
 import com.android.libredialer.controller.util.PreferenceManager
 import com.android.libredialer.controller.util.BlockedNumbersManager
 import com.android.libredialer.controller.util.ContactRingtoneUtils
+import com.android.libredialer.controller.util.encodeContactRingtoneSelection
 import com.android.libredialer.controller.util.ContactShortcutUtils
 import com.android.libredialer.controller.util.isWhatsAppInstalled
 import com.android.libredialer.controller.util.isWhatsAppBusinessInstalled
@@ -217,7 +219,7 @@ fun NewContactDetailsScreen(
                 numbers.any { numbersLikelyMatch(it, log.number) }
         }
     }
-    val contactKey = currentContact.id
+    val contactKey = if (isUnknownNumber) numbers.firstOrNull().orEmpty() else currentContact.id
     var simChoice by remember(settingsVersion, contactKey) {
         mutableStateOf(prefs.getContactSimChoice(contactKey, numbers.firstOrNull()))
     }
@@ -273,18 +275,38 @@ fun NewContactDetailsScreen(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
+            val data = result.data
+            if (data?.hasExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI) != true) {
+                android.widget.Toast.makeText(
+                    context,
+                    "Couldn't read the selected ringtone.",
+                    android.widget.Toast.LENGTH_SHORT
+                ).show()
+                return@rememberLauncherForActivityResult
+            }
             val picked = result.data?.getParcelableExtra<Uri>(
                 RingtoneManager.EXTRA_RINGTONE_PICKED_URI
             )
             val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-            val stored = when {
-                result.data?.hasExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI) != true -> Uri.EMPTY
-                picked == null || picked == defaultUri -> null
-                else -> picked
+            val storedValue = encodeContactRingtoneSelection(
+                picked?.toString(),
+                defaultUri.toString()
+            )
+            val stored = when (storedValue) {
+                null -> null
+                "" -> Uri.EMPTY
+                else -> storedValue.toUri()
             }
-            ContactRingtoneUtils.setCustomRingtoneUri(context, currentContact.id, stored)
-            ringtoneUri = stored
-            showRingtoneDialog = false
+            if (ContactRingtoneUtils.setCustomRingtoneUri(context, currentContact.id, stored)) {
+                ringtoneUri = stored
+                showRingtoneDialog = false
+            } else {
+                android.widget.Toast.makeText(
+                    context,
+                    "Couldn't save this contact's ringtone. Check contact write access.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
         }
     }
     var showDelete by remember { mutableStateOf(false) }
@@ -527,7 +549,17 @@ fun NewContactDetailsScreen(
                                 Icons.Default.Block,
                                 if (blockState) "Unblock" else "Block",
                                 if (blockState) "Unblock contact" else "Block contact"
-                            ) { showBlockDialog = true })
+                            ) {
+                                if (numbers.isEmpty()) {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "This contact doesn't have a phone number to block.",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                } else {
+                                    showBlockDialog = true
+                                }
+                            })
                             if (!isUnknownNumber) {
                                 add(ContactActionTile(Icons.Default.MusicNote, "Ringtone", "Choose ringtone") {
                                     showRingtoneDialog = true
@@ -535,6 +567,11 @@ fun NewContactDetailsScreen(
                                 add(ContactActionTile(Icons.Default.Home, "Shortcut", "Add to Home Screen") {
                                     if (numbers.size > 1) showShortcutNumberDialog = true
                                     else if (numbers.isNotEmpty()) showShortcutDialog = true
+                                    else android.widget.Toast.makeText(
+                                        context,
+                                        "This contact doesn't have a phone number for a shortcut.",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
                                 })
                             }
                         }
@@ -609,131 +646,181 @@ fun NewContactDetailsScreen(
                     TextButton(onClick = { showQr = false }) { Text("Close") }
                 }
             }
-            if (showSimDialog) {
-                NewUiChooseSimDialog(
-                    currentChoice = simChoice,
-                    onSelect = {
-                        simChoice = it
-                        prefs.setContactSimChoice(contactKey, it)
-                        showSimDialog = false
-                    },
-                    onDismiss = { showSimDialog = false }
-                )
-            }
-            if (showBlockDialog) {
-                AlertDialog(
-                    onDismissRequest = { showBlockDialog = false },
-                    title = { Text(if (blockState) "Unblock contact?" else "Block contact?") },
-                    text = { Text(if (blockState) "Calls and messages from this contact will be allowed again." else "Calls and messages from this contact will be blocked.") },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            scope.launch(Dispatchers.IO) {
-                                numbers.forEach {
-                                    if (blockState) BlockedNumbersManager.unblock(context, prefs, it)
-                                    else BlockedNumbersManager.block(context, prefs, it)
-                                }
-                                withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                    blockState = !blockState
-                                }
-                            }
-                            showBlockDialog = false
-                        }) { Text(if (blockState) "Unblock" else "Block") }
-                    },
-                    dismissButton = { TextButton(onClick = { showBlockDialog = false }) { Text("Cancel") } }
-                )
-            }
-            if (showRingtoneDialog) {
-                AlertDialog(
-                    onDismissRequest = { showRingtoneDialog = false },
-                    title = { Text("Contact ringtone") },
-                    text = { Text(ContactRingtoneUtils.ringtoneLabel(context, ringtoneUri)) },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-                            ringtonePicker.launch(Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
-                                putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE)
-                                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
-                                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, true)
-                                putExtra(RingtoneManager.EXTRA_RINGTONE_DEFAULT_URI, defaultUri)
-                                putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, ringtoneUri ?: defaultUri)
-                            })
-                        }) { Text("Choose") }
-                    },
-                    dismissButton = { TextButton(onClick = { showRingtoneDialog = false }) { Text("Cancel") } }
-                )
-            }
-            if (showShortcutNumberDialog) {
-                NewUiNumberPickerDialog(
-                    numbers = numbers,
-                    onDismissRequest = { showShortcutNumberDialog = false },
-                    onNumberSelected = {
-                        showShortcutNumberDialog = false
-                        showShortcutDialog = true
-                        selectedShortcutNumber = it
-                    }
-                )
-            }
-            if (showShortcutDialog) {
-                NewUiShortcutActionDialog(
-                    onOpenContactInfo = {
-                        ContactShortcutUtils.pinOpenContactShortcut(context, currentContact.id, currentContact.name, currentContact.photoUri)
-                        showShortcutDialog = false
-                    },
-                    onCallDirectly = {
-                        selectedShortcutNumber?.let {
-                            ContactShortcutUtils.pinCallShortcut(context, currentContact.id, currentContact.name, it, currentContact.photoUri)
-                        }
-                        showShortcutDialog = false
-                    },
-                    onDismiss = { showShortcutDialog = false }
-                )
-            }
-            if (showSocialActions != null && socialNumber != null) {
-                val app = showSocialActions!!
-                val number = socialNumber!!
-                val label = when (app) {
-                    "whatsapp" -> "WhatsApp"
-                    "whatsapp_business" -> "WhatsApp Business"
-                    "telegram" -> "Telegram"
-                    else -> "Google Meet"
-                }
-                NewUiAppQuickActionsDialog(
-                    appName = label,
-                    onChat = if (app == "googlemeet") null else {
-                        {
-                            showSocialActions = null
-                            val opened = when (app) {
-                                "whatsapp" -> openSocialAppChat(context, SocialMessagingApp.WHATSAPP, number) == SocialChatLaunchResult.OPENED
-                                "whatsapp_business" -> openSocialAppChat(context, SocialMessagingApp.WHATSAPP_BUSINESS, number) == SocialChatLaunchResult.OPENED
-                                else -> openSocialAppChat(context, SocialMessagingApp.TELEGRAM, number) == SocialChatLaunchResult.OPENED
-                            }
-                            if (!opened) android.widget.Toast.makeText(context, "$label isn't installed", android.widget.Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    onVoiceCall = {
-                        showSocialActions = null
-                        val started = when (app) {
-                            "whatsapp" -> startWhatsAppVoiceCall(context, number)
-                            "whatsapp_business" -> startWhatsAppBusinessVoiceCall(context, number)
-                            "telegram" -> startTelegramVoiceCall(context, number)
-                            else -> startGoogleMeetVoiceCall(context, number)
-                        }
-                        if (!started) android.widget.Toast.makeText(context, "$label isn't installed", android.widget.Toast.LENGTH_SHORT).show()
-                    },
-                    onVideoCall = {
-                        showSocialActions = null
-                        val started = when (app) {
-                            "whatsapp" -> startWhatsAppVideoCall(context, number)
-                            "whatsapp_business" -> startWhatsAppBusinessVideoCall(context, number)
-                            "telegram" -> startTelegramVideoCall(context, number)
-                            else -> startGoogleMeetVideoCall(context, number)
-                        }
-                        if (!started) android.widget.Toast.makeText(context, "$label isn't installed", android.widget.Toast.LENGTH_SHORT).show()
-                    },
-                    onDismiss = { showSocialActions = null }
-                )
-            }
         }
+    }
+    if (showSimDialog) {
+        NewUiChooseSimDialog(
+            currentChoice = simChoice,
+            onSelect = {
+                simChoice = it
+                prefs.setContactSimChoice(contactKey, it)
+                showSimDialog = false
+            },
+            onDismiss = { showSimDialog = false }
+        )
+    }
+    if (showBlockDialog) {
+        AlertDialog(
+            onDismissRequest = { showBlockDialog = false },
+            title = { Text(if (blockState) "Unblock contact?" else "Block contact?") },
+            text = {
+                Text(
+                    if (blockState) "Allow calls from this contact's numbers again."
+                    else "LibreDialer will reject incoming calls it handles. System-wide blocking may require Android's default-dialer access."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val blocking = !blockState
+                    scope.launch(Dispatchers.IO) {
+                        val systemSynced = numbers.map { number ->
+                            if (blocking) BlockedNumbersManager.block(context, prefs, number)
+                            else BlockedNumbersManager.unblock(context, prefs, number)
+                        }.all { it }
+                        val stillBlocked = numbers.any {
+                            BlockedNumbersManager.isBlocked(context, prefs, it)
+                        }
+                        withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            blockState = stillBlocked
+                            val message = when {
+                                blocking && systemSynced -> "Contact blocked."
+                                blocking -> "Saved to LibreDialer's blocked list. System-wide blocking isn't available."
+                                systemSynced -> "Contact unblocked."
+                                else -> "Removed from LibreDialer's blocked list. Some system-wide blocks may remain."
+                            }
+                            android.widget.Toast.makeText(
+                                context,
+                                message,
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                    showBlockDialog = false
+                }) { Text(if (blockState) "Unblock" else "Block") }
+            },
+            dismissButton = { TextButton(onClick = { showBlockDialog = false }) { Text("Cancel") } }
+        )
+    }
+    if (showRingtoneDialog) {
+        AlertDialog(
+            onDismissRequest = { showRingtoneDialog = false },
+            title = { Text("Contact ringtone") },
+            text = { Text(ContactRingtoneUtils.ringtoneLabel(context, ringtoneUri)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val defaultUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+                    ringtonePicker.launch(Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, true)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_DEFAULT_URI, defaultUri)
+                        putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, ringtoneUri ?: defaultUri)
+                    })
+                }) { Text("Choose") }
+            },
+            dismissButton = { TextButton(onClick = { showRingtoneDialog = false }) { Text("Cancel") } }
+        )
+    }
+    if (showShortcutNumberDialog) {
+        NewUiNumberPickerDialog(
+            numbers = numbers,
+            onDismissRequest = { showShortcutNumberDialog = false },
+            onNumberSelected = {
+                showShortcutNumberDialog = false
+                showShortcutDialog = true
+                selectedShortcutNumber = it
+            }
+        )
+    }
+    if (showShortcutDialog) {
+        NewUiShortcutActionDialog(
+            onOpenContactInfo = {
+                val pinned = ContactShortcutUtils.pinOpenContactShortcut(
+                    context,
+                    currentContact.id,
+                    currentContact.name,
+                    currentContact.photoUri
+                )
+                android.widget.Toast.makeText(
+                    context,
+                    if (pinned) "Shortcut request sent to your launcher."
+                    else "Your launcher couldn't pin this shortcut.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+                showShortcutDialog = false
+            },
+            onCallDirectly = {
+                val number = selectedShortcutNumber
+                if (number == null) {
+                    android.widget.Toast.makeText(
+                        context,
+                        "Choose a phone number before creating a call shortcut.",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    val pinned = ContactShortcutUtils.pinCallShortcut(
+                        context,
+                        currentContact.id,
+                        currentContact.name,
+                        number,
+                        currentContact.photoUri
+                    )
+                    android.widget.Toast.makeText(
+                        context,
+                        if (pinned) "Shortcut request sent to your launcher."
+                        else "Your launcher couldn't pin this shortcut.",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+                showShortcutDialog = false
+            },
+            onDismiss = { showShortcutDialog = false }
+        )
+    }
+    if (showSocialActions != null && socialNumber != null) {
+        val app = showSocialActions!!
+        val number = socialNumber!!
+        val label = when (app) {
+            "whatsapp" -> "WhatsApp"
+            "whatsapp_business" -> "WhatsApp Business"
+            "telegram" -> "Telegram"
+            else -> "Google Meet"
+        }
+        NewUiAppQuickActionsDialog(
+            appName = label,
+            onChat = if (app == "googlemeet") null else {
+                {
+                    showSocialActions = null
+                    val opened = when (app) {
+                        "whatsapp" -> openSocialAppChat(context, SocialMessagingApp.WHATSAPP, number) == SocialChatLaunchResult.OPENED
+                        "whatsapp_business" -> openSocialAppChat(context, SocialMessagingApp.WHATSAPP_BUSINESS, number) == SocialChatLaunchResult.OPENED
+                        else -> openSocialAppChat(context, SocialMessagingApp.TELEGRAM, number) == SocialChatLaunchResult.OPENED
+                    }
+                    if (!opened) android.widget.Toast.makeText(context, "$label isn't installed", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            },
+            onVoiceCall = {
+                showSocialActions = null
+                val started = when (app) {
+                    "whatsapp" -> startWhatsAppVoiceCall(context, number)
+                    "whatsapp_business" -> startWhatsAppBusinessVoiceCall(context, number)
+                    "telegram" -> startTelegramVoiceCall(context, number)
+                    else -> startGoogleMeetVoiceCall(context, number)
+                }
+                if (!started) android.widget.Toast.makeText(context, "$label isn't installed", android.widget.Toast.LENGTH_SHORT).show()
+            },
+            onVideoCall = {
+                showSocialActions = null
+                val started = when (app) {
+                    "whatsapp" -> startWhatsAppVideoCall(context, number)
+                    "whatsapp_business" -> startWhatsAppBusinessVideoCall(context, number)
+                    "telegram" -> startTelegramVideoCall(context, number)
+                    else -> startGoogleMeetVideoCall(context, number)
+                }
+                if (!started) android.widget.Toast.makeText(context, "$label isn't installed", android.widget.Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { showSocialActions = null }
+        )
     }
 }
 

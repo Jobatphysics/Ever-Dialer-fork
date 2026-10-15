@@ -3,8 +3,10 @@ package com.android.libredialer.view.newui.navigation
 import android.content.Intent
 import android.provider.ContactsContract
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -16,11 +18,14 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -32,7 +37,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.material3.MaterialTheme
 import android.os.SystemClock
 import android.util.Log
@@ -48,6 +56,8 @@ import com.android.libredialer.view.newui.screens.NewRecentsScreen
 import com.android.libredialer.view.newui.screens.NewSettingsScreen
 import com.android.libredialer.view.newui.screens.NewUniversalSearchScreen
 import com.android.libredialer.view.newui.components.LocalNewUiScrollClearance
+import com.android.libredialer.view.newui.components.LocalNewUiHeaderAlpha
+import com.android.libredialer.view.newui.components.LocalNewUiScreenTargetContent
 import com.android.libredialer.view.newui.components.NewUiNavigationBarScrollClearance
 import com.android.libredialer.view.newui.components.newUiScrollHaptics
 import com.android.libredialer.controller.CallLogViewModel
@@ -70,6 +80,26 @@ enum class NewUiDestination(val route: String, val title: String) {
     CallDetails("new/call-details", "Call details"),
     UnknownNumberDetails("new/unknown-number-details", "Number details"),
     UniversalSearch("new/universal-search", "Search")
+}
+
+internal fun bottomTabTransitionDirection(
+    initialDestination: NewUiDestination,
+    targetDestination: NewUiDestination
+): Int? {
+    fun tabOrder(destination: NewUiDestination): Int? = when (destination) {
+        NewUiDestination.Recents -> 0
+        NewUiDestination.Contacts -> 1
+        NewUiDestination.Dialer -> 2
+        else -> null
+    }
+
+    val initialOrder = tabOrder(initialDestination) ?: return null
+    val targetOrder = tabOrder(targetDestination) ?: return null
+    return when {
+        targetOrder > initialOrder -> 1
+        targetOrder < initialOrder -> -1
+        else -> null
+    }
 }
 
 private fun NewUiDestination.isMainDestination(): Boolean = this in setOf(
@@ -352,123 +382,166 @@ fun rememberNewUiNavigator(
 }
 
 @Composable
+@OptIn(ExperimentalAnimationApi::class)
 fun NewUiHost(
     navigator: NewUiNavigator = rememberNewUiNavigator(),
     onCall: (String, String?) -> Unit,
     onOpenRecording: (String) -> Unit,
+    onTransitionRunningChanged: (Boolean) -> Unit = {}
 ) {
     val destination = navigator.currentDestination
     val settingsDestination = navigator.settingsDestination
     val settingsHighlightKey = navigator.settingsHighlightKey
     val saveableStateHolder = rememberSaveableStateHolder()
-    val spatialMotion = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
     val effectsMotion = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-    AnimatedContent(
-        targetState = Triple(destination, settingsDestination, settingsHighlightKey),
-        transitionSpec = {
-            (scaleIn(
-                initialScale = 0.92f,
-                animationSpec = spatialMotion
-            ) + fadeIn(animationSpec = effectsMotion)) togetherWith
-                (scaleOut(
-                    targetScale = 0.96f,
-                    animationSpec = spatialMotion
-                ) + fadeOut(animationSpec = effectsMotion))
-        },
+    val targetState = Triple(destination, settingsDestination, settingsHighlightKey)
+    val destinationTransition = updateTransition(
+        targetState = targetState,
         label = "newUiDestination"
-    ) { (currentDestination, selectedSettingsDestination, selectedSettingsHighlightKey) ->
-        saveableStateHolder.SaveableStateProvider(
-            key = "$currentDestination:$selectedSettingsDestination:$selectedSettingsHighlightKey"
-        ) {
-            when (currentDestination) {
-                NewUiDestination.Dialer -> NewDialerScreen(
-                    onCall = { number -> onCall(number, null) },
-                    onSettings = { navigator.navigate(NewUiDestination.Settings) },
-                    onAddContact = navigator::openCreateContact,
-                    initialNumber = navigator.dialerInitialNumber,
-                    onInitialNumberConsumed = navigator::consumeDialerInitialNumber
-                )
-                NewUiDestination.Recents -> NewRecentsScreen(
-                    onCallLogClick = navigator::openCallDetails,
-                    onContactClick = navigator::openContactDetails,
-                    onSettings = { navigator.navigate(NewUiDestination.Settings) },
-                    onCall = { number -> onCall(number, null) },
-                    onAddContact = navigator::openCreateContact
-                )
-                NewUiDestination.Contacts -> NewContactsScreen(
-                    onContactClick = navigator::openContactDetails,
-                    onCreateContact = { navigator.openContactEdit() },
-                    onSettings = { navigator.navigate(NewUiDestination.Settings) }
-                )
-                NewUiDestination.ContactDetails -> {
-                    val details = navigator.contactDetails
-                    if (details != null) {
-                        NewContactDetailsScreen(
-                            contact = details,
-                            phoneNumber = navigator.contactDetailsPhoneNumber,
-                            onBack = navigator::back,
-                            onEdit = navigator::openContactEdit,
-                            onCall = { number, contactId -> onCall(number, contactId) }
-                        )
-                    }
+    )
+    val headerAlpha by destinationTransition.animateFloat(
+        transitionSpec = { effectsMotion },
+        label = "newUiHeaderPopupAlpha"
+    ) { state ->
+        if (state == targetState) 1f else 0f
+    }
+    val transitionRunning = destinationTransition.isRunning
+    SideEffect {
+        onTransitionRunningChanged(transitionRunning)
+    }
+    destinationTransition.AnimatedContent(
+        transitionSpec = {
+            val slideDirection = bottomTabTransitionDirection(
+                initialState.first,
+                targetState.first
+            )
+            if (slideDirection == null) {
+                fadeIn(animationSpec = effectsMotion) togetherWith
+                    fadeOut(animationSpec = effectsMotion)
+            } else {
+                val direction = if (slideDirection > 0) {
+                    androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Left
+                } else {
+                    androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Right
                 }
-                NewUiDestination.UnknownNumberDetails -> {
-                    val number = navigator.unknownNumber
-                    if (number != null) {
-                        NewContactDetailsScreen(
-                            contact = Contact(
-                                id = "unknown:$number",
-                                name = number,
-                                phoneNumbers = listOf(number)
-                            ),
-                            phoneNumber = number,
-                            isUnknownNumber = true,
-                            onBack = navigator::back,
-                            onEdit = {},
-                            onAddContact = { navigator.openCreateContact(number) },
-                            onCall = { target, _ -> onCall(target, null) }
-                        )
-                    }
-                }
-                NewUiDestination.CallDetails -> {
-                    val details = navigator.callDetails
-                    if (details != null) {
-                        NewCallDetailsScreen(
-                            entry = details,
-                            onCall = onCall,
-                            onOpenContact = { selected, number ->
-                                navigator.openContactDetails(selected, number)
-                            },
-                            onAddContact = navigator::openCreateContact
-                        )
-                    }
-                }
-                NewUiDestination.ContactEdit -> NewContactEditScreen(
-                    contact = navigator.contactToEdit,
-                    initialPhone = navigator.contactEditInitialPhone,
-                    initialName = navigator.contactEditInitialName,
-                    onSaved = navigator::back
+                val slideMotion = tween<androidx.compose.ui.unit.IntOffset>(
+                    durationMillis = 300,
+                    easing = FastOutSlowInEasing
                 )
-                NewUiDestination.UniversalSearch -> NewUniversalSearchScreen(
-                    onBack = navigator::back,
-                    onContactClick = navigator::openContactDetails,
-                    onNumberClick = navigator::openDialer,
-                    onUnknownNumberClick = navigator::openUnknownNumberDetails,
-                    onCallLogClick = navigator::openCallDetails,
-                    onRecordingClick = onOpenRecording,
-                    onSettings = { destination, key ->
-                        navigator.navigate(NewUiDestination.Settings)
-                        navigator.navigateSettings(destination, key)
-                    }
-                )
-                NewUiDestination.Settings -> NewSettingsScreen(
-                    selectedDestination = selectedSettingsDestination,
-                    selectedHighlightKey = selectedSettingsHighlightKey,
-                    onNavigate = navigator::navigateSettings,
-                    onBack = navigator::back
-                )
+                val fadeMotion = tween<Float>(durationMillis = 180)
+                (
+                    slideIntoContainer(direction, animationSpec = slideMotion) +
+                        fadeIn(animationSpec = fadeMotion)
+                    ) togetherWith (
+                    slideOutOfContainer(direction, animationSpec = slideMotion) +
+                        fadeOut(animationSpec = fadeMotion)
+                    )
             }
         }
+    ) { (currentDestination, selectedSettingsDestination, selectedSettingsHighlightKey) ->
+        CompositionLocalProvider(
+            LocalNewUiScreenTargetContent provides (
+                Triple(
+                    currentDestination,
+                    selectedSettingsDestination,
+                    selectedSettingsHighlightKey
+                ) == targetState
+            ),
+            LocalNewUiHeaderAlpha provides headerAlpha
+        ) {
+            saveableStateHolder.SaveableStateProvider(
+                key = "$currentDestination:$selectedSettingsDestination:$selectedSettingsHighlightKey"
+            ) {
+                when (currentDestination) {
+                        NewUiDestination.Dialer -> NewDialerScreen(
+                            onCall = { number -> onCall(number, null) },
+                            onSettings = { navigator.navigate(NewUiDestination.Settings) },
+                            onAddContact = navigator::openCreateContact,
+                            initialNumber = navigator.dialerInitialNumber,
+                            onInitialNumberConsumed = navigator::consumeDialerInitialNumber
+                        )
+                        NewUiDestination.Recents -> NewRecentsScreen(
+                            onCallLogClick = navigator::openCallDetails,
+                            onContactClick = navigator::openContactDetails,
+                            onSettings = { navigator.navigate(NewUiDestination.Settings) },
+                            onCall = { number -> onCall(number, null) },
+                            onAddContact = navigator::openCreateContact
+                        )
+                        NewUiDestination.Contacts -> NewContactsScreen(
+                            onContactClick = navigator::openContactDetails,
+                            onCreateContact = { navigator.openContactEdit() },
+                            onSettings = { navigator.navigate(NewUiDestination.Settings) }
+                        )
+                        NewUiDestination.ContactDetails -> {
+                            val details = navigator.contactDetails
+                            if (details != null) {
+                                NewContactDetailsScreen(
+                                    contact = details,
+                                    phoneNumber = navigator.contactDetailsPhoneNumber,
+                                    onBack = navigator::back,
+                                    onEdit = navigator::openContactEdit,
+                                    onCall = { number, contactId -> onCall(number, contactId) }
+                                )
+                            }
+                        }
+                        NewUiDestination.UnknownNumberDetails -> {
+                            val number = navigator.unknownNumber
+                            if (number != null) {
+                                NewContactDetailsScreen(
+                                    contact = Contact(
+                                        id = "unknown:$number",
+                                        name = number,
+                                        phoneNumbers = listOf(number)
+                                    ),
+                                    phoneNumber = number,
+                                    isUnknownNumber = true,
+                                    onBack = navigator::back,
+                                    onEdit = {},
+                                    onAddContact = { navigator.openCreateContact(number) },
+                                    onCall = { target, _ -> onCall(target, null) }
+                                )
+                            }
+                        }
+                        NewUiDestination.CallDetails -> {
+                            val details = navigator.callDetails
+                            if (details != null) {
+                                NewCallDetailsScreen(
+                                    entry = details,
+                                    onCall = onCall,
+                                    onOpenContact = { selected, number ->
+                                        navigator.openContactDetails(selected, number)
+                                    },
+                                    onAddContact = navigator::openCreateContact
+                                )
+                            }
+                        }
+                        NewUiDestination.ContactEdit -> NewContactEditScreen(
+                            contact = navigator.contactToEdit,
+                            initialPhone = navigator.contactEditInitialPhone,
+                            initialName = navigator.contactEditInitialName,
+                            onSaved = navigator::back
+                        )
+                        NewUiDestination.UniversalSearch -> NewUniversalSearchScreen(
+                            onBack = navigator::back,
+                            onContactClick = navigator::openContactDetails,
+                            onNumberClick = navigator::openDialer,
+                            onUnknownNumberClick = navigator::openUnknownNumberDetails,
+                            onCallLogClick = navigator::openCallDetails,
+                            onRecordingClick = onOpenRecording,
+                            onSettings = { destination, key ->
+                                navigator.navigate(NewUiDestination.Settings)
+                                navigator.navigateSettings(destination, key)
+                            }
+                        )
+                        NewUiDestination.Settings -> NewSettingsScreen(
+                            selectedDestination = selectedSettingsDestination,
+                            selectedHighlightKey = selectedSettingsHighlightKey,
+                            onNavigate = navigator::navigateSettings,
+                            onBack = navigator::back
+                        )
+                    }
+                }
+            }
     }
 }
 
@@ -615,6 +688,8 @@ fun NewUiAppShell(
         )
     }
     val swipeThresholdPx = with(LocalDensity.current) { 72.dp.toPx() }
+    val glassBackdropSource = LocalView.current
+    var glassBackdropDynamic by remember { mutableStateOf(false) }
     val backProgress by androidx.compose.animation.core.animateFloatAsState(
         targetValue = rawBackProgress,
         animationSpec = backMotion,
@@ -688,6 +763,11 @@ fun NewUiAppShell(
                     navigator = navigator,
                     onCall = onCall,
                     onOpenRecording = onOpenRecording,
+                    onTransitionRunningChanged = { running ->
+                        if (glassBackdropDynamic != running) {
+                            glassBackdropDynamic = running
+                        }
+                    }
                 )
             }
             if (
@@ -695,11 +775,18 @@ fun NewUiAppShell(
                     navigator.currentDestination == NewUiDestination.Recents ||
                     navigator.currentDestination == NewUiDestination.Contacts
             ) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
+                Popup(
+                    alignment = Alignment.BottomCenter,
+                    properties = PopupProperties(
+                        focusable = false,
+                        clippingEnabled = false
+                    )
                 ) {
-                    com.android.libredialer.view.newui.components.NewUiNavigationBar(navigator)
+                    com.android.libredialer.view.newui.components.NewUiNavigationBar(
+                        navigator = navigator,
+                        backdropSource = glassBackdropSource,
+                        dynamicBackdrop = glassBackdropDynamic
+                    )
                 }
             }
         }

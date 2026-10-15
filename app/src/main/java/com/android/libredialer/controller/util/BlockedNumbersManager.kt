@@ -104,25 +104,25 @@ object BlockedNumbersManager {
     /** Overload without context. */
     fun isBlocked(prefs: PreferenceManager, number: String?): Boolean = isBlocked(null, prefs, number)
 
-    fun block(context: Context, prefs: PreferenceManager, number: String) {
+    fun block(context: Context, prefs: PreferenceManager, number: String): Boolean {
         val trimmed = number.trim()
-        if (trimmed.isBlank()) return
+        if (trimmed.isBlank()) return false
         val current = prefs.getString(PreferenceManager.KEY_BLOCKED_CONTACTS, "")
             ?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
         if (current.none { normalize(it) == normalize(trimmed) }) {
             prefs.setString(PreferenceManager.KEY_BLOCKED_CONTACTS, (current + trimmed).joinToString(","))
         }
-        syncToSystem(context, trimmed, block = true)
+        return syncToSystem(context, trimmed, block = true)
     }
 
-    fun unblock(context: Context, prefs: PreferenceManager, number: String) {
+    fun unblock(context: Context, prefs: PreferenceManager, number: String): Boolean {
         val current = prefs.getString(PreferenceManager.KEY_BLOCKED_CONTACTS, "")
             ?.split(",")?.map { it.trim() }?.filter { it.isNotBlank() } ?: emptyList()
         val updated = current.filterNot { normalize(it) == normalize(number) }
         if (updated.size != current.size) {
             prefs.setString(PreferenceManager.KEY_BLOCKED_CONTACTS, updated.joinToString(","))
         }
-        syncToSystem(context, number, block = false)
+        return syncToSystem(context, number, block = false)
     }
 
     fun toggle(context: Context, prefs: PreferenceManager, number: String) {
@@ -145,28 +145,32 @@ object BlockedNumbersManager {
         }
     }
 
-    private fun syncToSystem(context: Context, number: String, block: Boolean) {
-        if (!canUseSystemBlockList(context)) return
-        try {
+    private fun syncToSystem(context: Context, number: String, block: Boolean): Boolean {
+        if (!canUseSystemBlockList(context)) return false
+        return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                if (block) {
+                if (block && BlockedNumberContract.isBlocked(context, number)) {
+                    true
+                } else if (block) {
                     val values = ContentValues().apply {
                         put(BlockedNumberContract.BlockedNumbers.COLUMN_ORIGINAL_NUMBER, number)
                     }
-                    context.contentResolver.insert(BlockedNumberContract.BlockedNumbers.CONTENT_URI, values)
+                    context.contentResolver.insert(
+                        BlockedNumberContract.BlockedNumbers.CONTENT_URI,
+                        values
+                    ) != null && BlockedNumberContract.isBlocked(context, number)
                 } else {
-                    try {
-                        BlockedNumberContract.unblock(context, number)
-                    } catch (_: Exception) {}
+                    BlockedNumberContract.unblock(context, number)
                     context.contentResolver.delete(
                         BlockedNumberContract.BlockedNumbers.CONTENT_URI,
                         "${BlockedNumberContract.BlockedNumbers.COLUMN_ORIGINAL_NUMBER} = ? OR ${BlockedNumberContract.BlockedNumbers.COLUMN_E164_NUMBER} = ?",
                         arrayOf(number, number)
                     )
+                    !BlockedNumberContract.isBlocked(context, number)
                 }
-            }
+            } else false
         } catch (_: Exception) {
-            // Best-effort.
+            false
         }
     }
 }

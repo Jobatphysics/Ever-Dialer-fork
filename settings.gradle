@@ -31,6 +31,8 @@ include ':hiddenapi'
 include ':LibreGlass'
 include ':LibreGlassShowcase'
 include ':LibreGlassReference1Test'
+include ':liquidglass-local'
+project(':liquidglass-local').projectDir = file('third_party/liquidglass')
 
 // Isolated Reference #2 experiment (upstream core + Compose renderer + test app).
 include ':LibreGlassReference2Core', ':LibreGlassReference2Compose', ':LibreGlassReference2Test'

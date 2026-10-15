@@ -70,6 +70,9 @@ class PreferenceManager(context: Context) {
     fun getAllKeys(): Set<String>                      = prefs.all.keys
     fun notifyChanged()                                { _settingsChanged.value += 1 }
 
+    fun getLiquidGlassTint(): Float = getFloat(KEY_LIQUID_GLASS_TINT, DEFAULT_LIQUID_GLASS_TINT)
+    fun setLiquidGlassTint(value: Float) = setFloat(KEY_LIQUID_GLASS_TINT, value.coerceIn(0f, 0.25f))
+
     /** Returns true if an incoming call from [phoneNumber] should be gated behind biometric. */
     fun shouldGateCallWithBiometric(phoneNumber: String?): Boolean {
         if (!getBoolean(KEY_BIOMETRICS_CALL_LOCK, false)) return false
@@ -710,5 +713,9 @@ class PreferenceManager(context: Context) {
 
         // Confirm placing a call
         const val KEY_CONFIRM_PLACING_CALL         = "confirm_placing_call"
+
+        // Liquid Glass tint intensity (Float 0f..0.25f, default 0.10f)
+        const val KEY_LIQUID_GLASS_TINT            = "liquid_glass_tint"
+        const val DEFAULT_LIQUID_GLASS_TINT        = 0.10f
     }
 }

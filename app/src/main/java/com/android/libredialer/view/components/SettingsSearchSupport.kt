@@ -214,6 +214,9 @@ val globalSettingsSearchEntries: List<GlobalSettingsSearchEntry> by lazy {
         GlobalSettingsSearchEntry("Themes", "Choose LibreDialer's appearance", "interface", Icons.Outlined.Palette, GsColorPurple) {
             NewUiNavigationRequests.openSettings(NewUiSettingsDestination.ColorsAndTheme, "theme_mode")
         },
+        GlobalSettingsSearchEntry("Liquid Glass Tint", "Adjust the intensity of the neutral grey tint applied to Liquid Glass surfaces", "interface", Icons.Outlined.Palette, GsColorPurple) {
+            NewUiNavigationRequests.openSettings(NewUiSettingsDestination.ColorsAndTheme, "liquid_glass_tint")
+        },
         GlobalSettingsSearchEntry("Authentication", "App lock, biometrics, and PIN/password", "authentication", Icons.Default.Fingerprint, Color(0xFF6750A4)) {
             NewUiNavigationRequests.openSettings(NewUiSettingsDestination.BiometricAndAppLock, "auth_method")
         },
